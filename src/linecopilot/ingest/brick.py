@@ -106,10 +106,14 @@ def _read(path: Path, mapping: dict[str, str]):
         if header is None:
             raise ValueError(f"{path}: empty file")
         names = [h.strip() for h in header]
-        keep = [(i, mapping[n]) for i, n in enumerate(names) if n]
         unknown = [n for n in names if n and n not in mapping]
         if unknown:
             raise ValueError(f"{path}: unexpected columns {unknown}")
+        named = [n for n in names if n]
+        dupes = sorted({n for n in named if named.count(n) > 1})
+        if dupes:
+            raise ValueError(f"{path}: duplicate columns {dupes}")
+        keep = [(i, mapping[n]) for i, n in enumerate(names) if n]
         missing = set(mapping.values()) - {k for _, k in keep}
         if missing:
             raise ValueError(f"{path}: missing columns {sorted(missing)}")
