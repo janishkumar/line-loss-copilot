@@ -116,11 +116,35 @@ def test_scope_hint_reaches_mcp_and_chat_schemas():
 
 def test_month_hint_reaches_mcp_and_chat_schemas():
     from linecopilot.chat.loop import tool_schemas
-    from linecopilot.tools.common import MONTH_HINT
+    from linecopilot.tools.common import MONTH_GROUP_HINT, MONTH_WINDOW_HINT
 
-    assert "group='month'" in MONTH_HINT
+    assert "group='month'" in MONTH_GROUP_HINT and "group" not in MONTH_WINDOW_HINT
     mcp_tools = {t.name: t for t in run(UNREACHABLE, lambda c: c.list_tools()).tools}
     chat = {s["function"]["name"]: s["function"] for s in tool_schemas()}
-    for name in ("get_oee", "reliability", "loss_pareto", "breakdown", "repeat_failures"):
-        assert MONTH_HINT in mcp_tools[name].description, name
-        assert MONTH_HINT in chat[name]["description"], name
+    expected = {
+        "get_oee": MONTH_GROUP_HINT,
+        "reliability": MONTH_GROUP_HINT,
+        "loss_pareto": MONTH_WINDOW_HINT,
+        "breakdown": MONTH_WINDOW_HINT,
+        "repeat_failures": MONTH_WINDOW_HINT,
+    }
+    for name, hint in expected.items():
+        assert hint in mcp_tools[name].description, name
+        assert hint in chat[name]["description"], name
+
+
+def test_hints_only_name_fields_the_tool_has():
+    import re
+
+    from linecopilot.tools.common import MONTH_GROUP_HINT, MONTH_WINDOW_HINT, SCOPE_HINT
+
+    for name, spec in TOOLS.items():
+        fields = set(spec.args_model.model_fields)
+        for hint in (SCOPE_HINT, MONTH_GROUP_HINT, MONTH_WINDOW_HINT):
+            if hint not in spec.description:
+                continue
+            named = set(re.findall(r"\b([a-z_]+)\s*=", hint)) | set(
+                re.findall(r"\b(\w+_id)\b", hint)
+            )
+            assert named, hint
+            assert named <= fields, (name, named - fields)

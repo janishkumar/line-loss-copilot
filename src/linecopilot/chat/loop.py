@@ -53,6 +53,9 @@ class ChatResult(BaseModel):
     tool_calls: list[ToolCall]
     model: str
     rounds: int
+    stop_reason: str = Field(
+        default="answer", description="answer, rounds, budget or malformed: why the loop ended"
+    )
 
 
 # ---- tool schemas ----------------------------------------------------------------------
@@ -247,6 +250,7 @@ def run_chat(
     supported: set[int] = set()
     calls: list[ToolCall] = []
     answer: str | None = None
+    stop = "answer"
     rounds = 0
     started = clock()
     while answer is None:
@@ -255,12 +259,14 @@ def run_chat(
                 f"The tool loop stopped after {max_rounds} rounds without a final answer. "
                 "Try a narrower question."
             )
+            stop = "rounds"
             break
         if rounds and clock() - started > time_budget_s:
             answer = (
                 f"The tool loop stopped after {int(time_budget_s)} s without a final answer. "
                 "Try a narrower question."
             )
+            stop = "budget"
             break
         rounds += 1
         reply = client.chat(convo, tools)
@@ -268,6 +274,7 @@ def run_chat(
         requested = msg.get("tool_calls") if isinstance(msg, dict) else None
         if not isinstance(msg, dict) or not isinstance(requested, list | None):
             answer = "The model returned a malformed reply."
+            stop = "malformed"
             break
         content = str(msg.get("content") or "")
         requested = (requested or []) if tools_enabled else []
@@ -295,4 +302,5 @@ def run_chat(
         tool_calls=calls,
         model=client.model,
         rounds=rounds,
+        stop_reason=stop,
     )

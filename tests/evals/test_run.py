@@ -6,7 +6,7 @@ import pytest
 
 from evals import run
 from evals.questions import build_questions
-from evals.runners import Reply
+from evals.runners import ANSWER_SUFFIX, Reply, build_prompt
 from evals.truth import NOT_AVAILABLE, Truth
 
 
@@ -21,7 +21,9 @@ class ScriptedRunner:
         return {"model": self.model, "model_digest": "d1", "ollama_version": "0.0"}
 
     def ask(self, prompt: str) -> Reply:
-        return Reply(answer=self.answers.get(prompt, "no idea"), latency_s=1.5)
+        self.prompts = [*getattr(self, "prompts", []), prompt]
+        key = prompt.removesuffix("\n\n" + ANSWER_SUFFIX)
+        return Reply(answer=self.answers.get(key, "no idea"), latency_s=1.5)
 
 
 def test_evaluate_summary_and_markdown(monkeypatch, tmp_path):
@@ -46,6 +48,7 @@ def test_evaluate_summary_and_markdown(monkeypatch, tmp_path):
         }
     )
     records = run.evaluate(runner, None, pick)
+    assert runner.prompts == [build_prompt(q.text) for q in pick]
     assert [r["correct"] for r in records] == [True, False, True]
     assert records[0]["supported_ids"] == [1] and records[0]["unsupported_ids"] == [9]
     s = run.summarize(records)
@@ -117,6 +120,7 @@ def test_before_after_run_and_markdown(monkeypatch):
     )
     runner = ScriptedRunner({run.before_after.PROMPT: answer})
     ba = run.run_before_after(runner, None)
+    assert runner.prompts == [run.before_after.PROMPT]  # no ANSWER suffix here
     sc = ba["score"]
     assert sc["facts_found"] == 1 and sc["missed"] == ["reason:FAILURE"]
     assert sc["wrong_claims"] == 1 and sc["neutral_claims"] == 1
@@ -159,3 +163,30 @@ def test_errors_are_recorded_per_question(monkeypatch):
     assert not any(r["correct"] for r in records)
     s = run.summarize(records)
     assert s["errors"] == 2 and s["format_ok"] == 0
+
+
+class Stopped(ScriptedRunner):
+    def ask(self, prompt):
+        return Reply(answer="x\nANSWER: 0.5", latency_s=1.0, error="budget")
+
+
+def test_loop_cutoff_counts_wrong_and_is_reported(monkeypatch):
+    q = build_questions()[0]
+    monkeypatch.setattr(run, "compute", lambda conn, fn, params: Truth(0.005, frozenset()))
+    rec = run.evaluate_one(Stopped({}), None, q)
+    assert rec["error"] == "budget" and rec["correct"] is False
+    s = run.summarize([rec])
+    assert s["stopped_on_budget"] == 1 and s["stopped_on_rounds"] == 0
+
+
+def test_before_after_truth_failure_is_recorded(monkeypatch):
+    def boom(conn):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(run, "before_after_facts", boom)
+    ba = run.run_before_after(ScriptedRunner({}), None)
+    assert ba["error"].startswith("truth: RuntimeError") and ba["score"] is None
+    md = run.before_after_markdown(
+        {"meta": {"runner": "r", "model": "m", "date": "d"}, "before_after": ba}
+    )
+    assert "Not scored" in md

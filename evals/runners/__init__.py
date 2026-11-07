@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-# Added to every question's user message by every runner (tools and no-tools, Ollama and
-# Claude), so all of them are asked for the same last line. The system prompt keeps its rule.
+# Added to every question's user message by evals.run (the same text for every runner, tools
+# and no-tools, Ollama and Claude), so all are asked for the same last line. Not added to the
+# before/after prompt, which asks for its own summary line. The system prompt keeps its rule.
 ANSWER_SUFFIX = (
     "Finish with one final line in the form `ANSWER: <value>` (or `ANSWER: NOT_AVAILABLE`)."
 )

@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 
 from linecopilot.tools.assets import ListAssetsArgs, list_assets
-from linecopilot.tools.common import MONTH_HINT, SCOPE_HINT
+from linecopilot.tools.common import MONTH_GROUP_HINT, MONTH_WINDOW_HINT, SCOPE_HINT
 from linecopilot.tools.envelope import Result
 from linecopilot.tools.events import GetEventsArgs, get_events
 from linecopilot.tools.evidence import (
@@ -73,7 +73,7 @@ register(
         + " "
         + SCOPE_HINT
         + " "
-        + MONTH_HINT,
+        + MONTH_GROUP_HINT,
     )
 )
 register(
@@ -101,7 +101,7 @@ register(
         "Rank lost stop time by a category (reason, reason_detail, alarm, location, product "
         "or shift) for the brick line or a PIADE machine, with each category's share, "
         "cumulative share and cited stop events. Brick: reason, reason_detail, location, "
-        "product, shift. PIADE: reason, alarm, shift." + " " + SCOPE_HINT + " " + MONTH_HINT,
+        "product, shift. PIADE: reason, alarm, shift." + " " + SCOPE_HINT + " " + MONTH_WINDOW_HINT,
     )
 )
 register(
@@ -114,7 +114,7 @@ register(
         + " "
         + SCOPE_HINT
         + " "
-        + MONTH_HINT,
+        + MONTH_WINDOW_HINT,
     )
 )
 register(
@@ -128,7 +128,7 @@ register(
         + " "
         + SCOPE_HINT
         + " "
-        + MONTH_HINT,
+        + MONTH_WINDOW_HINT,
     )
 )
 register(
@@ -142,7 +142,7 @@ register(
         + " "
         + SCOPE_HINT
         + " "
-        + MONTH_HINT,
+        + MONTH_GROUP_HINT,
     )
 )
 register(

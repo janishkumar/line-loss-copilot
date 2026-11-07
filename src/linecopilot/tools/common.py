@@ -87,9 +87,13 @@ SCOPE_HINT = (
     "Brick line: pass line_id='brick' and no machine_id. PIADE machines s_1..s_5: pass "
     "machine_id only. Dates: ISO; end is exclusive."
 )
-MONTH_HINT = (
+MONTH_GROUP_HINT = (
     "For a monthly figure use group='month' (or a whole-month window), not an average of "
     "shift or day rows."
+)
+MONTH_WINDOW_HINT = (
+    "For a monthly figure use a whole-month window (start = first day, end = first day of "
+    "next month), not an average of shift or day rows."
 )
 LINE_ID_DESC = "'brick' for the brick line (then no machine_id); leave empty for PIADE machines"
 MACHINE_ID_DESC = "PIADE machine s_1..s_5: pass machine_id only (no line_id); empty for brick"

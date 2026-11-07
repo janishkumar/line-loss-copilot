@@ -284,6 +284,14 @@ def question_set_hash(qs: list[Question] | None = None) -> str:
     return hashlib.sha256(canonical_json(qs).encode()).hexdigest()
 
 
+UNIT_SCALE = {"ratio": 100.0, "pp": 100.0, "s_as_h": 1 / 3600, "s_as_min": 1 / 60}
+
+
+def in_question_unit(q: Question, expected: float) -> float:
+    """The expected value in the unit the question asks for (%, pp, hours, minutes, count)."""
+    return expected * UNIT_SCALE.get(q.unit or "", 1.0)
+
+
 def check(conn, qs: list[Question]) -> list[str]:
     """Problems with the question set on this database: a truth that cannot be computed, a
     top reason within TOP_MARGIN of the runner-up, or an answerable question with zero
@@ -304,6 +312,8 @@ def check(conn, qs: list[Question]) -> list[str]:
                 problems.append(f"{q.id}: top reason nearly ties ({lost:.0f} s vs {runner:.0f} s)")
         if q.kind != "na" and not t.evidence_event_ids:
             problems.append(f"{q.id}: no evidence events")
+        if q.kind == "numeric" and 1900 <= abs(in_question_unit(q, float(t.expected))) < 2100:
+            problems.append(f"{q.id}: answer looks like a year, which scoring treats as noise")
     return problems
 
 

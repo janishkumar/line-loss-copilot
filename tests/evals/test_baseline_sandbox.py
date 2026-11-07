@@ -87,7 +87,9 @@ def test_parse_claude_output():
 
 
 def test_ollama_notools_sends_empty_tools():
-    assert config(False) == {"tools_enabled": False}
+    # the baseline differs from the tools run only in tools_enabled
+    assert config(False) == {**config(True), "tools_enabled": False}
+    assert config(False)["tools_enabled"] is False
     bodies = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -111,11 +113,15 @@ def test_ollama_notools_sends_empty_tools():
         "ollama_version": "0.0.1",
         "timeout_s": 180.0,
         "retries_on_timeout": 1,
+        "time_budget_s": 1800.0,
+        "max_rounds": 6,
+        "ollama_options": {"temperature": 0, "seed": 0, "num_ctx": 16384, "num_predict": 1024},
     }
 
     with_tools = OllamaRunner(conn=None, client=client, tools_enabled=True)
     with_tools.ask("q")
     assert {t["function"]["name"] for t in bodies[1]["tools"]} == set(TOOLS)
+    assert bodies[0]["options"]["num_predict"] == 1024
 
 
 def test_claude_model_id_is_the_biggest_writer():
@@ -163,14 +169,12 @@ def test_claude_runner_cleans_up(monkeypatch, tmp_path):
     assert made and not any(d.exists() for d in made)
 
 
-def test_every_runner_asks_for_the_answer_line(monkeypatch):
-    from evals.runners import ANSWER_SUFFIX, build_prompt
-
-    assert build_prompt("Q?").endswith(ANSWER_SUFFIX) and build_prompt("Q?").startswith("Q?")
+def test_runners_send_the_prompt_unchanged():
+    # The ANSWER suffix is added once, by evals.run, for every runner (test_run checks it).
     work = tempfile.mkdtemp()
     for tools in (True, False):
         inv = cr.ClaudeRunner("postgresql://x", tools_enabled=tools).invocation("Q?", work)
-        assert inv.stdin == build_prompt("Q?")
+        assert inv.stdin == "Q?"
     bodies = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -180,7 +184,35 @@ def test_every_runner_asks_for_the_answer_line(monkeypatch):
     client = OllamaClient("http://ollama.test", "fake:1b", transport=httpx.MockTransport(handler))
     for tools in (True, False):
         OllamaRunner(conn=None, client=client, tools_enabled=tools).ask("Q?")
-    assert [b["messages"][-1]["content"] for b in bodies] == [build_prompt("Q?")] * 2
+    assert [b["messages"][-1]["content"] for b in bodies] == ["Q?"] * 2
+
+
+def test_ollama_eval_budget_and_stop_reasons(monkeypatch):
+    from evals.runners import ollama as orun
+    from linecopilot.chat.loop import ChatResult
+
+    assert config(True)["time_budget_s"] == 1800 and config(True, 50)["time_budget_s"] == 50
+    seen = {}
+
+    def fake_run_chat(conn, client, messages, **kw):
+        seen.update(kw)
+        return ChatResult(
+            answer="The tool loop stopped after 9 s without a final answer.",
+            citations=[],
+            cited_event_ids=[],
+            unsupported_cited_ids=[],
+            tool_calls=[],
+            model="m",
+            rounds=2,
+            stop_reason="budget",
+        )
+
+    monkeypatch.setattr(orun, "run_chat", fake_run_chat)
+    client = OllamaClient("http://ollama.test", "m")
+    runner = OllamaRunner(conn=None, client=client, tools_enabled=True, budget_s=9)
+    reply = runner.ask("Q?")
+    assert seen["time_budget_s"] == 9 and seen["max_rounds"] == orun.MAX_ROUNDS
+    assert reply.error == "budget"
 
 
 def test_ollama_retries_once_on_timeout():

@@ -126,3 +126,26 @@ def test_score_dates():
     assert not score("ANSWER: 2025-10-09", "label", "2025-10-08", "date").correct
     assert not score("ANSWER: 2025-10-08 or 2025-10-09", "label", "2025-10-08", "date").correct
     assert dates("on the 3rd March 2026") == ["2026-03-03"]
+
+
+def test_pp_and_ratio_preference():
+    # pp question: pp/points first, then a signed or bare number, then %
+    assert num("ANSWER: +3.0 (60.0% to 63.0%)", 0.03, "pp", RATIO)
+    assert num("ANSWER: from 60.0% to 63.0%, up 3.0 pp", 0.03, "pp", RATIO)
+    assert num("ANSWER: rose 2 pp to 70.2%", 0.02, "pp", RATIO)
+    assert num("ANSWER: 3.0%", 0.03, "pp", RATIO)  # only a % given: read as points
+    # ratio question: % first, then pp
+    assert num("ANSWER: rose 2 pp to 70.2%", 0.702, "ratio", RATIO)
+    assert num("ANSWER: from 60.0% to 63.0%, up 3.0 pp", 0.60, "ratio", RATIO)
+
+
+def test_years_are_noise():
+    assert num("ANSWER: In 2021 the OEE was 52.6%", 0.526, "ratio", RATIO)
+    assert num("ANSWER: 1483 stops in 2020", 1483, "count")
+    assert numbers("in 2021") == []
+
+
+def test_explicit_na_token_wins():
+    assert score("ANSWER: NOT_AVAILABLE (0 rows in 2021-02, 0%)", "na", "NOT_AVAILABLE").correct
+    assert score("ANSWER: not_available 0", "na", "NOT_AVAILABLE").correct
+    assert not score("ANSWER: not available (0%)", "na", "NOT_AVAILABLE").correct

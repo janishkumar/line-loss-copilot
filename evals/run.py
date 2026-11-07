@@ -23,13 +23,15 @@ from typing import Any
 
 from evals import before_after, citations
 from evals.questions import Question, build_questions, question_set_hash
-from evals.runners import Reply
+from evals.runners import Reply, build_prompt
 from evals.score import answer_line, score
 from evals.truth import NOT_AVAILABLE, before_after_facts, compute
 
 RESULTS = Path(__file__).resolve().parent / "results"
 RUNNERS = ("ollama", "ollama-notools", "claude", "claude-notools")
 DEFAULT_TIMEOUT_S = 600.0  # per model call (Ollama) or per question (Claude)
+LOOP_STOPS = ("budget", "rounds")
+DEFAULT_BUDGET_S = 1800.0  # whole Ollama tool loop per question
 
 
 def slug(model: str) -> str:
@@ -98,7 +100,7 @@ def evaluate_one(runner: Any, conn: Any, q: Question) -> dict[str, Any]:
         rec["expected_display"] = display(q, truth.expected)
         rec["evidence_event_count"] = len(truth.evidence_event_ids)
         stage = "runner"
-        reply = runner.ask(q.text)
+        reply = runner.ask(build_prompt(q.text))
         rec.update(
             answer=reply.answer,
             tool_calls=reply.tool_calls,
@@ -121,7 +123,7 @@ def evaluate_one(runner: Any, conn: Any, q: Question) -> dict[str, Any]:
         rec.update(
             extracted=s.extracted,
             parsed_value=s.value,
-            correct=s.correct,
+            correct=s.correct and rec["error"] not in LOOP_STOPS,
             cited_ids=cc.cited,
             supported_ids=cc.supported,
             unsupported_ids=cc.unsupported,
@@ -178,6 +180,9 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
         "citations_answerable": cc(answerable),
         "format_ok": (sum(r["format_ok"] for r in records) / len(records)) if records else None,
         "errors": sum(1 for r in records if r["error"]),
+        # loop cut-offs count as incorrect but are reported apart from other errors
+        "stopped_on_budget": sum(1 for r in records if r["error"] == "budget"),
+        "stopped_on_rounds": sum(1 for r in records if r["error"] == "rounds"),
         "median_latency_s": sorted(r["latency_s"] for r in records)[len(records) // 2]
         if records
         else None,
@@ -185,12 +190,31 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def run_before_after(runner: Any, conn: Any) -> dict[str, Any]:
-    truth = before_after_facts(conn)
+    """The before/after prompt (sent as is, without the ANSWER suffix). A failure in the
+    answer key, the runner or scoring is recorded, never fatal."""
+    try:
+        truth = before_after_facts(conn)
+    except Exception as e:
+        return {
+            "prompt": before_after.PROMPT,
+            "answer": "",
+            "latency_s": 0.0,
+            "tool_calls": [],
+            "error": f"truth: {type(e).__name__}: {e}",
+            "retries": 0,
+            "truth": None,
+            "score": None,
+            "caveats": before_after.CAVEATS,
+        }
     try:
         reply = runner.ask(before_after.PROMPT)
     except Exception as e:  # recorded, never fatal
         reply = Reply(answer="", latency_s=0.0, error=f"runner: {type(e).__name__}: {e}")
-    claims = before_after.parse_claims(reply.answer)
+    try:
+        score = before_after.score_claims(before_after.parse_claims(reply.answer), truth)
+    except Exception as e:
+        score = None
+        reply.error = f"scoring: {type(e).__name__}: {e}"
     return {
         "prompt": before_after.PROMPT,
         "answer": reply.answer,
@@ -199,7 +223,7 @@ def run_before_after(runner: Any, conn: Any) -> dict[str, Any]:
         "error": reply.error,
         "retries": reply.retries,
         "truth": truth,
-        "score": before_after.score_claims(claims, truth),
+        "score": score,
         "caveats": before_after.CAVEATS,
     }
 
@@ -234,7 +258,9 @@ def answers_markdown(doc: dict[str, Any]) -> str:
         f"| Answers fully supported by their citations | {_pct(c['share_fully_supported'])} |",
         f"| Answers with no citations | {_pct(c['share_no_citations'])} |",
         f"| Answers with a parseable ANSWER line (format_ok) | {_pct(s['format_ok'])} |",
-        f"| Errors (answer key, runner or scoring) | {s['errors']} |",
+        f"| Errors (answer key, runner, scoring or loop cut-off) | {s['errors']} |",
+        f"| Stopped on time budget / round limit (counted wrong) | "
+        f"{s['stopped_on_budget']} / {s['stopped_on_rounds']} |",
         "",
         "| Template | Correct |",
         "|---|---|",
@@ -257,6 +283,11 @@ def answers_markdown(doc: dict[str, Any]) -> str:
 def before_after_markdown(doc: dict[str, Any]) -> str:
     m, ba = doc["meta"], doc["before_after"]
     sc = ba["score"]
+    if sc is None or ba["truth"] is None:
+        return (
+            f"# Before/after eval: {m['runner']} / {m['model']}\n\n- Date (UTC): {m['date']}\n"
+            f"- Not scored: {ba['error']}\n"
+        )
     lines = [
         f"# Before/after eval: {m['runner']} / {m['model']}",
         "",
@@ -281,7 +312,12 @@ def before_after_markdown(doc: dict[str, Any]) -> str:
 
 
 def make_runner(
-    name: str, model: str | None, conn: Any, db_url: str, timeout_s: float = DEFAULT_TIMEOUT_S
+    name: str,
+    model: str | None,
+    conn: Any,
+    db_url: str,
+    timeout_s: float = DEFAULT_TIMEOUT_S,
+    budget_s: float = DEFAULT_BUDGET_S,
 ) -> Any:
     if name.startswith("ollama"):
         from evals.runners.ollama import OllamaRunner
@@ -290,7 +326,7 @@ def make_runner(
 
         st = get_settings()
         client = OllamaClient(st.ollama_url, model or st.chat_model, timeout=timeout_s)
-        return OllamaRunner(conn, client, tools_enabled=name == "ollama")
+        return OllamaRunner(conn, client, tools_enabled=name == "ollama", budget_s=budget_s)
     from evals.runners.claude import ClaudeRunner
 
     return ClaudeRunner(db_url, tools_enabled=name == "claude", model=model, timeout_s=timeout_s)
@@ -317,6 +353,12 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_TIMEOUT_S,
         help="seconds per Ollama call (one retry on timeout) or per Claude question",
     )
+    ap.add_argument(
+        "--budget",
+        type=float,
+        default=DEFAULT_BUDGET_S,
+        help="seconds for the whole Ollama tool loop of one question",
+    )
     args = ap.parse_args(argv)
 
     import psycopg
@@ -329,7 +371,7 @@ def main(argv: list[str] | None = None) -> int:
     partial = bool(args.limit or args.ids)
     out_dir = RESULTS / "partial" if partial else RESULTS
     with psycopg.connect(db_url, autocommit=True) as conn:
-        runner = make_runner(args.runner, args.model, conn, db_url, args.timeout)
+        runner = make_runner(args.runner, args.model, conn, db_url, args.timeout, args.budget)
         meta = {
             "runner": runner.name,
             **runner.meta(),

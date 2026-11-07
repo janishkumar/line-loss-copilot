@@ -435,3 +435,21 @@ def test_split_answer_uses_the_last_line_only(text, body, short):
     from linecopilot.chat.prompt import split_answer
 
     assert split_answer(text) == (body, short)
+
+
+def test_num_predict_caps_each_reply():
+    from linecopilot.chat.ollama import OPTIONS
+
+    assert OPTIONS["num_predict"] == 1024
+    fake = FakeOllama(say("ANSWER: 1"))
+    run_chat(None, fake.client(), [{"role": "user", "content": "q"}], tools_enabled=False)
+    assert fake.requests[0]["options"]["num_predict"] == 1024
+
+
+def test_stop_reason():
+    fake = FakeOllama(say("x\nANSWER: 1"))
+    res = run_chat(None, fake.client(), [{"role": "user", "content": "q"}], tools_enabled=False)
+    assert res.stop_reason == "answer"
+    fake = FakeOllama(*[call(("list_assets", {}))] * 3)
+    res = run_chat(None, fake.client(), [{"role": "user", "content": "q"}], max_rounds=2)
+    assert res.stop_reason == "rounds"

@@ -6,11 +6,13 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from evals.runners import Reply, build_prompt
+from evals.runners import Reply
 from linecopilot.chat.loop import run_chat
-from linecopilot.chat.ollama import OllamaClient, OllamaError, OllamaTimeout
+from linecopilot.chat.ollama import OPTIONS, OllamaClient, OllamaError, OllamaTimeout
 
 RETRIES_ON_TIMEOUT = 1
+EVAL_BUDGET_S = 1800.0  # whole tool loop per question; the web chat uses its own 400 s
+MAX_ROUNDS = 6
 
 
 class RetryingClient:
@@ -37,9 +39,10 @@ class RetryingClient:
         raise AssertionError("unreachable")
 
 
-def config(tools_enabled: bool) -> dict[str, Any]:
-    """What the runner passes to run_chat; the no-tools baseline differs only here."""
-    return {"tools_enabled": tools_enabled}
+def config(tools_enabled: bool, budget_s: float = EVAL_BUDGET_S) -> dict[str, Any]:
+    """What the runner passes to run_chat; the no-tools baseline differs only in
+    tools_enabled."""
+    return {"tools_enabled": tools_enabled, "max_rounds": MAX_ROUNDS, "time_budget_s": budget_s}
 
 
 class OllamaRunner:
@@ -49,7 +52,9 @@ class OllamaRunner:
         client: OllamaClient,
         tools_enabled: bool,
         retries: int = RETRIES_ON_TIMEOUT,
+        budget_s: float = EVAL_BUDGET_S,
     ):
+        self.budget_s = budget_s
         self.conn = conn
         self.client = client
         self.retries = retries
@@ -69,6 +74,9 @@ class OllamaRunner:
             "ollama_version": None,
             "timeout_s": self.client.timeout,
             "retries_on_timeout": self.retries,
+            "time_budget_s": self.budget_s,
+            "max_rounds": MAX_ROUNDS,
+            "ollama_options": dict(OPTIONS),
         }
         try:
             out["ollama_version"] = self.client.version()
@@ -86,8 +94,8 @@ class OllamaRunner:
             res = run_chat(
                 self.conn,
                 client,  # type: ignore[arg-type]
-                [{"role": "user", "content": build_prompt(prompt)}],
-                **config(self.tools_enabled),
+                [{"role": "user", "content": prompt}],
+                **config(self.tools_enabled, self.budget_s),
             )
         except OllamaError as e:
             self.retries_total += client.retry_count
@@ -105,4 +113,6 @@ class OllamaRunner:
             tool_calls=[tc.model_dump(mode="json") for tc in res.tool_calls],
             rounds=res.rounds,
             retries=client.retry_count,
+            # a loop cut off by the budget or round limit is shown apart from wrong answers
+            error=res.stop_reason if res.stop_reason in ("budget", "rounds") else None,
         )

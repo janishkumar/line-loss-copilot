@@ -18,6 +18,7 @@ from typing import Any
 from linecopilot.chat.prompt import split_answer
 
 NOT_AVAILABLE = "NOT_AVAILABLE"
+NA_TOKEN = re.compile(r"\bNOT_AVAILABLE\b", re.IGNORECASE)
 # Anchored "no data" phrases. Bare words such as "unknown" or "unavailable" are not enough:
 # they also turn up in answers that go on to give a number.
 NA_PATTERNS = re.compile(
@@ -50,9 +51,10 @@ MONTHS = (
     "|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec"
 )
 # Things that look like numbers but are not the answer: machine ids, alarm codes, ISO dates,
-# day + month + year, month + year, and event citations.
+# day + month + year, month + year, bare years (19xx, 20xx) and event citations. Bare years
+# mean no answer may fall in 1900-2099 (questions.check flags count questions that would).
 NOISE = re.compile(
-    rf"\bs_\d+\b|\bA_\d+\b|\b\d{{4}}-\d{{2}}(?:-\d{{2}})?\b"
+    rf"\bs_\d+\b|\bA_\d+\b|\b\d{{4}}-\d{{2}}(?:-\d{{2}})?\b|\b(?:19|20)\d{{2}}\b(?![.,]\d)"
     rf"|\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:{MONTHS})\.?,?\s+\d{{4}}\b"
     rf"|\b(?:{MONTHS})\.?\s+(?:\d{{1,2}}(?:st|nd|rd|th)?,?\s+)?\d{{4}}\b|\[event:[^\]]*\]",
     re.IGNORECASE,
@@ -94,17 +96,35 @@ def _close(a: float, e: float, tol: dict[str, float]) -> bool:
     return "rel" in tol and abs(a - e) <= tol["rel"] * abs(e) + 1e-12
 
 
+def _is_pp(unit: str | None) -> bool:
+    return bool(unit) and (unit in ("pp", "point", "points") or unit.startswith("percentage"))
+
+
 def _is_pct(unit: str | None) -> bool:
-    return bool(unit) and (
-        unit == "%" or unit.startswith("percent") or unit in ("pp", "point", "points")
-    )
+    return bool(unit) and (unit == "%" or unit == "percent")
+
+
+def _bare(unit: str | None) -> bool:
+    return not _is_pp(unit) and not _is_pct(unit)
+
+
+def _pick_ratio(nums: list[tuple[float, str | None]], q_unit: str) -> tuple[float, str | None]:
+    """The number that answers a ratio or percentage-point question. pp questions: a pp or
+    points number, then a signed or bare one, then a percentage (the levels such as
+    '60.0% to 63.0%' are context). Ratio questions: a percentage, then pp, then bare."""
+    order = (_is_pp, _bare, _is_pct) if q_unit == "pp" else (_is_pct, _is_pp, _bare)
+    for test in order:
+        for v, u in nums:
+            if test(u):
+                return v, u
+    return nums[0]
 
 
 def _ratio_candidates(v: float, unit: str | None, q_unit: str) -> list[float]:
     """A ratio or percentage-point answer as fractions: '62%' and '3.1 pp' are /100. A bare
     number on a ratio question may be either form, so both readings are tried; on a
     percentage-point question it is read as points only."""
-    if _is_pct(unit) or q_unit == "pp":
+    if not _bare(unit) or q_unit == "pp":
         return [v / 100]
     return [v / 100, v]
 
@@ -114,7 +134,7 @@ def score_numeric(line: str, expected: float, unit: str, tol: dict[str, float]) 
     if not nums:
         return Score(line, None, False)
     if unit in ("ratio", "pp"):
-        v, u = next(((v, u) for v, u in nums if _is_pct(u)), nums[0])
+        v, u = _pick_ratio(nums, unit)
         cands = _ratio_candidates(v, u, unit)
         return Score(line, cands[0], any(_close(c, expected, tol) for c in cands))
     if unit in DEFAULT_UNIT_S:
@@ -178,6 +198,8 @@ def score_label(line: str, expected: str, unit: str | None, alternatives: list[s
 def is_na(text: str) -> bool:
     """A clear "no data" answer: an anchored phrase and no number beside it (after machine
     ids, alarm codes, dates and citations are dropped)."""
+    if NA_TOKEN.search(text):  # the explicit token wins, whatever follows it
+        return True
     return has_na_phrase(text) and not numbers(text)
 
 

@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from evals.runners import Reply, build_prompt
+from evals.runners import Reply
 from linecopilot.chat.prompt import SYSTEM_PROMPT
 from linecopilot.tools.registry import TOOLS
 
@@ -180,7 +180,6 @@ class ClaudeRunner:
         return {"model": self.model, "claude_cli_version": v, "timeout_s": self.timeout_s}
 
     def invocation(self, prompt: str, workdir: str) -> Invocation:
-        prompt = build_prompt(prompt)
         if not self.tools_enabled:
             return notools_invocation(prompt, workdir, self.model_arg)
         path = str(Path(workdir).parent / f"{Path(workdir).name}-mcp.json")
@@ -220,7 +219,9 @@ class ClaudeRunner:
             self.model = model_id
         self.models_seen.update(extra.get("models", []))
         err = None
-        if proc.returncode != 0 or extra.get("is_error"):
+        if extra.get("subtype") == "error_max_turns":
+            err = "rounds"
+        elif proc.returncode != 0 or extra.get("is_error"):
             err = f"claude exited {proc.returncode}: {(proc.stderr or proc.stdout)[:300]}"
         return Reply(
             answer=answer,

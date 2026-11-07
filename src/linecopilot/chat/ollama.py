@@ -7,8 +7,9 @@ from typing import Any
 import httpx
 
 # temperature 0 and a fixed seed make answers repeatable for evals; num_ctx is raised from
-# Ollama's small default so tool results are not silently cut off.
-OPTIONS: dict[str, Any] = {"temperature": 0, "seed": 0, "num_ctx": 16384}
+# Ollama's small default so tool results are not silently cut off; num_predict caps one
+# reply's length so a model that rambles cannot hold a call for many minutes.
+OPTIONS: dict[str, Any] = {"temperature": 0, "seed": 0, "num_ctx": 16384, "num_predict": 1024}
 TIMEOUT_S = 180.0
 
 
