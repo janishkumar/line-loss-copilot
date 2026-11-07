@@ -39,9 +39,9 @@ def _prf(tp: int, fp: int, fn: int) -> dict[str, Any]:
     }
 
 
-def _score_set(pred: set, truth: set, decoys: set) -> dict[str, Any]:
-    """Overall: every prediction outside the truth is a false positive. A kind's row counts as
-    false positives only the decoys of that kind, so it shows which cases fool a method."""
+def _score_set(pred: set, truth: set) -> dict[str, Any]:
+    """Every prediction outside the truth is a false positive (the `all` rows). Per-kind rows
+    are built in `score`, where only that kind's decoys count as false positives."""
     return _prf(len(pred & truth), len(pred - truth), len(truth - pred))
 
 
@@ -67,8 +67,8 @@ def score(pred_pairs: set[Pair], truth_rows: list[dict]) -> dict[str, Any]:
         return t, d, {m for m, _ in t}, {m for m, _ in d} - truth_m
 
     out: dict[str, Any] = {
-        "pairs": {"overall": _score_set(pred, truth, decoys), "by_kind": {}},
-        "materials": {"overall": _score_set(pred_m, truth_m, decoy_m), "by_kind": {}},
+        "pairs": {"overall": _score_set(pred, truth), "by_kind": {}},
+        "materials": {"overall": _score_set(pred_m, truth_m), "by_kind": {}},
         "unplanted_flags": len(pred - truth - decoys),
         "decoys_flagged": len(pred & decoys),
         "decoys": len(decoys),
@@ -122,7 +122,10 @@ def markdown(doc: dict[str, Any]) -> str:
         "explosion), so a perfect detector score shows the code implements the definition, "
         "not real-world accuracy. The naive rule flags a material when on hand is below its "
         "total gross requirement and flags every order that uses it. Both are scored on raw "
-        "materials. The data is synthetic; planted shortages test the software.",
+        "materials only; sub-assemblies the naive rule flags are dropped. Decoys are built to be "
+        "cases the naive rule flags, so its precision depends on the number of decoys and its "
+        "recall of 1.00 holds by construction. The data is synthetic; planted shortages test "
+        "the software.",
         "",
         "Per-kind rows: false positives are the decoys of that kind; the `all` row counts every "
         "prediction outside the planted shortages as a false positive.",

@@ -252,5 +252,5 @@ def test_production_engine_agrees_with_independent_netting_and_naive(seed):
     ref = _netting(d)
     assert {(f.material_id, f.order_id) for f in short} == set(ref)
     for f in short:
-        assert f.short_qty == pytest.approx(min(ref[(f.material_id, f.order_id)], f.short_qty))
+        assert f.short_qty == pytest.approx(ref[(f.material_id, f.order_id)])
     assert set(naive_rule(s.orders, s.bom, s.stock)) == _naive(d)

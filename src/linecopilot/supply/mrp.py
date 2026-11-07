@@ -72,12 +72,26 @@ def need_time(due_at: datetime, quantity: float, best_rate_per_hour: float) -> d
     return due_at - timedelta(minutes=math.ceil(quantity / best_rate_per_hour * 60))
 
 
+def no_need_date(
+    orders: Iterable[Order], best_rate: Mapping[str, float]
+) -> list[tuple[Order, str]]:
+    """Orders that cannot be given a need date (their product has no eligible machine, or a
+    rate of zero), with the reason. `explode` leaves them out; they are unschedulable."""
+    return [
+        (o, "no eligible machine" if o.product_id not in best_rate else "rate is zero")
+        for o in orders
+        if not best_rate.get(o.product_id, 0) > 0
+    ]
+
+
 def explode(orders: Iterable[Order], bom: Bom, best_rate: Mapping[str, float]) -> list[Requirement]:
     """Level-one requirements: the direct BOM children of each order's product, at the order's
     need time. `best_rate` is product_id -> rate x availability of its fastest eligible machine
     (packages per hour). Deeper levels are found by `net`, after netting sub-assembly stock."""
     out = []
     for o in orders:
+        if not best_rate.get(o.product_id, 0) > 0:
+            continue  # reported by no_need_date
         need = need_time(o.due_at, o.quantity, best_rate[o.product_id])
         for child, per in bom.get(o.product_id, []):
             out.append(Requirement(o.order_id, child, o.quantity * per, need))
@@ -114,7 +128,9 @@ def net(
         at = reqs[0].need_at
         raw: dict[str, list[float]] = {}  # material -> [qty, shallowest level]
 
-        def need(material: str, qty: float, level: int, oid=oid, at=at, raw=raw) -> None:
+        def need(material: str, qty: float, level: int, path=(), oid=oid, at=at, raw=raw) -> None:
+            if material in path:
+                raise ValueError(f"BOM cycle through {material}: {' > '.join((*path, material))}")
             if qty <= EPS:
                 return
             if kinds.get(material, "raw") == "subassembly":
@@ -123,7 +139,7 @@ def net(
                 if take:
                     allocations[material].append((at, oid, take))
                 for child, per in bom.get(material, []):
-                    need(child, (qty - take) * per, level + 1)
+                    need(child, (qty - take) * per, level + 1, (*path, material))
             else:
                 cur = raw.setdefault(material, [0.0, level])
                 cur[0] += qty
@@ -182,11 +198,13 @@ def naive_rule(
     gross: dict[str, float] = defaultdict(float)
     users: dict[str, set[str]] = defaultdict(set)
 
-    def walk(parent: str, qty: float, oid: str) -> None:
+    def walk(parent: str, qty: float, oid: str, path: tuple[str, ...] = ()) -> None:
+        if parent in path:
+            raise ValueError(f"BOM cycle through {parent}: {' > '.join((*path, parent))}")
         for child, per in bom.get(parent, []):
             gross[child] += qty * per
             users[child].add(oid)
-            walk(child, qty * per, oid)
+            walk(child, qty * per, oid, (*path, parent))
 
     for o in orders:
         walk(o.product_id, o.quantity, o.order_id)

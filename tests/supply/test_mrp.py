@@ -157,3 +157,84 @@ def test_fully_covered_subassembly_adds_no_raw_requirement():
     o1, o2 = order("O1", 100, due_days=3), order("O2", 100, due_days=6)
     s, _ = run([o1, o2], bom, {"SA": 200.0, "RAW": 0.0})
     assert s == []
+
+
+# ---- contention between orders -------------------------------------------------------------
+
+RAWBOM = {"P": [("RAW", 1.0)]}
+
+
+def shorts(s):
+    return {f.order_id: f.short_qty for f in s}
+
+
+def test_partial_cover_across_orders_later_order_short_by_the_remainder():
+    a, b = order("A", 100, due_days=3), order("B", 100, due_days=6)
+    s, _ = run([a, b], RAWBOM, {"RAW": 150.0})
+    assert shorts(s) == {"B": 50.0}
+
+
+def test_earlier_order_that_is_itself_short_still_consumes_its_full_requirement():
+    # A (earlier) needs 150 of 100 and is short 50; it is promised all 100, so B gets none
+    a, b = order("A", 150, due_days=3), order("B", 10, due_days=6)
+    s, _ = run([a, b], RAWBOM, {"RAW": 100.0})
+    assert shorts(s) == {"A": 50.0, "B": 10.0}
+
+
+def test_receipt_between_two_needs_covers_only_the_later_order():
+    a, b = order("A", 100, due_days=3), order("B", 100, due_days=6)
+    mid = T0 + timedelta(days=4)
+    s, _ = run([a, b], RAWBOM, {"RAW": 100.0}, [Receipt("RAW", 100.0, mid)])
+    assert s == []
+    # the same receipt landing after both needs covers neither
+    late = T0 + timedelta(days=9)
+    s, _ = run([a, b], RAWBOM, {"RAW": 100.0}, [Receipt("RAW", 100.0, late)])
+    assert shorts(s) == {"B": 100.0}
+    # a receipt before A's need is available to both
+    s, _ = run([a, b], RAWBOM, {"RAW": 0.0}, [Receipt("RAW", 200.0, T0 + timedelta(days=1))])
+    assert s == []
+
+
+def test_subassembly_stock_partly_covering_across_two_orders():
+    bom = {"P": [("SA", 1.0)], "SA": [("RAW", 2.0)]}
+    a, b = order("A", 100, due_days=3), order("B", 100, due_days=6)
+    # SA stock 150: A fully covered (no raw), B gets 50 of 100 and needs 50 SA = 100 raw
+    s, _ = run([a, b], bom, {"SA": 150.0, "RAW": 60.0})
+    assert shorts(s) == {"B": 40.0}
+    assert s[0].level == 2
+
+
+def test_receipt_exactly_at_need_time_with_two_competing_orders():
+    a, b = order("A", 100, due_days=5), order("B", 100, due_days=5)
+    need = explode([a], RAWBOM, {"P": 100.0})[0].need_at
+    # one receipt of 100 on the need time: A (first by id) takes it, B is short
+    s, _ = run([a, b], RAWBOM, {"RAW": 0.0}, [Receipt("RAW", 100.0, need)])
+    assert shorts(s) == {"B": 100.0}
+    s, _ = run([a, b], RAWBOM, {"RAW": 0.0}, [Receipt("RAW", 200.0, need)])
+    assert s == []
+
+
+# ---- hazards ---------------------------------------------------------------------------------
+
+
+def test_product_without_an_eligible_machine_is_reported_not_a_crash():
+    from linecopilot.supply.mrp import no_need_date
+
+    o1, o2 = order("O1", 100), order("O2", 100, product="GHOST")
+    bom = {"P": [("RAW", 1.0)], "GHOST": [("RAW", 1.0)]}
+    rates = {"P": 100.0}
+    assert [r.order_id for r in explode([o1, o2], bom, rates)] == ["O1"]
+    assert [(o.order_id, why) for o, why in no_need_date([o1, o2], rates)] == [
+        ("O2", "no eligible machine")
+    ]
+    assert [o.order_id for o, _ in no_need_date([o1], {"P": 0.0})] == ["O1"]
+
+
+def test_bom_cycle_raises_a_clear_error():
+    import pytest
+
+    bom = {"P": [("SA", 1.0)], "SA": [("CARTON", 1.0)], "CARTON": [("SA", 1.0)]}
+    with pytest.raises(ValueError, match="cycle"):
+        run([order("O1", 10)], bom, {})
+    with pytest.raises(ValueError, match="cycle"):
+        naive_rule([order("O1", 10)], bom, {})

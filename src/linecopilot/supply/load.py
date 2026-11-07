@@ -23,8 +23,10 @@ def load_supply(conn: psycopg.Connection) -> SupplyInput:
         )
     }
     best_by_family = {
-        fam: max(eff[m] for m in machines if m in eff) for fam, machines in eligible.items()
-    }
+        fam: max(eff[m] for m in machines if m in eff)
+        for fam, machines in eligible.items()
+        if any(m in eff for m in machines)
+    }  # a family with no rated machine is left out: its orders have no need date
     bom: dict[str, list[tuple[str, float]]] = defaultdict(list)
     for parent, child, per in conn.execute(
         "SELECT parent_id, child_id, qty_per FROM synthetic.bom ORDER BY parent_id, child_id"

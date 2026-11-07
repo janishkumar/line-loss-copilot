@@ -88,5 +88,5 @@ def test_markdown_states_shared_definition_and_provenance():
     }  # fmt: skip
     md = ev.markdown(doc)
     assert "share the netting definition" in md
-    assert "generation 3" in md and "seed 7" in md and "abcdefabcdef"[:0] == ""
+    assert "generation 3" in md and "seed 7" in md
     assert "synthetic" in md.lower()

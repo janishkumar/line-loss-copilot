@@ -504,7 +504,12 @@ def shortages_section(results: Path) -> str:
         "flags a material when on hand is below its total gross requirement and flags every "
         "order that uses it. The detector and the generator share the netting definition, so "
         "a perfect detector score shows the code implements the definition, not real-world "
-        "accuracy. Planted shortages test the software; they are not real-world results.",
+        "accuracy. Decoys are built to be cases the naive rule flags, so its precision "
+        "depends on the number of decoys the generator plants (and on regular stock sitting "
+        "well above demand), and its recall of 1.00 holds by construction: gross requirement "
+        "ignoring receipts is never below the net requirement. Both methods are scored on raw "
+        "materials only; sub-assemblies the naive rule flags are dropped. Planted shortages "
+        "test the software; they are not real-world results.",
         "",
         "| Method | Kind | (material, order) precision | (material, order) recall "
         "| Material precision | Material recall |",
