@@ -231,6 +231,20 @@ def _tool_payload(conn: Any, tc: Any) -> tuple[str, dict[str, Any] | str, dict[s
     return name, args, trim_result(res), res
 
 
+def _unique_calls(requested: list) -> list:
+    """Drop repeated identical calls (same name and arguments) within one round. Small models
+    sometimes emit the same call many times, which multiplies the next request's size."""
+    seen: set[str] = set()
+    out = []
+    for tc in requested:
+        fn = tc.get("function") if isinstance(tc, dict) else None
+        key = _dumps(fn) if isinstance(fn, dict) else repr(tc)
+        if key not in seen:
+            seen.add(key)
+            out.append(tc)
+    return out
+
+
 def run_chat(
     conn: Any,
     client: OllamaClient,
@@ -281,6 +295,7 @@ def run_chat(
         if not requested:
             answer = content if content.strip() else NO_ANSWER
             break
+        requested = _unique_calls(requested)
         convo.append({"role": "assistant", "content": content, "tool_calls": requested})
         for tc in requested:
             name, args, payload, res = _tool_payload(conn, tc)

@@ -453,3 +453,17 @@ def test_stop_reason():
     fake = FakeOllama(*[call(("list_assets", {}))] * 3)
     res = run_chat(None, fake.client(), [{"role": "user", "content": "q"}], max_rounds=2)
     assert res.stop_reason == "rounds"
+
+
+def test_identical_calls_in_one_round_run_once(tools_called):
+    args = {"machine_id": "s_2", "group": "month"}
+    fake = FakeOllama(
+        call(*[("get_oee", args)] * 17, ("get_oee", {"machine_id": "s_3"})),
+        say("done\nANSWER: 1"),
+    )
+    res = run_chat(None, fake.client(), [{"role": "user", "content": "oee?"}])
+    assert tools_called == [("get_oee", args), ("get_oee", {"machine_id": "s_3"})]
+    assert len(res.tool_calls) == 2
+    second = fake.requests[1]["messages"]
+    assert len(second[-3]["tool_calls"]) == 2
+    assert [m["role"] for m in second[-2:]] == ["tool", "tool"]
