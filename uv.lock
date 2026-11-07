@@ -953,7 +953,7 @@ dev = [
 requires-dist = [
     { name = "dbt-postgres", specifier = ">=1.11.0" },
     { name = "fastapi", specifier = ">=0.162.0" },
-    { name = "mcp", specifier = ">=2.3" },
+    { name = "mcp", specifier = ">=2.3,<3" },
     { name = "pandas", specifier = ">=3.1.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pydantic-settings", specifier = ">=2.2" },
