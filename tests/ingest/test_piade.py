@@ -25,9 +25,9 @@ def row(**over):
 
 def test_fixture_parses_clean():
     parsed = parse_piade_raw(FIX)
-    assert len(parsed.rows) == 37
+    assert len(parsed.rows) == 40
     assert parsed.rejected == []
-    assert parsed.source_rows == list(range(1, 38))
+    assert parsed.source_rows == list(range(1, 41))
     assert set(parsed.rows[0]) == {
         "machine_id", "alarm", "state", "start_utc", "end_utc",
         "elapsed_ms", "pi", "po", "speed",
@@ -40,7 +40,16 @@ def test_a000_becomes_none():
     assert by_state["production"]["alarm"] is None
     assert by_state["idle"]["alarm"] is None
     downtime = [r for r in parsed.rows if r["state"] == "downtime"]
-    assert [r["alarm"] for r in downtime] == ["A_012", "A_047", "A_012", "A_101", "A_012"]
+    assert [r["alarm"] for r in downtime] == [
+        "A_012",
+        "A_047",
+        "A_012",
+        "A_101",
+        "A_101",
+        "A_005",
+        "A_101",
+        "A_012",
+    ]
 
 
 def test_elapsed_is_ms():
@@ -176,7 +185,7 @@ def test_quality_report_counts():
             "counter_resets_po": 2,
         },
         "s_2": {
-            "rows": 14,
+            "rows": 17,
             "gaps_over_60s": 2,
             "max_gap_s": 3600.0,
             "overlaps_over_1s": 0,

@@ -19,6 +19,17 @@ from linecopilot.tools.evidence import (
     event_source,
     shift_evidence,
 )
+from linecopilot.tools.losses import (
+    BreakdownArgs,
+    BreakdownData,
+    LossParetoArgs,
+    ParetoData,
+    RepeatArgs,
+    RepeatData,
+    breakdown,
+    loss_pareto,
+    repeat_failures,
+)
 from linecopilot.tools.oee import MAX_ROWS, GetOeeArgs, GroupBy, OeeData, get_oee
 
 
@@ -61,6 +72,20 @@ def create_app(db_url: str | None = None) -> FastAPI:
                 limit=limit,
             ),
         )
+
+    @app.get("/api/losses/pareto")
+    def pareto(conn: Conn, args: Annotated[LossParetoArgs, Query()]) -> Result[ParetoData]:
+        return loss_pareto(conn, args)
+
+    @app.get("/api/losses/breakdown")
+    def breakdown_route(
+        conn: Conn, args: Annotated[BreakdownArgs, Query()]
+    ) -> Result[BreakdownData]:
+        return breakdown(conn, args)
+
+    @app.get("/api/losses/repeats")
+    def repeats(conn: Conn, args: Annotated[RepeatArgs, Query()]) -> Result[RepeatData]:
+        return repeat_failures(conn, args)
 
     @app.get("/api/oee/validation")
     def validation(conn: Conn) -> Result[dict[str, Any]]:

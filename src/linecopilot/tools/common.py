@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import psycopg
+from pydantic import BaseModel, ConfigDict, Field
 
 from linecopilot.tools.envelope import CITATION_CAP, Citation, Result, Window, cap_citations
 
@@ -78,6 +79,17 @@ def machine_rows(conn, machine_id: str | None = None) -> list[dict[str, Any]]:
         "ORDER BY machine_id",
         {"id": machine_id},
     )
+
+
+class ScopeArgs(BaseModel):
+    """Asset and window arguments shared by the tools that read a line or machine."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    line_id: str | None = Field(default=None, description="brick, or a PIADE line s_1..s_5")
+    machine_id: str | None = Field(default=None, description="PIADE machine s_1..s_5")
+    start: datetime | None = Field(default=None, description="inclusive; no zone means UTC")
+    end: datetime | None = Field(default=None, description="exclusive; no zone means UTC")
 
 
 @dataclass(frozen=True)
@@ -182,15 +194,23 @@ def group_citations(
                       AS g(key, shift_id, ord)
                  JOIN core.event e ON e.shift_id = g.shift_id
                  WHERE true {extra}"""
+    return keyed_citations(conn, ev_sql, p, "ord, (event_type = 'production_count') DESC, event_id")
+
+
+def keyed_citations(
+    conn, ev_sql: str, params: dict[str, Any], order: str
+) -> tuple[dict[str, tuple[list[Citation], int]], int]:
+    """Capped citations per key from `ev_sql` (columns key, ord, event_id, event_type,
+    raw_table, source_file, raw_row_ids), ordered within a key by `order`, with the number
+    of distinct raw rows per key and over all keys. `ev_sql` and `order` are fixed strings
+    from code; `params` binds every value, including `cap`."""
     ev = rows(
         conn,
         f"""SELECT * FROM (
-                SELECT ev.*, row_number() OVER (
-                           PARTITION BY key
-                           ORDER BY ord, (event_type = 'production_count') DESC, event_id) AS rn
+                SELECT ev.*, row_number() OVER (PARTITION BY key ORDER BY {order}) AS rn
                 FROM ({ev_sql}) ev
             ) x WHERE rn <= %(cap)s ORDER BY key, rn""",
-        p,
+        params,
     )
     # GROUPING SETS: one count per key plus the overall count (key null).
     counts = {
@@ -199,7 +219,7 @@ def group_citations(
             f"""SELECT ev.key, count(DISTINCT (ev.raw_table, ev.source_file, rid))
                 FROM ({ev_sql}) ev, unnest(ev.raw_row_ids) AS rid
                 GROUP BY GROUPING SETS ((ev.key), ())""",
-            p,
+            params,
         ).fetchall()
     }
     by_key: dict[str, list[dict[str, Any]]] = {}

@@ -9,9 +9,16 @@ from datetime import datetime
 from typing import Any, Literal
 
 import psycopg
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
-from linecopilot.tools.common import Scope, f, group_citations, resolve_scope, rows
+from linecopilot.tools.common import (
+    Scope,
+    ScopeArgs,
+    f,
+    group_citations,
+    resolve_scope,
+    rows,
+)
 from linecopilot.tools.envelope import Citation, Result, cap_citations
 
 GroupBy = Literal["shift", "day", "month"]
@@ -42,13 +49,7 @@ ASSUME_CITES = (
 )
 
 
-class GetOeeArgs(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    line_id: str | None = Field(default=None, description="brick, or a PIADE line s_1..s_5")
-    machine_id: str | None = Field(default=None, description="PIADE machine s_1..s_5")
-    start: datetime | None = Field(default=None, description="inclusive; no zone means UTC")
-    end: datetime | None = Field(default=None, description="exclusive; no zone means UTC")
+class GetOeeArgs(ScopeArgs):
     group: GroupBy = "shift"
     limit: int = Field(default=200, ge=1, le=MAX_ROWS)
 

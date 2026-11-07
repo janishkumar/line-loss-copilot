@@ -81,3 +81,34 @@ models:
         data_tests: [not_null]
       - name: month
         data_tests: [not_null]
+  - name: stop_episode
+    description: >
+      One row per stop episode. Brick: one per stop-log row. PIADE: runs of stopped intervals
+      per machine joined when the next starts at most 5 s after the previous ends; duration_s
+      sums the intervals (clipped as in piade_interval_counts), so gaps are not counted.
+      reason is the brick stop group or the PIADE alarm of the first interval.
+    columns:
+      - name: episode_id
+        data_tests: [unique, not_null]
+      - name: source_system
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [piade, brick]}
+      - name: line_id
+        data_tests: [not_null]
+      - name: start_ts
+        data_tests: [not_null]
+      - name: duration_s
+        data_tests: [not_null]
+      - name: shift_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('shift'), field: shift_id}
+      - name: in_oee
+        data_tests: [not_null]
+      - name: is_failure
+        data_tests: [not_null]
+      - name: event_ids
+        data_tests: [not_null]

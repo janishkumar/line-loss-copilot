@@ -258,3 +258,16 @@ def test_piade_excluded_count_only_counts_shifts_that_ran(client, built):
             (r["key"],),
         ).fetchone()
         assert r["details"]["n_shifts_counts_excluded"] == n
+
+
+def test_loss_routes_return_envelopes(client):
+    body = get(client, "/api/losses/pareto", line_id="brick", by="reason", top=2)
+    assert body["status"] == "ok" and len(body["data"]["rows"]) == 2
+    assert body["citations"] and body["data"]["rows"][0]["citations"]
+    body = get(client, "/api/losses/breakdown", machine_id="s_2", rows="alarm", cols="shift_slot")
+    assert body["status"] == "ok" and body["data"]["cells"]
+    body = get(client, "/api/losses/repeats", machine_id="s_2")
+    assert body["status"] == "ok" and body["data"]["chains"][0]["count"] == 3
+    body = get(client, "/api/losses/pareto", machine_id="s_1", by="location")
+    assert body["status"] == "out_of_scope"
+    assert client.get("/api/losses/pareto", params={"line_id": "brick"}).status_code == 422

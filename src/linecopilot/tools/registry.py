@@ -16,6 +16,14 @@ from linecopilot.tools.evidence import (
     get_source_rows,
     shift_evidence,
 )
+from linecopilot.tools.losses import (
+    BreakdownArgs,
+    LossParetoArgs,
+    RepeatArgs,
+    breakdown,
+    loss_pareto,
+    repeat_failures,
+)
 from linecopilot.tools.oee import GetOeeArgs, get_oee
 
 
@@ -69,6 +77,36 @@ register(
         shift_evidence,
         ShiftEvidenceArgs,
         "Every raw row behind one shift's OEE numbers, with all columns as loaded.",
+    )
+)
+register(
+    ToolSpec(
+        "loss_pareto",
+        loss_pareto,
+        LossParetoArgs,
+        "Rank lost stop time by a category (reason, reason_detail, alarm, location, product "
+        "or shift) for the brick line or a PIADE machine, with each category's share, "
+        "cumulative share and cited stop events. Brick: reason, reason_detail, location, "
+        "product, shift. PIADE: reason, alarm, shift.",
+    )
+)
+register(
+    ToolSpec(
+        "breakdown",
+        breakdown,
+        BreakdownArgs,
+        "Cross-tabulate lost stop time and stop count by two dimensions (for example reason by "
+        "month), keeping the top rows and columns and folding the rest into 'other'.",
+    )
+)
+register(
+    ToolSpec(
+        "repeat_failures",
+        repeat_failures,
+        RepeatArgs,
+        "Find repeat failures: chains of failure stops with the same reason or alarm on the "
+        "same machine, each within a set number of hours of the previous one, ranked by lost "
+        "time, with the episodes and cited stop events of each chain.",
     )
 )
 
