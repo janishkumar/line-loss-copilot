@@ -5,9 +5,11 @@ description = "Data layer, OEE and copilot for a factory line"
 requires-python = ">=3.12"
 dependencies = [
     "dbt-postgres>=1.11.0",
+    "fastapi>=0.162.0",
     "pandas>=3.1.1",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.2",
+    "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]
@@ -16,6 +18,7 @@ dev = [
     "pytest-cov>=5",
     "ruff>=0.5",
     "pip-audit>=2.7",
+    "httpx>=0.28.1",
 ]
 
 [build-system]

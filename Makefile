@@ -3,10 +3,13 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: setup up down lint test test-db data load dbt validate-oee report web
+.PHONY: api setup up down lint test test-db data load dbt validate-oee report web
 
 setup:
 	uv sync
+
+api:
+	uv run uvicorn linecopilot.api.app:create_app --factory --port 8000
 
 up:
 	docker compose up -d db

@@ -16,5 +16,15 @@ services:
       timeout: 3s
       retries: 10
 
+  api:
+    build: .
+    environment:
+      LINECOPILOT_DB_URL: postgresql://linecopilot:linecopilot@db:5432/linecopilot
+    ports:
+      - "${LINECOPILOT_API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   pgdata:

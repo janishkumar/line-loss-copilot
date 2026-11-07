@@ -1,0 +1,15 @@
+.git
+.venv
+data
+dbt/target
+dbt/logs
+tests
+evals
+docs
+node_modules
+__pycache__
+.pytest_cache
+.ruff_cache
+.env
+CLAUDE.local.md
+.superpowers
