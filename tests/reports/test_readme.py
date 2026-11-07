@@ -160,13 +160,13 @@ def test_main_renders_all_sections_and_is_idempotent(tmp_path):
         shutil.copy(RESULTS / f, res / f)
     text = "".join(
         f"<!-- {n}:start -->\n<!-- {n}:end -->\n"
-        for n in ("oee", "copilot-evals", "stop-risk", "safety", "shortages")
+        for n in ("oee", "copilot-evals", "stop-risk", "safety", "shortages", "plan")
     )
     readme = tmp_path / "README.md"
     readme.write_text(text)
     rd.main(readme, res)
     once = readme.read_text()
-    assert "not run yet (`make train-risk`)" in once and once.count("not run yet") >= 5
+    assert "not run yet (`make train-risk`)" in once and once.count("not run yet") >= 6
     rd.main(readme, res)
     assert readme.read_text() == once
 
@@ -318,3 +318,49 @@ def test_shortages_section_states_decoy_construction_and_raw_only_scoring(tmp_pa
     assert "depends on the number of decoys" in out
     assert "raw materials only" in out and "sub-assemblies the naive rule flags are dropped" in out
     assert "share the netting definition" in out
+
+
+# ---- stage 4 plan section ---------------------------------------------------------------------
+
+
+def plan_doc():
+    def summ(med):
+        keys = ("late_orders", "total_tardiness_min", "changeover_min", "orders_after_horizon")
+        return {k: {"median": med, "q1": med - 1, "q3": med + 1, "iqr": 2, "n": 5} for k in keys}
+
+    paired = {"better": 3, "equal": 1, "worse": 1, "n": 5, "share_better": 0.6, "median_diff": -7.0}
+    return {
+        "meta": {
+            "seeds": [7, 8], "n_windows": 2, "cpsat_max_deterministic_time": 60.0,
+            "cpsat_wall_cap_s": 120, "anchors": {"cutoff": "2021-07-01T00:00:00+00:00"},
+            "windows": [{"start": "2021-07-01T00:00:00+00:00"}],
+        },
+        "nominal": {a: summ(i) for i, a in enumerate(("cpsat", "edd", "fifo"))},
+        "replayed": {a: summ(i + 5) for i, a in enumerate(("cpsat", "edd", "fifo"))},
+        "solver": {"status": {"feasible": 1, "optimal": 1}, "stop_reason": {"optimal": 2}, "n": 2},
+        "paired": {
+            "cpsat_vs_edd_replayed_total_tardiness_min": paired,
+            "cpsat_vs_edd_nominal_total_tardiness_min": paired,
+        },
+        "window_stats": [
+            {"s_1": {"stopped_share": 0.1, "no_data_share": 0.0},
+             "s_5": {"stopped_share": 0.0, "no_data_share": 1.0}},
+            {"s_1": {"stopped_share": 0.1, "no_data_share": 0.0},
+             "s_5": {"stopped_share": 0.0, "no_data_share": 1.0}},
+        ],
+    }  # fmt: skip
+
+
+def test_plan_section_not_run_yet(tmp_path):
+    out = rd.plan_section(tmp_path)
+    assert "not run yet" in out and "make eval-plan" in out and "\u2014" not in out
+
+
+def test_plan_section_labels_split_and_reports_gaps(tmp_path):
+    write(tmp_path, "plan.json", plan_doc())
+    out = rd.plan_section(tmp_path)
+    assert "Synthetic orders on real capacity and real stops" in out
+    assert "s_5: no data at all in 2 of 2 windows" in out and "s_1:" not in out
+    assert "| Late orders | replayed, n=4 |" in out and "| Late orders | nominal, n=2 |" in out
+    assert "lower in 3 of 5" in out and "\u2014" not in out
+    assert "not what a plant would gain" in out

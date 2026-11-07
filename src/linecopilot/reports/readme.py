@@ -4,7 +4,8 @@ Sections: `oee` (stage 1 validation), `copilot-evals` (answer, citation and befo
 evals, one row per runner and model, never averaged), `stop-risk` (next-hour stop-risk
 models on the test split) and `safety` (approved-actions safety eval, with and without
 guardrails, plus the LLM injection subset) and `shortages` (stage 4 shortage detector against
-the naive rule, on synthetic data). A result file that does not exist yet renders
+the naive rule, on synthetic data) and `plan` (stage 4 schedule: CP-SAT against FIFO and EDD,
+nominal and replayed against real stops). A result file that does not exist yet renders
 as "not run yet"."""
 
 from __future__ import annotations
@@ -535,6 +536,96 @@ def shortages_section(results: Path) -> str:
     return "\n".join(L)
 
 
+PLAN_ALGS = ("cpsat", "edd", "fifo")
+PLAN_MEASURES = (
+    ("late_orders", "Late orders"),
+    ("total_tardiness_min", "Total tardiness (min)"),
+    ("changeover_min", "Changeover (min)"),
+    ("orders_after_horizon", "Orders finishing after the 14-day horizon"),
+)
+
+
+def _pn(x: float) -> str:
+    return f"{x:.0f}" if abs(x - round(x)) < 1e-9 else f"{x:.1f}"
+
+
+def gap_sentence(doc: dict) -> str:
+    """Data gaps per machine across the replay windows, from the stored window statistics."""
+    stats = doc["window_stats"]
+    n = len(stats)
+    parts = []
+    for mach in sorted(stats[0]):
+        shares = sorted(w[mach]["no_data_share"] for w in stats)
+        none = sum(x >= 0.99 for x in shares)
+        median = shares[len(shares) // 2]
+        if median >= 0.05 or none:
+            parts.append(
+                f"{mach}: no data at all in {none} of {n} windows, "
+                f"median no-data share {median:.0%}"
+            )
+    if not parts:
+        return "No machine has a material data gap in the replay windows."
+    return "Data gaps matter. Share of a window with no PIADE data: " + "; ".join(parts) + "."
+
+
+def plan_section(results: Path) -> str:
+    path = results / "plan.json"
+    if not path.exists():
+        return "Plan results: not run yet (`make synth`, then `make eval-plan`)."
+    doc = _load(path)
+    m, sv = doc["meta"], doc["solver"]
+    n_cases = len(m["seeds"]) * m["n_windows"]
+    L = [
+        "**Synthetic orders on real capacity and real stops.** Orders, BOMs, stock and receipts "
+        "are synthetic (seeds "
+        f"{', '.join(map(str, m['seeds']))}, regenerated in memory per seed). Machine rates, "
+        "availability and changeover minutes are anchored to real data from before "
+        f"{m['anchors']['cutoff'][:10]}. Each plan is then replayed against real PIADE stops in "
+        f"{m['n_windows']} non-overlapping 14-day windows from {m['windows'][0]['start'][:10]}: "
+        "the same machines and sequence, processing at the nominal rate, setup and processing "
+        "frozen while a machine is stopped. CP-SAT runs one worker with a deterministic limit of "
+        f"{m['cpsat_max_deterministic_time']:g} and a {m['cpsat_wall_cap_s']} s wall cap. This "
+        "compares schedulers on a generator, not what a plant would gain.",
+        "",
+        "| Measure, median (q1 to q3) | Basis | " + " | ".join(PLAN_ALGS) + " |",
+        "|---|---|" + "---|" * len(PLAN_ALGS),
+    ]
+    for key, label in PLAN_MEASURES:
+        for kind, basis in (
+            ("nominal", f"nominal, n={len(m['seeds'])}"),
+            ("replayed", f"replayed, n={n_cases}"),
+        ):
+            cells = []
+            for a in PLAN_ALGS:
+                c = doc[kind][a][key]
+                cells.append(f"{_pn(c['median'])} ({_pn(c['q1'])} to {_pn(c['q3'])})")
+            L.append(f"| {label} | {basis} | " + " | ".join(cells) + " |")
+    pe = doc["paired"]["cpsat_vs_edd_replayed_total_tardiness_min"]
+    pn = doc["paired"]["cpsat_vs_edd_nominal_total_tardiness_min"]
+    L += [
+        "",
+        f"CP-SAT outcome over {sv['n']} instances: "
+        + ", ".join(f"{k} {v}" for k, v in sorted(sv["status"].items()))
+        + "; stopped by "
+        + ", ".join(f"{k} {v}" for k, v in sorted(sv["stop_reason"].items()))
+        + ". Paired CP-SAT minus EDD total tardiness: nominal, lower in "
+        f"{pn['better']} of {pn['n']} seeds; replayed, lower in {pe['better']} of {pe['n']} "
+        f"seed x window cases ({pe['share_better']:.0%}), equal in {pe['equal']}, higher in "
+        f"{pe['worse']}, median difference {_pn(pe['median_diff'])} min. Changeover minutes are "
+        "work minutes, so replaying leaves them unchanged. A nominal plan is built at rate x "
+        "planning availability while the replay runs at the nominal rate with explicit stops, "
+        "so nominal and replayed figures are different quantities, not before and after.",
+        "",
+        gap_sentence(doc)
+        + " A gap is replayed as no stops, so a machine with gaps looks more reliable than it "
+        "was. The realised stopped share and the no-data share of every window and machine are in "
+        "[evals/results/plan.md](evals/results/plan.md), next to the stopped share planning used. "
+        "Regenerate with `make eval-plan`, then `make report`; `make plan` stores the live "
+        "generation's plans and replays in `plan.*`.",
+    ]
+    return "\n".join(L)
+
+
 def sections(results: Path = RESULTS) -> dict[str, str]:
     val = _load(results / "oee_validation.json")
     piade = json.loads((results / "piade_oee.json").read_text(encoding="utf-8"))
@@ -545,6 +636,7 @@ def sections(results: Path = RESULTS) -> dict[str, str]:
         "stop-risk": stop_risk_section(_load(risk) if risk.exists() else None),
         "safety": safety_section(results),
         "shortages": shortages_section(results),
+        "plan": plan_section(results),
     }
 
 

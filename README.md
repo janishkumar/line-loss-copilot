@@ -228,6 +228,11 @@ Synthetic orders, BOMs, stock and receipts (generation 2, seed 7, content sha256
 Decoys flagged: detector 0 of 4, naive rule 4 of 4. Flags outside the planted cases: detector 0, naive rule 0. Per-kind rows count only that kind's decoys as false positives. Detail: [evals/results/shortages.md](evals/results/shortages.md); regenerate with `make eval-shortages`, then `make report`.
 <!-- shortages:end -->
 
+### Schedule and replay
+
+<!-- plan:start -->
+<!-- plan:end -->
+
 ## Assumptions
 
 - PIADE has no stated ideal rate. Performance rests on an estimate (a percentile of the set `speed` per machine), shown at p90, p95 and p99.

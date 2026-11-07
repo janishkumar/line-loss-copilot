@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: eval-shortages synth demo-stage3 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: plan eval-plan eval-shortages synth demo-stage3 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -48,6 +48,15 @@ synth: schemas
 # Shortage detector and naive rule against the planted truth, on the main database.
 eval-shortages:
 	uv run python -m evals.shortages
+
+# Plan the live synthetic generation (CP-SAT, FIFO, EDD), replay it against real PIADE stops and
+# store it in plan.*; needs `make synth`.
+plan: schemas
+	uv run python -m linecopilot.plan
+
+# CP-SAT against FIFO and EDD over seeds 7 to 11, nominal and replayed; writes evals/results/plan.*
+eval-plan:
+	uv run python -m evals.plan
 
 dbt: schemas
 	uv run dbt build --project-dir dbt --profiles-dir dbt
