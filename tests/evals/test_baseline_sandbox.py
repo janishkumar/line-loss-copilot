@@ -110,3 +110,48 @@ def test_ollama_notools_sends_empty_tools():
     with_tools = OllamaRunner(conn=None, client=client, tools_enabled=True)
     with_tools.ask("q")
     assert {t["function"]["name"] for t in bodies[1]["tools"]} == set(TOOLS)
+
+
+def test_claude_model_id_is_the_biggest_writer():
+    out = json.dumps(
+        {
+            "result": "ANSWER: 1",
+            "modelUsage": {
+                "claude-small": {"outputTokens": 40},
+                "claude-main": {"outputTokens": 900},
+            },
+        }
+    )
+    _, model, extra = cr.parse_output(out, "arg")
+    assert model == "claude-main" and extra["models"] == ["claude-main", "claude-small"]
+
+
+def test_claude_runner_cleans_up(monkeypatch, tmp_path):
+    made = []
+    real_mkdtemp = tempfile.mkdtemp
+
+    def mkdtemp(prefix=""):
+        d = real_mkdtemp(prefix=prefix, dir=tmp_path)
+        made.append(Path(d))
+        return d
+
+    class Done:
+        returncode = 0
+        stdout = json.dumps({"result": "x\nANSWER: 1", "modelUsage": {"m1": {"outputTokens": 1}}})
+        stderr = ""
+
+    seen = {}
+
+    def fake_run(argv, **kw):
+        cfg = Path(argv[argv.index("--mcp-config") + 1])
+        seen["cfg_existed"] = cfg.exists()
+        seen["cfg"] = cfg
+        return Done()
+
+    monkeypatch.setattr(cr.tempfile, "mkdtemp", mkdtemp)
+    monkeypatch.setattr(cr.subprocess, "run", fake_run)
+    r = cr.ClaudeRunner("postgresql://x", tools_enabled=True)
+    reply = r.ask("q")
+    assert reply.answer.endswith("ANSWER: 1") and r.model == "m1" and r.models_seen == {"m1"}
+    assert seen["cfg_existed"] and not seen["cfg"].exists()
+    assert made and not any(d.exists() for d in made)

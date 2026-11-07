@@ -51,6 +51,7 @@ def test_evaluate_summary_and_markdown(monkeypatch, tmp_path):
     s = run.summarize(records)
     assert s["overall"] == {"n": 3, "correct": 2, "accuracy": 2 / 3}
     assert s["unanswerable"]["accuracy"] == 1.0
+    assert s["format_ok"] == 1.0 and all(r["format_ok"] for r in records)
     assert s["citations_all"]["micro_support_rate"] == 2 / 3
     assert s["citations_answerable"]["share_fully_supported"] == 1 / 2
 
@@ -77,20 +78,36 @@ def test_before_after_run_and_markdown(monkeypatch):
         "facts": [
             {
                 "metric": "availability",
+                "kind": "ratio",
                 "before": 0.7,
                 "after": 0.6,
                 "delta": -0.1,
+                "readings": {"value": "down"},
+                "status": "scored",
                 "direction": "down",
             },
             {
                 "metric": "reason:FAILURE",
+                "kind": "total",
                 "before": 10.0,
                 "after": 5.0,
                 "delta": -5.0,
+                "readings": {"total": "down", "per_shift": "down"},
+                "status": "scored",
                 "direction": "down",
             },
+            {
+                "metric": "mttr",
+                "kind": "mean",
+                "before": 10.0,
+                "after": 10.1,
+                "delta": 0.1,
+                "readings": {"value": "flat"},
+                "status": "flat",
+                "direction": None,
+            },
         ],
-        "directions": {"availability": "down", "reason:FAILURE": "down", "mttr": "up"},
+        "status": {"availability": "down", "reason:FAILURE": "down", "mttr": "flat"},
     }
     monkeypatch.setattr(run, "before_after_facts", lambda conn: truth)
     answer = (
@@ -102,7 +119,7 @@ def test_before_after_run_and_markdown(monkeypatch):
     ba = run.run_before_after(runner, None)
     sc = ba["score"]
     assert sc["facts_found"] == 1 and sc["missed"] == ["reason:FAILURE"]
-    assert sc["wrong_claims"] == 2
+    assert sc["wrong_claims"] == 1 and sc["neutral_claims"] == 1
     md = run.before_after_markdown(
         {"meta": {"runner": "fake", "model": "m", "date": "d"}, "before_after": ba}
     )
@@ -118,3 +135,27 @@ def test_helpers():
         run.select(qs, None, ["nope"])
     q = qs[0]
     assert run.display(q, 0.5) == "50.00%"
+
+
+class Boom(ScriptedRunner):
+    def ask(self, prompt):
+        raise RuntimeError("model went away")
+
+
+def test_errors_are_recorded_per_question(monkeypatch):
+    qs = build_questions()[:2]
+
+    def compute(conn, fn, params):
+        if params == qs[0].params:
+            raise ValueError("no truth")
+        return Truth(0.5, frozenset())
+
+    monkeypatch.setattr(run, "compute", compute)
+    seen = []
+    records = run.evaluate(Boom({}), None, qs, on_record=lambda rs: seen.append(len(rs)))
+    assert seen == [1, 2]
+    assert records[0]["error"].startswith("truth: ValueError")
+    assert records[1]["error"].startswith("runner: RuntimeError")
+    assert not any(r["correct"] for r in records)
+    s = run.summarize(records)
+    assert s["errors"] == 2 and s["format_ok"] == 0

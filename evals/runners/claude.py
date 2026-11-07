@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -122,9 +123,21 @@ def child_env() -> dict[str, str]:
     return {k: v for k, v in os.environ.items() if not k.startswith(drop)}
 
 
+def _main_model(usage: Any) -> str | None:
+    """The model that wrote the most output tokens (a run can use a small helper model too)."""
+    if not isinstance(usage, dict) or not usage:
+        return None
+
+    def out_tokens(v: Any) -> float:
+        return float((v or {}).get("outputTokens") or 0) if isinstance(v, dict) else 0.0
+
+    return max(usage, key=lambda k: (out_tokens(usage[k]), k))
+
+
 def parse_output(stdout: str, model: str | None = None) -> tuple[str, str | None, dict]:
-    """(answer, model id, extra) from `--output-format json`. The model id comes from the
-    usage block when present, else from --model."""
+    """(answer, model id, extra) from `--output-format json`. The model id is the usage
+    block's model with the most output tokens, else the result's model, else --model; every
+    model in the usage block is kept in extra['models']."""
     try:
         data = json.loads(stdout)
     except ValueError:
@@ -132,10 +145,12 @@ def parse_output(stdout: str, model: str | None = None) -> tuple[str, str | None
     if isinstance(data, list):  # some versions print the event list
         data = next((d for d in reversed(data) if d.get("type") == "result"), {})
     usage = data.get("modelUsage") or {}
-    model_id = next(iter(usage), None) if isinstance(usage, dict) else None
+    model_id = _main_model(usage)
     extra = {
         k: data.get(k) for k in ("num_turns", "duration_ms", "is_error", "subtype") if k in data
     }
+    if isinstance(usage, dict) and usage:
+        extra["models"] = sorted(usage)
     return str(data.get("result") or ""), model_id or data.get("model") or model, extra
 
 
@@ -146,6 +161,7 @@ class ClaudeRunner:
         self.model_arg = model
         self.model = model or "claude-default"
         self.name = "claude" if tools_enabled else "claude-notools"
+        self.models_seen: set[str] = set()
 
     def meta(self) -> dict[str, Any]:
         try:
@@ -164,10 +180,19 @@ class ClaudeRunner:
 
     def ask(self, prompt: str) -> Reply:
         workdir = tempfile.mkdtemp(prefix="linecopilot-eval-")
-        inv = self.invocation(prompt, workdir)
-        if self.tools_enabled:
-            cfg_path = inv.argv[inv.argv.index("--mcp-config") + 1]
-            Path(cfg_path).write_text(json.dumps(inv.mcp_config))
+        cfg_path: Path | None = None
+        try:
+            inv = self.invocation(prompt, workdir)
+            if self.tools_enabled:
+                cfg_path = Path(inv.argv[inv.argv.index("--mcp-config") + 1])
+                cfg_path.write_text(json.dumps(inv.mcp_config))
+            return self._run(inv)
+        finally:
+            shutil.rmtree(workdir, ignore_errors=True)
+            if cfg_path is not None:
+                cfg_path.unlink(missing_ok=True)
+
+    def _run(self, inv: Invocation) -> Reply:
         t0 = time.monotonic()
         try:
             proc = subprocess.run(
@@ -185,6 +210,7 @@ class ClaudeRunner:
         answer, model_id, extra = parse_output(proc.stdout, self.model_arg)
         if model_id:
             self.model = model_id
+        self.models_seen.update(extra.get("models", []))
         err = None
         if proc.returncode != 0 or extra.get("is_error"):
             err = f"claude exited {proc.returncode}: {(proc.stderr or proc.stdout)[:300]}"

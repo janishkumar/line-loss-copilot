@@ -104,15 +104,37 @@ def test_na_truth(built):
 def test_before_after_facts(built):
     facts = truth.before_after_facts(built)
     by = {f["metric"]: f for f in facts["facts"]}
-    assert {"availability", "stop_count", "stop_time"} <= set(facts["directions"])
+    assert {"availability", "stop_count", "stop_time", "mttr"} <= set(facts["status"])
     for f in facts["facts"]:
-        assert f["direction"] in ("up", "down")
+        assert f["status"] in ("scored", "flat", "ambiguous")
         assert f["delta"] == pytest.approx(f["after"] - f["before"])
-    sc = by.get("stop_count")
-    if sc:
-        assert sc["before"] == truth.stop_count(built, "brick", "2025-09").expected
+        dirs = set(f["readings"].values())
+        if f["status"] == "scored":
+            assert dirs == {f["direction"]} and f["direction"] in ("up", "down")
+        elif f["status"] == "flat":
+            assert dirs == {"flat"} and f["direction"] is None
+        else:
+            assert len(dirs) > 1 and f["direction"] is None
+        assert set(f["readings"]) == ({"total", "per_shift"} if f["kind"] == "total" else {"value"})
+    sc = by["stop_count"]
+    assert sc["before"] == truth.stop_count(built, "brick", "2025-09").expected
+    assert sc["before_per_shift"] == pytest.approx(sc["before"] / facts["shifts"]["before"])
     reasons = [m for m in facts["facts"] if m["metric"].startswith("reason:")]
     assert len(reasons) <= truth.TOP_REASON_FACTS
+
+
+def test_effect_size_and_ambiguity():
+    shifts = (10.0, 5.0)
+    assert truth._fact("availability", "ratio", 0.70, 0.695, shifts)["status"] == "flat"
+    assert truth._fact("availability", "ratio", 0.70, 0.685, shifts)["direction"] == "down"
+    assert truth._fact("mttr", "mean", 100.0, 104.0, shifts)["status"] == "flat"
+    assert truth._fact("mttr", "mean", 100.0, 106.0, shifts)["direction"] == "up"
+    # total falls by a third, but per shift it rises (10/shift -> 13.3/shift): ambiguous
+    f = truth._fact("stop_count", "total", 100.0, 66.7, shifts)
+    assert f["readings"] == {"total": "down", "per_shift": "up"} and f["status"] == "ambiguous"
+    f = truth._fact("stop_time", "total", 100.0, 40.0, shifts)
+    assert f["status"] == "scored" and f["direction"] == "down"
+    assert truth._fact("reason:X", "total", 0.0, 0.0, shifts)["status"] == "flat"
 
 
 def test_check_reports_missing_truth_on_fixture(built):

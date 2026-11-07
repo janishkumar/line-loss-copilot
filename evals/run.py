@@ -15,6 +15,7 @@ import json
 import re
 import sys
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,7 +23,8 @@ from typing import Any
 
 from evals import before_after, citations
 from evals.questions import Question, build_questions, question_set_hash
-from evals.score import score
+from evals.runners import Reply
+from evals.score import answer_line, score
 from evals.truth import NOT_AVAILABLE, before_after_facts, compute
 
 RESULTS = Path(__file__).resolve().parent / "results"
@@ -59,11 +61,51 @@ def display(q: Question, expected: Any) -> str:
     return str(expected)
 
 
-def evaluate(runner: Any, conn: Any, qs: list[Question]) -> list[dict[str, Any]]:
-    out = []
-    for i, q in enumerate(qs, 1):
+def _record(q: Question) -> dict[str, Any]:
+    return {
+        "id": q.id,
+        "template": q.template,
+        "kind": q.kind,
+        "question": q.text,
+        "expected": None,
+        "expected_display": None,
+        "answer": "",
+        "extracted": None,
+        "parsed_value": None,
+        "correct": False,
+        "format_ok": False,
+        "cited_ids": [],
+        "supported_ids": [],
+        "unsupported_ids": [],
+        "evidence_event_count": 0,
+        "tool_calls": [],
+        "rounds": None,
+        "latency_s": 0.0,
+        "error": None,
+    }
+
+
+def evaluate_one(runner: Any, conn: Any, q: Question) -> dict[str, Any]:
+    """One question, never raising: a failure in the answer key, the runner or scoring is
+    recorded in `error` and the answer counts as wrong."""
+    rec = _record(q)
+    stage = "truth"
+    try:
         truth = compute(conn, q.expected_fn, q.params)
+        rec["expected"] = truth.expected
+        rec["expected_display"] = display(q, truth.expected)
+        rec["evidence_event_count"] = len(truth.evidence_event_ids)
+        stage = "runner"
         reply = runner.ask(q.text)
+        rec.update(
+            answer=reply.answer,
+            tool_calls=reply.tool_calls,
+            rounds=reply.rounds,
+            latency_s=round(reply.latency_s, 2),
+            error=reply.error,
+            format_ok=answer_line(reply.answer) is not None,
+        )
+        stage = "scoring"
         s = score(
             reply.answer,
             q.kind,
@@ -73,29 +115,35 @@ def evaluate(runner: Any, conn: Any, qs: list[Question]) -> list[dict[str, Any]]
             truth.detail.get("alternatives"),
         )
         cc = citations.check(reply.answer, truth.evidence_event_ids)
-        rec = {
-            "id": q.id,
-            "template": q.template,
-            "kind": q.kind,
-            "question": q.text,
-            "expected": truth.expected,
-            "expected_display": display(q, truth.expected),
-            "answer": reply.answer,
-            "extracted": s.extracted,
-            "parsed_value": s.value,
-            "correct": s.correct,
-            "cited_ids": cc.cited,
-            "supported_ids": cc.supported,
-            "unsupported_ids": cc.unsupported,
-            "evidence_event_count": len(truth.evidence_event_ids),
-            "tool_calls": reply.tool_calls,
-            "rounds": reply.rounds,
-            "latency_s": round(reply.latency_s, 2),
-            "error": reply.error,
-        }
+        rec.update(
+            extracted=s.extracted,
+            parsed_value=s.value,
+            correct=s.correct,
+            cited_ids=cc.cited,
+            supported_ids=cc.supported,
+            unsupported_ids=cc.unsupported,
+        )
+    except Exception as e:  # recorded, never fatal to the run
+        rec["error"] = f"{stage}: {type(e).__name__}: {e}"
+        rec["correct"] = False
+    return rec
+
+
+def evaluate(
+    runner: Any,
+    conn: Any,
+    qs: list[Question],
+    on_record: Callable[[list[dict[str, Any]]], None] | None = None,
+) -> list[dict[str, Any]]:
+    """Every question in order; `on_record` gets the records so far after each one."""
+    out: list[dict[str, Any]] = []
+    for i, q in enumerate(qs, 1):
+        rec = evaluate_one(runner, conn, q)
         out.append(rec)
-        mark = "ok " if s.correct else "BAD"
-        print(f"[{i}/{len(qs)}] {mark} {q.id} ({reply.latency_s:.0f} s)", file=sys.stderr)
+        mark = "ok " if rec["correct"] else ("ERR" if rec["error"] else "BAD")
+        print(f"[{i}/{len(qs)}] {mark} {q.id} ({rec['latency_s']:.0f} s)", file=sys.stderr)
+        if on_record:
+            on_record(out)
     return out
 
 
@@ -125,6 +173,7 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
         "by_template": {k: acc(v) for k, v in by_tpl.items()},
         "citations_all": cc(records),
         "citations_answerable": cc(answerable),
+        "format_ok": (sum(r["format_ok"] for r in records) / len(records)) if records else None,
         "errors": sum(1 for r in records if r["error"]),
         "median_latency_s": sorted(r["latency_s"] for r in records)[len(records) // 2]
         if records
@@ -134,7 +183,10 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
 
 def run_before_after(runner: Any, conn: Any) -> dict[str, Any]:
     truth = before_after_facts(conn)
-    reply = runner.ask(before_after.PROMPT)
+    try:
+        reply = runner.ask(before_after.PROMPT)
+    except Exception as e:  # recorded, never fatal
+        reply = Reply(answer="", latency_s=0.0, error=f"runner: {type(e).__name__}: {e}")
     claims = before_after.parse_claims(reply.answer)
     return {
         "prompt": before_after.PROMPT,
@@ -177,7 +229,8 @@ def answers_markdown(doc: dict[str, Any]) -> str:
         f"{c['cited_rows']} ({_pct(c['micro_support_rate'])}) |",
         f"| Answers fully supported by their citations | {_pct(c['share_fully_supported'])} |",
         f"| Answers with no citations | {_pct(c['share_no_citations'])} |",
-        f"| Runner errors | {s['errors']} |",
+        f"| Answers with a parseable ANSWER line (format_ok) | {_pct(s['format_ok'])} |",
+        f"| Errors (answer key, runner or scoring) | {s['errors']} |",
         "",
         "| Template | Correct |",
         "|---|---|",
@@ -206,15 +259,18 @@ def before_after_markdown(doc: dict[str, Any]) -> str:
         f"- Date (UTC): {m['date']}",
         f"- Facts found (right direction): {sc['facts_found']}/{sc['facts_total']} "
         f"({_pct(sc['share_found'])})",
-        f"- Wrong claims: {sc['wrong_claims']} of {len(sc['claims'])}",
+        f"- Wrong claims: {sc['wrong_claims']} of {len(sc['claims'])} "
+        f"(neutral, on flat or ambiguous metrics: {sc['neutral_claims']})",
         "",
-        "| Fact | Before | After | Direction | Found |",
-        "|---|---|---|---|---|",
+        "| Fact | Before | After | Readings | Status | Found |",
+        "|---|---|---|---|---|---|",
     ]
     for f in ba["truth"]["facts"]:
+        readings = ", ".join(f"{k}: {v}" for k, v in f["readings"].items())
+        found = "yes" if f["metric"] in sc["found"] else "no"
         lines.append(
-            f"| {f['metric']} | {f['before']:.4g} | {f['after']:.4g} | {f['direction']} | "
-            f"{'yes' if f['metric'] in sc['found'] else 'no'} |"
+            f"| {f['metric']} | {f['before']:.4g} | {f['after']:.4g} | {readings} | "
+            f"{f['status']} | {found if f['status'] == 'scored' else '-'} |"
         )
     lines += ["", "Caveats:", ""] + [f"- {c}" for c in ba["caveats"]]
     return "\n".join(lines) + "\n"
@@ -271,20 +327,39 @@ def main(argv: list[str] | None = None) -> int:
             "questions_run": len(qs),
             "partial": partial,
         }
-        records = evaluate(runner, conn, qs)
-        meta["model"] = runner.model
-        doc = {
-            "meta": meta,
-            "summary": summarize(records),
-            "questions": records,
-            "question_defs": [asdict(q) for q in qs],
-        }
-        stem = f"{runner.name}_{slug(runner.model)}"
-        path = write(doc, f"answers_{stem}", answers_markdown(doc), out_dir)
-        print(f"wrote {path}", file=sys.stderr)
+        written: list[Path] = []
+
+        def save(records: list[dict[str, Any]]) -> dict[str, Any]:
+            # Written after every question, so a long run that dies keeps what it has. The
+            # file name follows the model id, which a Claude run learns from its first reply.
+            meta["model"] = runner.model
+            if hasattr(runner, "models_seen"):  # Claude: every model in the usage blocks
+                meta["models_seen"] = sorted(runner.models_seen)
+            meta["questions_done"] = len(records)
+            doc = {
+                "meta": meta,
+                "summary": summarize(records),
+                "questions": records,
+                "question_defs": [asdict(q) for q in qs],
+            }
+            path = write(doc, f"answers_{stem()}", answers_markdown(doc), out_dir)
+            for old in [w for w in written if w != path]:
+                old.unlink(missing_ok=True)
+                old.with_suffix(".md").unlink(missing_ok=True)
+                written.remove(old)
+            if path not in written:
+                written.append(path)
+            return doc
+
+        def stem() -> str:
+            return f"{runner.name}_{slug(runner.model)}"
+
+        records = evaluate(runner, conn, qs, on_record=save)
+        doc = save(records)
+        print(f"wrote {written[-1]}", file=sys.stderr)
         if not args.no_before_after:
             ba_doc = {"meta": meta, "before_after": run_before_after(runner, conn)}
-            path = write(ba_doc, f"before_after_{stem}", before_after_markdown(ba_doc), out_dir)
+            path = write(ba_doc, f"before_after_{stem()}", before_after_markdown(ba_doc), out_dir)
             print(f"wrote {path}", file=sys.stderr)
     print(json.dumps(doc["summary"]["overall"]))
     return 0

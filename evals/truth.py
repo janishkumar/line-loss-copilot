@@ -356,7 +356,10 @@ def compute(conn, expected_fn: str, params: dict[str, Any]) -> Truth:
 BEFORE = ("2025-09-01", "2026-01-01")
 AFTER = ("2026-01-01", "2026-05-01")
 TOP_REASON_FACTS = 5
+RATIOS = ("availability", "performance", "quality", "oee")
 TOTALS = ("stop_time", "stop_count")
+RATIO_MIN_DELTA = 0.01  # one percentage point
+REL_MIN_DELTA = 0.05
 
 
 def _brick_window(conn, lo: str, hi: str) -> tuple[dict[str, float], dict[str, float]]:
@@ -402,43 +405,69 @@ def _brick_window(conn, lo: str, hi: str) -> tuple[dict[str, float], dict[str, f
     return metrics, dict(reasons)
 
 
+def _direction(kind: str, before: float, after: float) -> str:
+    """up / down past the minimum effect size, else flat: 1 percentage point for ratios,
+    5% relative for everything else."""
+    delta = after - before
+    if kind == "ratio":
+        big = abs(delta) >= RATIO_MIN_DELTA
+    elif before == 0:
+        big = after != 0
+    else:
+        big = abs(delta) / abs(before) >= REL_MIN_DELTA
+    if not big:
+        return "flat"
+    return "up" if delta > 0 else "down"
+
+
+def _fact(metric: str, kind: str, b: float, a: float, shifts: tuple[float, float]) -> dict:
+    """One fact with a direction per reading. Totals are read as totals and per shift; the
+    fact is scored only when every reading gives the same up/down direction."""
+    out: dict[str, Any] = {"metric": metric, "kind": kind, "before": b, "after": a}
+    out["delta"] = a - b
+    readings = {"value": _direction(kind, b, a)}
+    if kind == "total":
+        pb, pa = b / shifts[0], a / shifts[1]
+        out["before_per_shift"], out["after_per_shift"] = pb, pa
+        readings = {"total": readings["value"], "per_shift": _direction(kind, pb, pa)}
+    out["readings"] = readings
+    dirs = set(readings.values())
+    if dirs == {"flat"}:
+        out["status"] = "flat"
+    elif len(dirs) == 1:
+        out["status"] = "scored"
+    else:
+        out["status"] = "ambiguous"
+    out["direction"] = dirs.pop() if out["status"] == "scored" else None
+    return out
+
+
 def before_after_facts(conn) -> dict[str, Any]:
-    """Direction and size of change, before -> after, for each metric and for the stop
-    groups with the largest absolute change in lost time. Facts with no change are left
-    out (no direction to find). `directions` covers every metric and every stop group, so
-    any claim can be judged."""
+    """Facts on what changed on the brick line, before -> after: each OEE component (ratio),
+    MTTR (a mean), stop time and stop count (totals, also read per shift), and the lost time
+    of the stop groups with the largest absolute change. Only `scored` facts count; `flat`
+    (below the minimum effect size) and `ambiguous` (totals and per-shift disagree) facts are
+    listed but not scored. `status` covers every metric and stop group, so any claim can be
+    judged."""
     mb, rb = _brick_window(conn, *BEFORE)
     ma, ra = _brick_window(conn, *AFTER)
-
-    def fact(metric: str, b: float, a: float) -> dict[str, Any]:
-        return {
-            "metric": metric,
-            "before": b,
-            "after": a,
-            "delta": a - b,
-            "direction": "up" if a > b else "down" if a < b else "flat",
-        }
-
-    shifts_b, shifts_a = mb.pop("shifts"), ma.pop("shifts")
-    metric_facts = [fact(k, mb[k], ma[k]) for k in mb]
-    # Totals cover windows with different numbers of shifts; the per-shift rate is context
-    # for reading them (not scored).
-    for x in metric_facts:
-        if x["metric"] in TOTALS:
-            x["before_per_shift"] = x["before"] / shifts_b
-            x["after_per_shift"] = x["after"] / shifts_a
+    shifts = (mb.pop("shifts"), ma.pop("shifts"))
+    kinds = {k: "ratio" for k in RATIOS} | {k: "total" for k in TOTALS} | {"mttr": "mean"}
+    metric_facts = [_fact(k, kinds[k], mb[k], ma[k], shifts) for k in mb]
     reason_facts = [
-        fact(f"reason:{r}", rb.get(r, 0.0), ra.get(r, 0.0)) for r in sorted(set(rb) | set(ra))
+        _fact(f"reason:{r}", "total", rb.get(r, 0.0), ra.get(r, 0.0), shifts)
+        for r in sorted(set(rb) | set(ra))
     ]
-    for x in reason_facts:
-        x["before_per_shift"] = x["before"] / shifts_b
-        x["after_per_shift"] = x["after"] / shifts_a
     reason_facts.sort(key=lambda x: (-abs(x["delta"]), x["metric"]))
-    facts = [x for x in metric_facts + reason_facts[:TOP_REASON_FACTS] if x["direction"] != "flat"]
+    facts = metric_facts + reason_facts[:TOP_REASON_FACTS]
     return {
         "before_window": list(BEFORE),
         "after_window": list(AFTER),
-        "shifts": {"before": shifts_b, "after": shifts_a},
+        "shifts": {"before": shifts[0], "after": shifts[1]},
+        "min_effect": {"ratio_abs": RATIO_MIN_DELTA, "other_rel": REL_MIN_DELTA},
         "facts": facts,
-        "directions": {x["metric"]: x["direction"] for x in metric_facts + reason_facts},
+        "status": {
+            x["metric"]: x["direction"] if x["status"] == "scored" else x["status"]
+            for x in metric_facts + reason_facts
+        },
     }

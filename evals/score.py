@@ -18,24 +18,15 @@ from typing import Any
 from linecopilot.chat.prompt import split_answer
 
 NOT_AVAILABLE = "NOT_AVAILABLE"
-NA_PHRASES = (
-    "not_available",
-    "not available",
-    "no data",
-    "no evidence",
-    "insufficient evidence",
-    "insufficient data",
-    "unavailable",
-    "cannot be determined",
-    "can't be determined",
-    "cannot determine",
-    "not in the data",
-    "no information",
-    "not recorded",
-    "does not exist",
-    "no such machine",
-    "no records",
-    "unknown",
+# Anchored "no data" phrases. Bare words such as "unknown" or "unavailable" are not enough:
+# they also turn up in answers that go on to give a number.
+NA_PATTERNS = re.compile(
+    r"\bnot[ _]available\b|\bnot available\b|\bno data\b|\bno evidence\b"
+    r"|\binsufficient (?:evidence|data)\b|\b(?:data|evidence|information|it) (?:is|are) "
+    r"unavailable\b|\bdata unavailable\b|\bcannot be determined\b|\bcan't be determined\b"
+    r"|\bnot in the data\b|\bno information\b|\bnot recorded\b|\bdoes not exist\b"
+    r"|\bno such machine\b|\bno records\b|^\W*unknown\W*$|(?<![\w/])n/a(?![\w/])",
+    re.IGNORECASE,
 )
 UNIT_S = {
     "s": 1.0,
@@ -58,9 +49,12 @@ MONTHS = (
     "january|february|march|april|may|june|july|august|september|october|november|december"
     "|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec"
 )
-# Things that look like numbers but are not the answer: machine ids, ISO dates, month + year.
+# Things that look like numbers but are not the answer: machine ids, alarm codes, ISO dates,
+# day + month + year, month + year, and event citations.
 NOISE = re.compile(
-    rf"\bs_\d+\b|\b\d{{4}}-\d{{2}}(?:-\d{{2}})?\b|\b(?:{MONTHS})\.?\s+\d{{4}}\b|\[event:[^\]]*\]",
+    rf"\bs_\d+\b|\bA_\d+\b|\b\d{{4}}-\d{{2}}(?:-\d{{2}})?\b"
+    rf"|\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:{MONTHS})\.?,?\s+\d{{4}}\b"
+    rf"|\b(?:{MONTHS})\.?\s+(?:\d{{1,2}}(?:st|nd|rd|th)?,?\s+)?\d{{4}}\b|\[event:[^\]]*\]",
     re.IGNORECASE,
 )
 NUMBER = re.compile(
@@ -100,10 +94,17 @@ def _close(a: float, e: float, tol: dict[str, float]) -> bool:
     return "rel" in tol and abs(a - e) <= tol["rel"] * abs(e) + 1e-12
 
 
-def _ratio_candidates(v: float, unit: str | None) -> list[float]:
-    """A ratio or percentage-point answer as fractions: '62%' and '3.1 pp' are /100; a bare
-    number may be either form, so both readings are tried."""
-    if unit and (unit == "%" or unit.startswith("percent") or unit in ("pp", "point", "points")):
+def _is_pct(unit: str | None) -> bool:
+    return bool(unit) and (
+        unit == "%" or unit.startswith("percent") or unit in ("pp", "point", "points")
+    )
+
+
+def _ratio_candidates(v: float, unit: str | None, q_unit: str) -> list[float]:
+    """A ratio or percentage-point answer as fractions: '62%' and '3.1 pp' are /100. A bare
+    number on a ratio question may be either form, so both readings are tried; on a
+    percentage-point question it is read as points only."""
+    if _is_pct(unit) or q_unit == "pp":
         return [v / 100]
     return [v / 100, v]
 
@@ -113,8 +114,8 @@ def score_numeric(line: str, expected: float, unit: str, tol: dict[str, float]) 
     if not nums:
         return Score(line, None, False)
     if unit in ("ratio", "pp"):
-        v, u = nums[0]
-        cands = _ratio_candidates(v, u)
+        v, u = next(((v, u) for v, u in nums if _is_pct(u)), nums[0])
+        cands = _ratio_candidates(v, u, unit)
         return Score(line, cands[0], any(_close(c, expected, tol) for c in cands))
     if unit in DEFAULT_UNIT_S:
         timed = [(v, u) for v, u in nums if u in UNIT_S]
@@ -174,16 +175,14 @@ def score_label(line: str, expected: str, unit: str | None, alternatives: list[s
     return Score(line, expected if hit else None, hit and not others)
 
 
-_NA_SHORT = re.compile(r"(?<![\w/])n/a(?![\w/])", re.IGNORECASE)
-
-
 def is_na(text: str) -> bool:
-    low = text.lower()
-    return (
-        NOT_AVAILABLE.lower() in low
-        or any(p in low for p in NA_PHRASES)
-        or bool(_NA_SHORT.search(text))
-    )
+    """A clear "no data" answer: an anchored phrase and no number beside it (after machine
+    ids, alarm codes, dates and citations are dropped)."""
+    return has_na_phrase(text) and not numbers(text)
+
+
+def has_na_phrase(text: str) -> bool:
+    return NOT_AVAILABLE.lower() in text.lower() or bool(NA_PATTERNS.search(text))
 
 
 def score(
@@ -203,7 +202,7 @@ def score(
         return Score(line, None, is_na(target))
     if line is None:
         return Score(None, None, False)
-    if NOT_AVAILABLE.lower() in line.lower():
+    if has_na_phrase(line):  # "not available" beside a number is not an answer either
         return Score(line, None, False)
     if kind == "numeric":
         return score_numeric(line, float(expected), unit or "count", tolerance or {})

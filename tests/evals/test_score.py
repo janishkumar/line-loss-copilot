@@ -26,6 +26,12 @@ def test_score_numeric_units_and_tolerance():
     assert num("ANSWER: -3.2 pp", -0.032, "pp", RATIO)
     assert num("ANSWER: −3.2 percentage points", -0.032, "pp", RATIO)
     assert not num("ANSWER: 3.2 pp", -0.032, "pp", RATIO)
+    assert num("ANSWER: -3.2", -0.032, "pp", RATIO)  # bare number on a pp question: points
+    assert not num("ANSWER: -0.032", -0.032, "pp", RATIO)
+    # a number with a % unit wins over an earlier bare one
+    assert num("ANSWER: 21 shifts, availability 70.2%", 0.702, "ratio", RATIO)
+    # alarm codes are not numbers
+    assert num("ANSWER: A_101 cost 23.7 h", 23.7 * 3600, "s_as_h")
     # durations: stated unit wins, else the unit the question asked for
     assert num("ANSWER: 23.8 h", 23.8 * 3600, "s_as_h")
     assert num("ANSWER: 23.8", 23.8 * 3600, "s_as_h")
@@ -51,6 +57,26 @@ def test_numbers_drop_noise():
     assert numbers("s_3 2021-04-01 [event:12, 13] 4.5 h") == [(4.5, "h")]
 
 
+def test_na_phrase_next_to_a_number_is_wrong():
+    for text in (
+        "ANSWER: not available (0%)",
+        "ANSWER: No data, about 1200 kWh",
+        "ANSWER: unknown, maybe 40%",
+        "Energy use is not available.\nANSWER: 1234 kWh",  # only the ANSWER line counts
+    ):
+        assert not score(text, "na", "NOT_AVAILABLE").correct, text
+    # the answer line is judged alone when present, even if the text before it says n/a
+    assert score("I found 3 rows.\nANSWER: NOT_AVAILABLE", "na", "NOT_AVAILABLE").correct
+    # an answerable question answered "not available, 62%" is wrong too
+    assert not score("ANSWER: not available, 62%", "numeric", 0.62, "ratio", RATIO).correct
+
+
+def test_bare_words_are_not_na():
+    assert not is_na("The cause is unknown but OEE was 40%")
+    assert not is_na("the line was unavailable for maintenance")
+    assert is_na("unknown") and is_na("Data is unavailable.")
+
+
 def test_score_na_phrases():
     for text in (
         "ANSWER: NOT_AVAILABLE",
@@ -62,7 +88,9 @@ def test_score_na_phrases():
         assert score(text, "na", "NOT_AVAILABLE").correct, text
     assert not score("ANSWER: 1234 kWh", "na", "NOT_AVAILABLE").correct
     assert not score("ANSWER: 41.2%", "na", "NOT_AVAILABLE").correct
-    assert is_na("unavailable") and is_na("ANSWER: N/A") and not is_na("ANSWER: 4 n/an")
+    assert is_na("ANSWER: N/A") and not is_na("ANSWER: n/an")
+    assert is_na("ANSWER: no data for s_9 in May 2021 [event:12]")
+    assert is_na("ANSWER: not available for 14 October 2025")
 
 
 @pytest.mark.parametrize(

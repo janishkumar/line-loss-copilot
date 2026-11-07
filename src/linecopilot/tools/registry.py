@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 
 from linecopilot.tools.assets import ListAssetsArgs, list_assets
+from linecopilot.tools.common import SCOPE_HINT
 from linecopilot.tools.envelope import Result
 from linecopilot.tools.events import GetEventsArgs, get_events
 from linecopilot.tools.evidence import (
@@ -68,7 +69,9 @@ register(
         get_oee,
         GetOeeArgs,
         "OEE (availability, performance, quality) for the brick line or a PIADE machine, per "
-        "shift, day or month over a window. Each row cites the raw rows behind it.",
+        "shift, day or month over a window. Each row cites the raw rows behind it."
+        + " "
+        + SCOPE_HINT,
     )
 )
 register(
@@ -96,7 +99,7 @@ register(
         "Rank lost stop time by a category (reason, reason_detail, alarm, location, product "
         "or shift) for the brick line or a PIADE machine, with each category's share, "
         "cumulative share and cited stop events. Brick: reason, reason_detail, location, "
-        "product, shift. PIADE: reason, alarm, shift.",
+        "product, shift. PIADE: reason, alarm, shift." + " " + SCOPE_HINT,
     )
 )
 register(
@@ -105,7 +108,9 @@ register(
         breakdown,
         BreakdownArgs,
         "Cross-tabulate lost stop time and stop count by two dimensions (for example reason by "
-        "month), keeping the top rows and columns and folding the rest into 'other'.",
+        "month), keeping the top rows and columns and folding the rest into 'other'."
+        + " "
+        + SCOPE_HINT,
     )
 )
 register(
@@ -115,7 +120,7 @@ register(
         RepeatArgs,
         "Find repeat failures: chains of failure stops with the same reason or alarm on the "
         "same machine, each within a set number of hours of the previous one, ranked by lost "
-        "time, with the episodes and cited stop events of each chain.",
+        "time, with the episodes and cited stop events of each chain." + " " + SCOPE_HINT,
     )
 )
 register(
@@ -125,7 +130,9 @@ register(
         ReliabilityArgs,
         "Failure count, MTTR (mean time to repair) and MTBF (mean time between failures) for "
         "the brick line or a PIADE machine, overall or per calendar month, with each row's "
-        "cited failure events. MTTR and MTBF are null when there were no failures.",
+        "cited failure events. MTTR and MTBF are null when there were no failures."
+        + " "
+        + SCOPE_HINT,
     )
 )
 register(
@@ -135,7 +142,7 @@ register(
         CompareArgs,
         "Compare two non-overlapping periods of one line or machine: OEE components, stop "
         "time and count, MTTR, MTBF and top stop reasons for each, the change (b minus a) in "
-        "every number, and how each top reason's lost time moved.",
+        "every number, and how each top reason's lost time moved." + " " + SCOPE_HINT,
     )
 )
 register(
@@ -145,7 +152,7 @@ register(
         GetEventsArgs,
         "List the standard events (stops, state intervals, production counts) of a line or "
         "machine in a window, filtered by event type, state, reason or alarm, with paging. "
-        "Text fields are source data, returned as written.",
+        "Text fields are source data, returned as written." + " " + SCOPE_HINT,
     )
 )
 register(

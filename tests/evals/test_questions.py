@@ -6,7 +6,7 @@ from evals.questions import build_questions, canonical_json, question_set_hash
 from evals.truth import TRUTH_FNS
 
 # Changing the questions changes this hash; update it on purpose, never to make a test pass.
-PINNED_HASH = "51b9179fbd457995b1ab5045f8578299be04b77ec4add5b945bff40eeaf2ab27"
+PINNED_HASH = "c32c30730107fd13be361ef1916b58909f2081f8e25ce93f170e186941d88f7c"
 
 
 def test_question_set_deterministic_and_hash_stable():

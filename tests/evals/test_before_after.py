@@ -4,10 +4,18 @@ from evals.before_after import parse_claims, score_claims
 
 TRUTH = {
     "facts": [
-        {"metric": "availability", "direction": "down"},
-        {"metric": "reason:SETUPS-CHANGEOVERS", "direction": "down"},
+        {"metric": "availability", "status": "scored", "direction": "down"},
+        {"metric": "reason:FAILURE", "status": "scored", "direction": "down"},
+        {"metric": "stop_count", "status": "ambiguous", "direction": None},
+        {"metric": "mttr", "status": "flat", "direction": None},
     ],
-    "directions": {"availability": "down", "reason:SETUPS-CHANGEOVERS": "down", "mttr": "up"},
+    "status": {
+        "availability": "down",
+        "reason:FAILURE": "down",
+        "reason:MATERIALS": "ambiguous",
+        "stop_count": "ambiguous",
+        "mttr": "flat",
+    },
 }
 
 
@@ -22,13 +30,26 @@ def test_parse_claims_fenced_and_bare():
 
 def test_score_claims():
     claims = [
-        {"metric": "Availability", "direction": "down", "value": None},
-        {"metric": "reason:setups-changeovers", "direction": "up", "value": None},
-        {"metric": "mttr", "direction": "up", "value": None},
-        {"metric": "reason:NOPE", "direction": "down", "value": None},
+        {"metric": "Availability", "direction": "down", "value": None},  # found
+        {"metric": "reason:failure", "direction": "up", "value": None},  # contradicts: wrong
+        {"metric": "mttr", "direction": "up", "value": None},  # flat: neutral
+        {"metric": "stop_count", "direction": "down", "value": None},  # ambiguous: neutral
+        {"metric": "reason:MATERIALS", "direction": "up", "value": None},  # ambiguous
+        {"metric": "reason:NOPE", "direction": "down", "value": None},  # unknown: wrong
+        {"metric": "energy", "direction": "up", "value": None},  # unknown: wrong
     ]
     s = score_claims(claims, TRUTH)
-    assert s["facts_found"] == 1 and s["found"] == ["availability"]
-    assert s["missed"] == ["reason:SETUPS-CHANGEOVERS"]
-    assert s["wrong_claims"] == 2  # wrong direction, and a group that does not exist
+    assert s["facts_total"] == 2 and s["facts_found"] == 1 and s["found"] == ["availability"]
+    assert s["missed"] == ["reason:FAILURE"]
+    assert s["wrong_claims"] == 3 and s["neutral_claims"] == 3
+    assert s["not_scored"] == {"stop_count": "ambiguous", "mttr": "flat"}
     assert s["share_found"] == 0.5
+    assert [c["verdict"] for c in s["claims"]] == [
+        "correct",
+        "wrong",
+        "neutral",
+        "neutral",
+        "neutral",
+        "wrong",
+        "wrong",
+    ]

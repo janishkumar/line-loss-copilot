@@ -82,3 +82,33 @@ def test_call_get_oee_returns_envelope(built):
     body = json.loads(res.content[0].text)
     assert body["status"] == "ok" and body["citations"]
     assert len(body["data"]["rows"]) == 2
+
+
+SCOPED = (
+    "get_oee",
+    "loss_pareto",
+    "breakdown",
+    "repeat_failures",
+    "reliability",
+    "compare_periods",
+    "get_events",
+)
+
+
+def test_scope_hint_reaches_mcp_and_chat_schemas():
+    from linecopilot.chat.loop import tool_schemas
+    from linecopilot.tools.common import SCOPE_HINT
+
+    assert "pass line_id='brick' and no machine_id" in SCOPE_HINT
+    assert "pass machine_id only" in SCOPE_HINT and "end is exclusive" in SCOPE_HINT
+    mcp_tools = {t.name: t for t in run(UNREACHABLE, lambda c: c.list_tools()).tools}
+    chat = {s["function"]["name"]: s["function"] for s in tool_schemas()}
+    for name in SCOPED:
+        assert SCOPE_HINT in mcp_tools[name].description, name
+        assert SCOPE_HINT in chat[name]["description"], name
+        for props in (
+            mcp_tools[name].input_schema["properties"],
+            chat[name]["parameters"]["properties"],
+        ):
+            assert "machine_id only" in props["machine_id"]["description"], name
+            assert "'brick'" in props["line_id"]["description"], name

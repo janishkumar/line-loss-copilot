@@ -39,6 +39,10 @@ class Question:
 
 # Whole months with data. Partial months at the edges of each machine's coverage are left out.
 BRICK_MONTHS = ["2025-10", "2025-11", "2025-12", "2026-02", "2026-03"]
+# Brick availability is asked as availability_calc. October 2025 is left out (its published
+# planned time disagrees with the stop log, docs/data-notes.md) and so is March 2026 (one
+# shift has no published planned time, so it drops out of availability_calc).
+BRICK_AVAILABILITY_MONTHS = ["2025-11", "2025-12", "2026-02"]
 PIADE_MONTHS = {
     "s_1": [f"2020-{m:02d}" for m in range(1, 13)] + [f"2021-{m:02d}" for m in range(1, 13)],
     "s_2": [f"2020-{m:02d}" for m in (9, 11, 12)] + [f"2021-{m:02d}" for m in range(1, 13)],
@@ -66,6 +70,16 @@ def month_name(month: str) -> str:
     return date(y, m, 1).strftime("%B %Y")
 
 
+def availability_name(asset: str) -> str:
+    if asset == "brick":
+        return "availability recomputed from the stop log (availability_calc)"
+    return "availability"
+
+
+def reason_name(asset: str) -> str:
+    return "stop group" if asset == "brick" else "alarm code"
+
+
 def asset_name(asset: str) -> str:
     return "the brick line" if asset == "brick" else f"machine {asset}"
 
@@ -74,8 +88,9 @@ def _piade_pairs() -> list[tuple[str, str]]:
     return [(a, m) for a, ms in PIADE_MONTHS.items() for m in ms]
 
 
-def _pick(rng: random.Random, n_brick: int, n_piade: int, exclude=frozenset()):
-    brick = [("brick", m) for m in BRICK_MONTHS if ("brick", m) not in exclude]
+def _pick(rng: random.Random, n_brick: int, n_piade: int, exclude=frozenset(), brick_months=None):
+    months = BRICK_MONTHS if brick_months is None else brick_months
+    brick = [("brick", m) for m in months if ("brick", m) not in exclude]
     piade = [p for p in _piade_pairs() if p not in exclude]
     return rng.sample(brick, n_brick) + rng.sample(piade, n_piade)
 
@@ -108,10 +123,10 @@ def build_questions(seed: int = SEED) -> list[Question]:
             "ratio",
             RATIO_TOL,
         )
-    for a, m in _pick(rng, 2, 5):
+    for a, m in _pick(rng, 2, 5, brick_months=BRICK_AVAILABILITY_MONTHS):
         add(
             "availability_month",
-            f"What was the availability of {asset_name(a)} in {month_name(m)}? "
+            f"What was the {availability_name(a)} of {asset_name(a)} in {month_name(m)}? "
             "Answer as a percentage.",
             "numeric",
             "availability",
@@ -135,7 +150,7 @@ def build_questions(seed: int = SEED) -> list[Question]:
     for a, m in _pick(rng, 2, 4, exclude=NEAR_TIES):
         add(
             "top_reason_lost",
-            f"How much stop time did the biggest stop reason cost {asset_name(a)} in "
+            f"How much stop time did the biggest {reason_name(a)} cost {asset_name(a)} in "
             f"{month_name(m)}? Answer in hours.",
             "numeric",
             "top_reason_lost_s",
@@ -205,11 +220,12 @@ def build_questions(seed: int = SEED) -> list[Question]:
         by_asset.setdefault(a, []).append(m)
     compare_assets = ["brick", *rng.sample(sorted(PIADE_MONTHS), 4)]
     for a in compare_assets:
-        months = BRICK_MONTHS if a == "brick" else by_asset[a]
+        months = BRICK_AVAILABILITY_MONTHS if a == "brick" else by_asset[a]
         ma, mb = sorted(rng.sample(months, 2))
         add(
             "compare_availability",
-            f"By how many percentage points did the availability of {asset_name(a)} change "
+            f"By how many percentage points did the {availability_name(a)} of {asset_name(a)} "
+            "change "
             f"from {month_name(ma)} to {month_name(mb)}? Answer in percentage points, "
             "negative if it fell.",
             "numeric",

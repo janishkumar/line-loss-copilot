@@ -81,15 +81,29 @@ def machine_rows(conn, machine_id: str | None = None) -> list[dict[str, Any]]:
     )
 
 
+# Said in every scoped tool's description and argument descriptions: small models otherwise
+# pass line_id='brick' with a PIADE machine_id.
+SCOPE_HINT = (
+    "Brick line: pass line_id='brick' and no machine_id. PIADE machines s_1..s_5: pass "
+    "machine_id only. Dates: ISO; end is exclusive."
+)
+LINE_ID_DESC = "'brick' for the brick line (then no machine_id); leave empty for PIADE machines"
+MACHINE_ID_DESC = "PIADE machine s_1..s_5: pass machine_id only (no line_id); empty for brick"
+START_DESC = "ISO date or time, inclusive; no zone means UTC"
+END_DESC = (
+    "ISO date or time, exclusive (a month ends on the first day of the next); no zone means UTC"
+)
+
+
 class ScopeArgs(BaseModel):
     """Asset and window arguments shared by the tools that read a line or machine."""
 
     model_config = ConfigDict(extra="forbid")
 
-    line_id: str | None = Field(default=None, description="brick, or a PIADE line s_1..s_5")
-    machine_id: str | None = Field(default=None, description="PIADE machine s_1..s_5")
-    start: datetime | None = Field(default=None, description="inclusive; no zone means UTC")
-    end: datetime | None = Field(default=None, description="exclusive; no zone means UTC")
+    line_id: str | None = Field(default=None, description=LINE_ID_DESC)
+    machine_id: str | None = Field(default=None, description=MACHINE_ID_DESC)
+    start: datetime | None = Field(default=None, description=START_DESC)
+    end: datetime | None = Field(default=None, description=END_DESC)
 
 
 @dataclass(frozen=True)

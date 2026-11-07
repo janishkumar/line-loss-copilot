@@ -13,7 +13,16 @@ from zoneinfo import ZoneInfo
 import psycopg
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecopilot.tools.common import Scope, ScopeArgs, resolve_scope, rows
+from linecopilot.tools.common import (
+    END_DESC,
+    LINE_ID_DESC,
+    MACHINE_ID_DESC,
+    START_DESC,
+    Scope,
+    ScopeArgs,
+    resolve_scope,
+    rows,
+)
 from linecopilot.tools.envelope import Citation, Result, Window
 from linecopilot.tools.losses import (
     ASSUME_BRICK,
@@ -199,12 +208,12 @@ def reliability(conn: psycopg.Connection, args: ReliabilityArgs) -> Result[Relia
 class CompareArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    line_id: str | None = Field(default=None, description="brick, or a PIADE line s_1..s_5")
-    machine_id: str | None = Field(default=None, description="PIADE machine s_1..s_5")
-    a_start: datetime = Field(description="period A, inclusive; no zone means UTC")
-    a_end: datetime = Field(description="period A, exclusive")
-    b_start: datetime = Field(description="period B, inclusive")
-    b_end: datetime = Field(description="period B, exclusive")
+    line_id: str | None = Field(default=None, description=LINE_ID_DESC)
+    machine_id: str | None = Field(default=None, description=MACHINE_ID_DESC)
+    a_start: datetime = Field(description=f"period A start: {START_DESC}")
+    a_end: datetime = Field(description=f"period A end: {END_DESC}")
+    b_start: datetime = Field(description=f"period B start: {START_DESC}")
+    b_end: datetime = Field(description=f"period B end: {END_DESC}")
     top: int = Field(default=5, ge=1, le=50, description="top reasons per period by lost time")
 
 
