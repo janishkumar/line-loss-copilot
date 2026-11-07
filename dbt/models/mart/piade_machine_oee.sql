@@ -3,7 +3,7 @@
 --
 -- Count-based performance and quality use only shifts whose counts are complete
 -- (quality_reason null: no glitch on a run row, and some input counted when it ran);
--- run_s_counted is the run time behind them, n_shifts_counts_excluded the shifts left out.
+-- run_s_counted is the run time behind them, n_shifts_counts_excluded the shifts that ran (run_s > 0) but were left out.
 -- Monthly count-based performance is capped at 1; n_capped is the number of capped shifts
 -- (p95) in the month, month_capped flags the month value itself. Quality is capped at 1 the
 -- same way (n_quality_capped counts capped shifts).
@@ -18,7 +18,7 @@ agg as (
         machine_id,
         (date_trunc('month', shift_start at time zone 'UTC'))::date as month,
         count(*) as n_shifts,
-        count(*) filter (where not counts_ok) as n_shifts_counts_excluded,
+        count(*) filter (where not counts_ok and run_s > 0) as n_shifts_counts_excluded,
         sum(planned_s) as planned_s,
         sum(run_s) as run_s,
         sum(production_s) as production_s,

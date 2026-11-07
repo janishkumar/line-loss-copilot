@@ -1,15 +1,6 @@
-.git
-.venv
-data
-dbt/target
-dbt/logs
-tests
-evals
-docs
-node_modules
-__pycache__
-.pytest_cache
-.ruff_cache
-.env
-CLAUDE.local.md
-.superpowers
+# Allowlist: only what the api image needs (see Dockerfile).
+*
+!pyproject.toml
+!uv.lock
+!src
+**/__pycache__

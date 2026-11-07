@@ -78,26 +78,93 @@ def window_events(
     return citations_from_events(ev), total
 
 
+def _brick_extra() -> str:
+    return "AND (event_type = 'production_count' OR stop_type <> 'Planned - Not included in OEE')"
+
+
+def shift_exists(conn, shift_id: str) -> str | None:
+    """source_system of the shift, or None when the shift is unknown."""
+    r = conn.execute(
+        "SELECT l.source_system FROM core.shift s JOIN core.line l USING (line_id) "
+        "WHERE s.shift_id = %s",
+        (shift_id,),
+    ).fetchone()
+    return r[0] if r else None
+
+
+def shift_evidence(conn, shift_id: str, brick: bool, cap: int) -> tuple[list[dict[str, Any]], int]:
+    """Every raw row behind a shift's numbers (same event set as shift_citations), with all
+    raw columns as loaded. Returns (rows, event_count); rows cover the first `cap` events."""
+    extra = _brick_extra() if brick else ""
+    where = f"shift_id = %(id)s {extra}"
+    total = conn.execute(
+        f"SELECT count(*) FROM core.event WHERE {where}", {"id": shift_id}
+    ).fetchone()[0]
+    ev = rows(
+        conn,
+        f"""SELECT event_id, raw_table, source_file, raw_row_ids FROM core.event
+            WHERE {where}
+            ORDER BY (event_type = 'production_count') DESC, event_id LIMIT %(cap)s""",
+        {"id": shift_id, "cap": cap},
+    )
+    raw: dict[tuple[str, str, int], dict[str, Any]] = {}
+    for table, file in {(e["raw_table"], e["source_file"]) for e in ev}:
+        ids = sorted(
+            {
+                i
+                for e in ev
+                if (e["raw_table"], e["source_file"]) == (table, file)
+                for i in e["raw_row_ids"]
+            }
+        )
+        for r in raw_rows(conn, {"raw_table": table, "source_file": file, "raw_row_ids": ids}):
+            raw[(table, file, r["source_row"])] = r
+    out = []
+    for e in ev:
+        for rid in e["raw_row_ids"]:
+            r = raw.get((e["raw_table"], e["source_file"], rid))
+            if r is not None:
+                out.append(
+                    {
+                        "event_id": e["event_id"],
+                        "raw_table": e["raw_table"],
+                        "source_file": e["source_file"],
+                        "source_row": rid,
+                        "raw": r,
+                    }
+                )
+    return out, total
+
+
+def brick_performance_over_1(conn, start: datetime, end: datetime) -> tuple[int, float | None]:
+    """Shifts in the window whose published performance exceeds 1, and the maximum."""
+    n, mx = conn.execute(
+        """SELECT count(*) FILTER (WHERE m.performance_pub > 1), max(m.performance_pub)
+           FROM mart.brick_shift_oee m JOIN core.shift s ON s.shift_id = m.shift_id
+           WHERE s.shift_start >= %s AND s.shift_start < %s""",
+        (start, end),
+    ).fetchone()
+    return n, f(mx)
+
+
 def shift_citations(
     conn, shift_ids: list[str], brick: bool
 ) -> dict[str, tuple[list[Citation], int]]:
     """Per-shift evidence (R16), capped per shift, with the true count.
 
-    Brick: the shift's production_count event plus its stops that count in OEE.
+    Brick: the shift's production_count event (always first, so the cap never drops it)
+    plus its stops that count in OEE.
     PIADE: the interval events in the shift."""
     if not shift_ids:
         return {}
-    extra = (
-        "AND (event_type = 'production_count' OR stop_type <> 'Planned - Not included in OEE')"
-        if brick
-        else ""
-    )
+    extra = _brick_extra() if brick else ""
     ev = rows(
         conn,
         f"""SELECT * FROM (
                 SELECT event_id, shift_id, raw_table, source_file, raw_row_ids,
-                       row_number() OVER (PARTITION BY shift_id ORDER BY event_type DESC,
-                                          event_id) AS rn,
+                       row_number() OVER (
+                           PARTITION BY shift_id
+                           ORDER BY (event_type = 'production_count') DESC, event_id) AS rn,
                        count(*) OVER (PARTITION BY shift_id) AS n
                 FROM core.event
                 WHERE shift_id = ANY(%(ids)s) {extra}
@@ -177,7 +244,7 @@ def piade_days(conn, machine_id: str, start: datetime, end: datetime) -> list[di
                WHERE machine_id = %(m)s AND shift_start >= %(s)s AND shift_start < %(e)s),
            a AS (
                SELECT day, min(shift_start) AS start, count(*) AS n_shifts,
-                      count(*) FILTER (WHERE NOT ok) AS n_shifts_counts_excluded,
+                      count(*) FILTER (WHERE NOT ok AND run_s > 0) AS n_shifts_counts_excluded,
                       sum(planned_s) AS planned_s, sum(run_s) AS run_s,
                       sum(production_s) AS production_s,
                       sum(run_s) FILTER (WHERE ok) AS run_s_counted,

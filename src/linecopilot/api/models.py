@@ -88,3 +88,19 @@ class SourceData(BaseModel):
     raw_table: str
     source_file: str
     rows: list[dict[str, Any]]
+
+
+class EvidenceRow(BaseModel):
+    event_id: int
+    raw_table: str
+    source_file: str
+    source_row: int
+    raw: dict[str, Any] = Field(description="all raw columns as loaded")
+
+
+class ShiftEvidenceData(BaseModel):
+    shift_id: str
+    source_system: str
+    rows: list[EvidenceRow]
+    event_count: int
+    truncated: bool = False

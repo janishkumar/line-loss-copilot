@@ -18,7 +18,7 @@
     "p90": 4500.0,
     "p95": 4550.0,
     "p99": 4650.0,
-    "n_shifts_counts_excluded": 184.0
+    "n_shifts_counts_excluded": 94.0
   },
   {
     "machine_id": "s_2",
@@ -39,7 +39,7 @@
     "p90": 6500.0,
     "p95": 6500.0,
     "p99": 6500.0,
-    "n_shifts_counts_excluded": 367.0
+    "n_shifts_counts_excluded": 87.0
   },
   {
     "machine_id": "s_3",
@@ -60,7 +60,7 @@
     "p90": 4500.0,
     "p95": 4500.0,
     "p99": 4800.0,
-    "n_shifts_counts_excluded": 295.0
+    "n_shifts_counts_excluded": 35.0
   },
   {
     "machine_id": "s_4",
@@ -81,7 +81,7 @@
     "p90": 6176.0,
     "p95": 6176.0,
     "p99": 6500.0,
-    "n_shifts_counts_excluded": 133.0
+    "n_shifts_counts_excluded": 54.0
   },
   {
     "machine_id": "s_5",
@@ -102,6 +102,6 @@
     "p90": 6500.0,
     "p95": 6500.0,
     "p99": 6500.0,
-    "n_shifts_counts_excluded": 322.0
+    "n_shifts_counts_excluded": 134.0
   }
 ]

@@ -190,3 +190,65 @@ def test_validation_report(client):
     assert body["status"] == "ok"
     assert set(body["data"]["periods"]) == {"before", "after"}
     assert body["data"]["shifts"] and "shift_id" in body["data"]["shifts"][0]
+
+
+def test_shift_evidence_brick_matches_oee_citations(client, built):
+    oee = get(client, "/api/oee", line_id="brick", group="shift")
+    row = next(r for r in oee["data"]["rows"] if r["key"] == "brick:2026-02-02")
+    body = get(client, "/api/shifts/brick:2026-02-02/evidence")
+    assert body["status"] == "ok" and body["data"]["source_system"] == "brick"
+    assert body["citation_count"] == row["citation_count"] == len(body["data"]["rows"])
+    assert body["data"]["event_count"] == row["citation_count"] and not body["data"]["truncated"]
+    # production_count row first, then the in-OEE stops
+    assert body["data"]["rows"][0]["raw_table"] == "brick_oee"
+    assert {(c["raw_table"], c["source_file"], c["raw_row_id"]) for c in body["citations"]} == {
+        (c["raw_table"], c["source_file"], c["raw_row_id"]) for c in row["citations"]
+    }
+    for r in body["data"]["rows"]:
+        cur = built.execute(
+            f"SELECT * FROM raw.{r['raw_table']} WHERE source_file = %s AND source_row = %s",
+            (r["source_file"], r["source_row"]),
+        )
+        cols = [d.name for d in cur.description]
+        (expected,) = [dict(zip(cols, x, strict=True)) for x in cur.fetchall()]
+        assert r["raw"] == expected and r["event_id"]
+
+
+def test_shift_evidence_piade_and_edge_cases(client, built):
+    shifts = get(client, "/api/oee", machine_id="s_1", group="shift")["data"]["rows"]
+    row = shifts[0]
+    body = get(client, f"/api/shifts/{row['key']}/evidence")
+    assert body["status"] == "ok" and body["data"]["source_system"] == "piade"
+    assert len(body["data"]["rows"]) == row["citation_count"]
+    assert {r["raw_table"] for r in body["data"]["rows"]} == {"piade_raw"}
+    unknown = get(client, "/api/shifts/nope/evidence")
+    assert unknown["status"] == "out_of_scope" and "nope" in unknown["missing"]
+    empty = built.execute(
+        "SELECT shift_id FROM mart.brick_shift_oee m WHERE NOT EXISTS ("
+        " SELECT 1 FROM core.event e WHERE e.shift_id = m.shift_id AND (e.event_type ="
+        " 'production_count' OR e.stop_type <> 'Planned - Not included in OEE')) LIMIT 1"
+    ).fetchone()
+    if empty:
+        res = get(client, f"/api/shifts/{empty[0]}/evidence")
+        assert res["status"] == "insufficient_evidence"
+
+
+def test_brick_performance_over_one_is_noted(client, built):
+    body = get(client, "/api/oee", line_id="brick", group="shift")
+    n = built.execute(
+        "SELECT count(*) FROM mart.brick_shift_oee WHERE performance_pub > 1"
+    ).fetchone()[0]
+    notes = [a for a in body["assumptions"] if "performance exceeds 1" in a]
+    assert (len(notes) == 1 and f"on {n} shifts" in notes[0]) if n else not notes
+
+
+def test_piade_excluded_count_only_counts_shifts_that_ran(client, built):
+    day = get(client, "/api/oee", machine_id="s_3", group="day")["data"]["rows"]
+    for r in day:
+        (n,) = built.execute(
+            "SELECT count(*) FROM mart.piade_shift_oee WHERE machine_id = 's_3'"
+            " AND (shift_start AT TIME ZONE 'UTC')::date = %s AND quality_reason IS NOT NULL"
+            " AND run_s > 0",
+            (r["key"],),
+        ).fetchone()
+        assert r["details"]["n_shifts_counts_excluded"] == n

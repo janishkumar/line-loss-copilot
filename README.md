@@ -121,6 +121,8 @@ make test-db       # tests that need Postgres (uses the compose test database)
 make down
 ```
 
+Raw tables are created with `CREATE TABLE IF NOT EXISTS`, so after a schema change recreate the database volume (`docker compose down -v`) and reload.
+
 Then open http://localhost:8080 (overview, validation, evidence for a shift). The API is on http://localhost:8000.
 
 More: [docs/data-notes.md](docs/data-notes.md) (data findings and how each number is reproduced), [docs/design.md](docs/design.md) (design for all stages).

@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import Evidence from "./pages/Evidence";
+import ShiftEvidence from "./pages/ShiftEvidence";
 import Overview from "./pages/Overview";
 import Validation from "./pages/Validation";
 
@@ -17,6 +18,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/validation" element={<Validation />} />
+          <Route path="/evidence/shift/:shiftId" element={<ShiftEvidence />} />
           <Route path="/evidence/:eventId" element={<Evidence />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

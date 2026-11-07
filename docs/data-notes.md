@@ -233,9 +233,8 @@ Points to read with it:
   (`clipped_s` records the cut; the counter delta stays on the row). Before clipping, three
   shifts held 32,400 s in an 8 h (28,800 s) shift. All clipped time is exactly one hour per
   machine-night, on 2020-10-25 (s_1) and 2021-10-31 (s_1, s_3): the European daylight-saving
-  end dates. The dates coincide with the EU daylight-saving end dates, but the in-day timing
-  (21:00 to 23:00 UTC) does not match a plain transition, so the cause is unexplained. The
-  overlapping time is counted once.
+  end dates. The in-day timing (21:00 to 23:00 UTC) does not match a plain transition, so
+  the cause is unexplained. The overlapping time is counted once.
 
 ### Assumptions behind the PIADE figures
 

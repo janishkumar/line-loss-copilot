@@ -10,11 +10,13 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from linecopilot.api import queries as q
 from linecopilot.api.models import (
     AssetsData,
+    EvidenceRow,
     LineInfo,
     MachineInfo,
     OeeData,
     OeeRow,
     Result,
+    ShiftEvidenceData,
     SourceData,
     Window,
 )
@@ -23,13 +25,15 @@ from linecopilot.reports.oee_validation import validate_oee
 
 GroupBy = Literal["shift", "day", "month"]
 MAX_ROWS = 2000
+EVIDENCE_CAP = 5000  # events per shift; a shift holds far fewer (PIADE: tens to hundreds)
 
 ASSUME_PIADE = [
     "PIADE ideal rate is the p95 of speed over production rows per machine (not stated by the "
     "dataset); p90 and p99 OEE are returned as oee_p90 and oee_p99.",
     "PIADE shifts are an assumed 3 x 8 h UTC calendar starting 06:00, 14:00, 22:00.",
-    "Count-based performance and quality exclude shifts whose counters have glitches "
-    "(quality_reason set); those shifts have null quality and oee.",
+    "Count-based performance and quality exclude shifts whose counters have glitches or that "
+    "ran with no input counted (quality_reason set: pi_glitch, po_glitch or no_input); those "
+    "shifts have null quality and oee. n_shifts_counts_excluded counts only shifts that ran.",
 ]
 ASSUME_BRICK = [
     "Brick planned time is a published input; availability_calc is recomputed from the stop "
@@ -137,6 +141,13 @@ def create_app(db_url: str | None = None) -> FastAPI:
                     f"{line['first_ts'].isoformat()} to {line['last_ts'].isoformat()}"
                 ),
             )
+        if brick:
+            n_over, max_perf = q.brick_performance_over_1(conn, lo, hi)
+            if n_over:
+                assumptions.append(
+                    f"Published brick performance exceeds 1 on {n_over} shifts in this window "
+                    f"(maximum {max_perf:.3f}); used as published, not capped."
+                )
         cites, total = q.window_events(conn, line_id, machine_id if not brick else None, lo, hi)
         return Result(
             status="ok",
@@ -166,6 +177,53 @@ def create_app(db_url: str | None = None) -> FastAPI:
                 "quality are the published values.",
                 "Each row's shift_id matches the shift rows of /api/oee, which carry citations.",
             ],
+        )
+
+    @app.get("/api/shifts/{shift_id}/evidence")
+    def shift_evidence(shift_id: str, conn: Conn) -> Result[ShiftEvidenceData]:
+        system = q.shift_exists(conn, shift_id)
+        if system is None:
+            return Result(status="out_of_scope", missing=f"unknown shift_id {shift_id!r}")
+        recs, n_events = q.shift_evidence(conn, shift_id, system == "brick", EVIDENCE_CAP)
+        if not recs:
+            return Result(
+                status="insufficient_evidence",
+                missing=f"shift {shift_id} has no events behind it",
+            )
+        rows = [EvidenceRow(**r) for r in recs]
+        assumptions = [
+            "Rows are the cited raw rows exactly as loaded (text columns), with source_row.",
+            (
+                "Brick: the shift's production_count row plus the stops that count in OEE."
+                if system == "brick"
+                else "PIADE: the interval rows that start in the shift."
+            ),
+        ]
+        truncated = n_events > EVIDENCE_CAP
+        if truncated:
+            assumptions.append(f"Showing the first {EVIDENCE_CAP} of {n_events} events.")
+        return Result(
+            status="ok",
+            data=ShiftEvidenceData(
+                shift_id=shift_id,
+                source_system=system,
+                rows=rows,
+                event_count=n_events,
+                truncated=truncated,
+            ),
+            citations=q.citations_from_events(
+                [
+                    {
+                        "event_id": r.event_id,
+                        "raw_table": r.raw_table,
+                        "source_file": r.source_file,
+                        "raw_row_ids": [r.source_row],
+                    }
+                    for r in rows
+                ]
+            ),
+            citation_count=n_events,
+            assumptions=assumptions,
         )
 
     @app.get("/api/events/{event_id}/source")

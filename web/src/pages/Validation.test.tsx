@@ -45,7 +45,7 @@ const oee = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Validation", () => {
-  it("shows gap cells and links each row to its production_count evidence", async () => {
+  it("shows gap cells and links each row to all of the shift's evidence rows", async () => {
     vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
       ok: true,
       json: async () => (String(url).includes("/oee/validation") ? validation : oee),
@@ -53,10 +53,10 @@ describe("Validation", () => {
     render(<MemoryRouter><Validation /></MemoryRouter>);
     const r1 = (await screen.findByText("2025-09-22")).closest("tr")!;
     expect(within(r1).getByText("+2.3 pts")).toBeInTheDocument();
-    expect(within(r1).getByRole("link", { name: /3 rows/ })).toHaveAttribute("href", "/evidence/1219");
+    expect(within(r1).getByRole("link", { name: /3 rows/ })).toHaveAttribute("href", "/evidence/shift/brick:2025-09-22");
     const r2 = screen.getByText("2025-09-23").closest("tr")!;
     expect(within(r2).getByText("-5.0 pts")).toBeInTheDocument();
-    expect(within(r2).getByRole("link", { name: /3 rows/ })).toHaveAttribute("href", "/evidence/1220");
+    expect(within(r2).getByRole("link", { name: /3 rows/ })).toHaveAttribute("href", "/evidence/shift/brick:2025-09-23");
     expect(screen.getAllByText(/published/i).length).toBeGreaterThan(0);
   });
 });

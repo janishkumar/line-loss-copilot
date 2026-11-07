@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -24,6 +25,14 @@ const SERIES: Record<string, { label: string; keys: string[] }[]> = {
 };
 const COLORS = ["#2a7de1", "#d9822b", "#2f9e6f", "#b0488f"];
 
+/** PIADE has three shifts a day, so its label carries the shift start (UTC); brick has one a day. */
+function shiftLabel(start: string | null, system: string): string {
+  if (system !== "piade" || !start) return day(start);
+  return `${day(start)} ${start.slice(11, 16)}`;
+}
+
+const TICKS = [0, 0.25, 0.5, 0.75, 1];
+
 export default function Overview() {
   const [assets, setAssets] = useState<Result<AssetsData> | null>(null);
   const [lineId, setLineId] = useState("brick");
@@ -36,8 +45,17 @@ export default function Overview() {
   }, []);
 
   useEffect(() => {
+    // A response only counts if its request is still the current one; the error is cleared
+    // when the selection changes.
+    let current = true;
     setOee(null);
-    getOee({ line_id: lineId, group, limit: 2000 }).then(setOee).catch((e: Error) => setError(e.message));
+    setError(null);
+    getOee({ line_id: lineId, group, limit: 2000 })
+      .then((r) => current && setOee(r))
+      .catch((e: Error) => current && setError(e.message));
+    return () => {
+      current = false;
+    };
   }, [lineId, group]);
 
   const lines = assets?.data?.lines ?? [];
@@ -47,12 +65,13 @@ export default function Overview() {
     () =>
       (oee?.data?.rows ?? []).map((r) => {
         const out: Record<string, string | number | null> = {
-          name: group === "shift" ? day(r.start) : r.key.slice(0, group === "month" ? 7 : 10),
+          name: group === "shift" ? shiftLabel(r.start, system) : r.key.slice(0, group === "month" ? 7 : 10),
+          shiftId: group === "shift" ? r.key : null,
         };
         for (const s of series) out[s.label] = s.keys.map((k) => r.metrics[k]).find((v) => v !== undefined) ?? null;
         return out;
       }),
-    [oee, group, series],
+    [oee, group, series, system],
   );
 
   if (error) return <Loading error={error} />;
@@ -97,7 +116,8 @@ export default function Overview() {
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.2} />
                 <XAxis dataKey="name" minTickGap={30} tick={{ fill: "currentColor", fontSize: 12 }} />
                 <YAxis
-                  domain={[0, 1]}
+                  domain={[0, (dataMax: number) => Math.max(1, dataMax)]}
+                  ticks={TICKS}
                   tickFormatter={(v: number) => `${Math.round(v * 100)}%`}
                   tick={{ fill: "currentColor", fontSize: 12 }}
                 />
@@ -124,7 +144,15 @@ export default function Overview() {
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i}>
-                    <td>{r.name}</td>
+                    <td>
+                      {r.shiftId ? (
+                        <Link to={`/evidence/shift/${r.shiftId}`} title="All raw rows behind this shift">
+                          {r.name}
+                        </Link>
+                      ) : (
+                        r.name
+                      )}
+                    </td>
                     {series.map((s) => <td key={s.label} className="num">{pct(r[s.label] as number | null)}</td>)}
                   </tr>
                 ))}

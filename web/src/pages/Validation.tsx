@@ -1,19 +1,13 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   getOee, getValidation,
-  type Citation, type GapStats, type OeeRow, type Result, type ValidationData,
+  type GapStats, type OeeRow, type Result, type ValidationData,
 } from "../api";
-import Cite from "../components/Cite";
 import { Assumptions, Loading, Notice, RealBadge } from "../components/Common";
 import { day, gapPts, pct } from "../format";
 
 type Period = "before" | "after";
-
-/** The production_count event (brick_oee row) is the shift's evidence anchor; else the first citation. */
-export function evidenceCitation(row: OeeRow | undefined): Citation | undefined {
-  if (!row) return undefined;
-  return row.citations.find((c) => c.raw_table === "brick_oee") ?? row.citations[0];
-}
 
 const pts = (v: number | null) => (v === null ? "n/a" : `${(v * 100).toFixed(1)} pts`);
 
@@ -96,7 +90,6 @@ export default function Validation() {
           <tbody>
             {shifts.map((s) => {
               const row = rowsByShift.get(s.shift_id);
-              const c = evidenceCitation(row);
               return (
                 <tr key={s.shift_id}>
                   <td>{day(s.shift_date)}</td>
@@ -108,8 +101,13 @@ export default function Validation() {
                   <td className="num">{pct(s.oee_pub)}</td>
                   <td className="num">{gapPts(s.oee_gap)}</td>
                   <td>
-                    {c && row ? (
-                      <Cite citation={c} label={`${row.citation_count} rows`} />
+                    {row && row.citation_count > 0 ? (
+                      <Link
+                        to={`/evidence/shift/${s.shift_id}`}
+                        title="All raw rows behind this shift"
+                      >
+                        {row.citation_count} rows
+                      </Link>
                     ) : (
                       <span className="muted">n/a</span>
                     )}

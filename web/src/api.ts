@@ -133,3 +133,22 @@ export const getOee = (p: {
 }) => get<OeeData>("/oee", p);
 export const getValidation = () => get<ValidationData>("/oee/validation");
 export const getSource = (eventId: number | string) => get<SourceData>(`/events/${eventId}/source`);
+
+export interface EvidenceRow {
+  event_id: number;
+  raw_table: string;
+  source_file: string;
+  source_row: number;
+  raw: Record<string, unknown>;
+}
+
+export interface ShiftEvidenceData {
+  shift_id: string;
+  source_system: string;
+  rows: EvidenceRow[];
+  event_count: number;
+  truncated: boolean;
+}
+
+export const getShiftEvidence = (shiftId: string) =>
+  get<ShiftEvidenceData>(`/shifts/${encodeURIComponent(shiftId)}/evidence`);
