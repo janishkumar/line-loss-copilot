@@ -270,7 +270,10 @@ def test_time_budget_stops_between_rounds(tools_called):
 
 
 def test_default_time_budget_is_below_the_proxy_timeout():
-    assert loop.TIME_BUDGET_S == 540
+    from linecopilot.chat.ollama import TIMEOUT_S
+
+    # A round that starts just inside the budget can still run for the client timeout.
+    assert loop.TIME_BUDGET_S + TIMEOUT_S < 600
 
 
 def test_tool_schemas_are_flat_and_keep_names():

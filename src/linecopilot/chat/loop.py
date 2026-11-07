@@ -27,7 +27,8 @@ log = logging.getLogger(__name__)
 MODEL_CITATIONS = 10
 MODEL_NESTED_CITATIONS = 3
 MODEL_LIST_ROWS = 30
-TIME_BUDGET_S = 540.0  # stop before the web proxy's 600 s read timeout
+# A round can still take the 180 s client timeout: 400 + 180 < the 600 s proxy timeout.
+TIME_BUDGET_S = 400.0
 NO_ANSWER = "The model returned no answer."
 # [event:12], and the grouped forms small models write: [event:12, event:13] or [event:12, 13].
 # The bracket body is matched by a bounded class (no nested quantifiers), then checked by split.
