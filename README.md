@@ -109,6 +109,32 @@ Stage 1 contains no synthetic data.
 - **Zero-input shifts in the monthly rollup.** Shifts with run time but no counted input dragged count-based performance down. They are now left out of count-based P and Q (A and time-based P keep them) and counted in the notes.
 - **The brick availability gap is not closed.** Recomputing availability from the stop log lands within 2 points on 97.7% of after-period shifts but only 38.7% of before-period shifts. The before gap traces to a block of October days where published planned time is far longer than the logged day; the files do not explain why. It is reported as measured, not filtered.
 
+## Use it from Claude
+
+The copilot's tools are exposed as a read-only MCP server named `linecopilot`. It has no write, approve or delete tool, and every answer is the same envelope the API returns, with citations to raw rows. It reads the database at `LINECOPILOT_DB_URL` (default: the compose database on port 5434), so run `make up` and load the data first.
+
+Claude Desktop, in `claude_desktop_config.json` (replace `/path/to/line-loss-copilot` with the repo path):
+
+```json
+{
+  "mcpServers": {
+    "linecopilot": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/line-loss-copilot", "python", "-m", "linecopilot.mcp_server"],
+      "env": { "PYTHONPATH": "src" }
+    }
+  }
+}
+```
+
+Claude Code:
+
+```
+claude mcp add linecopilot --env PYTHONPATH=src -- uv run --directory /path/to/line-loss-copilot python -m linecopilot.mcp_server
+```
+
+The tools then appear as `mcp__linecopilot__<tool>`, for example `mcp__linecopilot__get_oee`.
+
 ## Run it
 
 Needs Docker, uv, and Node 24 (Node only for local web work).
@@ -117,6 +143,7 @@ Needs Docker, uv, and Node 24 (Node only for local web work).
 make demo-stage1   # db, api and web up; download data; load; dbt build; validation report
 make report        # rewrite the results section above from evals/results/
 make train-risk    # next-hour stop-risk models on PIADE (about 20 s)
+make mcp           # MCP server over stdio
 make lint          # ruff
 make test          # offline tests
 make test-db       # tests that need Postgres (uses the compose test database)
