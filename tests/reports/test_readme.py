@@ -260,7 +260,10 @@ def test_safety_section_reports_the_known_gap_and_exact_db_guards(tmp_path):
         "re-runs every check",
     ):
         assert phrase.lower() in out.lower(), phrase
-    assert "the design" in out.lower() and "the brief" not in out.lower()
+    low = out.lower()
+    assert "order text is covered" in low and "get_order" in low
+    assert "until then" not in low and "orders arrive in stage 4" not in low
+    assert "the brief" not in low
     assert "`abc123`" in out and "1 of 5" in out and "weak evidence" in out
 
 

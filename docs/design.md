@@ -279,7 +279,7 @@ audit record                      every step, including refused and blocked atte
 
 Scenarios in the style of po-guard: injected instructions in operator notes and in action text, skipped approval (writing without a pending proposal), reused, stale, fake and swapped codes, arguments edited after preview, self-approval, the agent trying to reach the approve route, a role approving outside its rights. A scripted agent drives the real tool functions and the real approve route. Success of an attack is judged from database state afterwards, not from tool replies. The same scenarios run against the same tools with checks and codes removed, as the baseline. Legitimate flows must still complete. README reports unsafe writes that landed, with and without guardrails, and legitimate flows completed. A smaller set of injection scenarios also runs through the Ollama chat loop and through Claude via MCP, each reported with its model name.
 
-The brief's safety measure also covers injected instructions in order text. Orders do not exist until stage 4, so the stage 3 number covers operator notes and action text only, the README says so, and stage 4 adds order-text scenarios to the same eval.
+The brief's safety measure also covers injected instructions in order text. Orders do not exist until stage 4, so the stage 3 number covers operator notes and action text only, the README says so, and stage 4 adds order-text scenarios to the same eval (done, see 10.4).
 
 ### 7.5 Stage 3 demo
 

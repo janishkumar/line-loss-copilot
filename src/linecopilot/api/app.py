@@ -14,7 +14,7 @@ from fastapi import Cookie, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from linecopilot.actions.identity import AGENT, ActionContext
 from linecopilot.actions.policy import load_policy
@@ -48,6 +48,17 @@ from linecopilot.tools.losses import (
 )
 from linecopilot.tools.notes import NotesData, SearchNotesArgs, search_notes
 from linecopilot.tools.oee import MAX_ROWS, GetOeeArgs, GroupBy, OeeData, get_oee
+from linecopilot.tools.planning import (
+    GetOrderArgs,
+    GetPlanArgs,
+    OrderData,
+    PlanData,
+    ShortagesArgs,
+    ShortagesData,
+    get_order,
+    get_plan,
+    shortages,
+)
 from linecopilot.tools.registry import format_errors
 from linecopilot.tools.reliability import (
     CompareArgs,
@@ -199,6 +210,27 @@ def create_app(
     @app.get("/api/risk/metrics")
     def risk_metrics_route(conn: Conn) -> Result[RiskMetricsData]:
         return risk_metrics(conn)
+
+    @app.get("/api/plan")
+    def plan_route(conn: Conn, args: Annotated[GetPlanArgs, Query()]) -> Result[PlanData]:
+        return get_plan(conn, args)
+
+    @app.get("/api/shortages")
+    def shortages_route(
+        conn: Conn, args: Annotated[ShortagesArgs, Query()]
+    ) -> Result[ShortagesData]:
+        return shortages(conn, args)
+
+    @app.get("/api/orders/{order_id}")
+    def order_route(order_id: str, conn: Conn) -> Result[OrderData]:
+        try:
+            args = GetOrderArgs(order_id=order_id)
+        except ValidationError as e:
+            return Result(
+                status="out_of_scope",
+                missing=f"invalid arguments for /api/orders: {format_errors(e.errors())}",
+            )
+        return get_order(conn, args)
 
     @app.get("/api/oee/validation")
     def validation(conn: Conn) -> Result[dict[str, Any]]:

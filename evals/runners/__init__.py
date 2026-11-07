@@ -5,6 +5,24 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+# The tools the stage 2 answer eval offers, pinned by name so its results stay comparable when
+# the registry grows. Used by the Ollama runner's tool list and the Claude runner's MCP
+# allow-list; the safety eval and the apps use the whole registry.
+STAGE2_TOOLS = (
+    "list_assets",
+    "get_oee",
+    "get_source_rows",
+    "shift_evidence",
+    "loss_pareto",
+    "breakdown",
+    "repeat_failures",
+    "reliability",
+    "compare_periods",
+    "get_events",
+    "search_notes",
+    "stop_risk",
+)
+
 # Added to every question's user message by evals.run (the same text for every runner, tools
 # and no-tools, Ollama and Claude), so all are asked for the same last line. Not added to the
 # before/after prompt, which asks for its own summary line. The system prompt keeps its rule.

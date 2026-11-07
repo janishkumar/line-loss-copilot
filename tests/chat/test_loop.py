@@ -647,3 +647,15 @@ def test_chat_identity_arg_rejected_and_audited(monkeypatch):
     assert len(written) == 1 and Conn.closed == 1
     assert written[0][:6] == ("proposed", "work_order", None, "copilot-agent", "sup.a", "web_chat")
     assert written[0][7] == "refused"
+
+
+def test_tool_names_pin_the_offered_tools_and_refuse_others():
+    pinned = ("list_assets", "get_oee")
+    assert [s["function"]["name"] for s in tool_schemas(pinned)] == list(pinned)
+    assert {s["function"]["name"] for s in tool_schemas()} == set(TOOLS)
+    fake = FakeOllama(call(("get_order", {"order_id": "x"})), say("done"))
+    res = run_chat(None, fake.client(), [{"role": "user", "content": "q"}], tool_names=pinned)
+    assert {t["function"]["name"] for t in fake.requests[0]["tools"]} == set(pinned)
+    # a call to a tool outside the pinned list never runs (conn is None: it would crash)
+    assert res.tool_calls[0].name == "get_order" and res.tool_calls[0].status == "out_of_scope"
+    assert "unknown tool" in res.tool_calls[0].missing

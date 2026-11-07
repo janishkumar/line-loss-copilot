@@ -6,7 +6,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from evals.runners import Reply
+from evals.runners import STAGE2_TOOLS, Reply
 from linecopilot.chat.loop import run_chat
 from linecopilot.chat.ollama import OPTIONS, OllamaClient, OllamaError, OllamaTimeout
 
@@ -96,6 +96,7 @@ class OllamaRunner:
                 client,  # type: ignore[arg-type]
                 [{"role": "user", "content": prompt}],
                 **config(self.tools_enabled, self.budget_s),
+                tool_names=STAGE2_TOOLS,
             )
         except OllamaError as e:
             self.retries_total += client.retry_count

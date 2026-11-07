@@ -12,7 +12,7 @@ import json
 import logging
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -123,9 +123,10 @@ def _schemas(specs: Any) -> list[dict[str, Any]]:
     return out
 
 
-def tool_schemas() -> list[dict[str, Any]]:
-    """Ollama tool definitions for every registry entry, same names and argument names."""
-    return _schemas(TOOLS.values())
+def tool_schemas(names: Collection[str] | None = None) -> list[dict[str, Any]]:
+    """Ollama tool definitions for every registry entry (or only `names`, in registry order),
+    same names and argument names."""
+    return _schemas(s for n, s in TOOLS.items() if names is None or n in names)
 
 
 def action_tool_schemas() -> list[dict[str, Any]]:
@@ -215,7 +216,9 @@ def _action_payload(
     return name, args, payload, None
 
 
-def _tool_payload(conn: Any, tc: Any) -> tuple[str, dict[str, Any] | str, dict[str, Any], Any]:
+def _tool_payload(
+    conn: Any, tc: Any, only: Collection[str] | None = None
+) -> tuple[str, dict[str, Any] | str, dict[str, Any], Any]:
     """Run one requested tool call. Returns (name, args, payload for the model, Result or
     None). Nothing here raises: every failure is an out_of_scope payload."""
     fn = tc.get("function") if isinstance(tc, dict) else None
@@ -225,6 +228,8 @@ def _tool_payload(conn: Any, tc: Any) -> tuple[str, dict[str, Any] | str, dict[s
     args, err = _parse_args(fn.get("arguments"))
     if err is not None:
         return name, args, {"status": "out_of_scope", "missing": err}, None
+    if only is not None and name not in only:
+        return name, args, {"status": "out_of_scope", "missing": f"unknown tool {name!r}"}, None
     try:
         res = call_tool(conn, name, args)  # type: ignore[arg-type]
     except Exception:
@@ -258,20 +263,27 @@ def run_chat(
     action_ctx: Any | None = None,
     agent_conn_factory: Callable[[], Any] | None = None,
     action_service: Any | None = None,
+    tool_names: Collection[str] | None = None,
 ) -> ChatResult:
     """Run the conversation until the model answers without a tool call, `max_rounds` model
     calls have been made, or `time_budget_s` has passed (checked between rounds). `messages`
     holds user and assistant turns only; the system prompt is always ours. The action tools
     are offered only with `action_ctx` (the acting identity, built by the front end), a
     `agent_conn_factory` (a fresh autocommit agent-role connection per call) and an
-    `action_service`; without all three the tools and prompt are exactly the read-only ones."""
+    `action_service`; without all three the tools and prompt are exactly the read-only ones.
+    `tool_names` limits the read tools offered (and accepted) to those names; the stage 2 answer
+    eval uses it to keep its original tool list."""
     actions = (
         tools_enabled
         and action_ctx is not None
         and agent_conn_factory is not None
         and action_service is not None
     )
-    tools = (tool_schemas() + (action_tool_schemas() if actions else [])) if tools_enabled else []
+    tools = (
+        (tool_schemas(tool_names) + (action_tool_schemas() if actions else []))
+        if tools_enabled
+        else []
+    )
     system = SYSTEM_PROMPT + (" " + ACTION_INSTRUCTIONS if actions else "")
     convo: list[dict[str, Any]] = [{"role": "system", "content": system}]
     convo += [{"role": m["role"], "content": m["content"]} for m in messages]
@@ -330,7 +342,7 @@ def run_chat(
                 if actions
                 else None
             )
-            name, args, payload, res = acted or _tool_payload(conn, tc)
+            name, args, payload, res = acted or _tool_payload(conn, tc, tool_names)
             if res is not None:
                 cites.extend(res.citations)
                 _event_ids(res.model_dump(mode="json"), supported)

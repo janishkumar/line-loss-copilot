@@ -119,6 +119,7 @@ def _summary(conn: psycopg.Connection, ctx: ActionContext, canon: dict, snap: Sn
         head = (
             f"Follow-up for {canon['assignee_role']} due {canon['due_date']}, "
             f"{n} linked event{'' if n == 1 else 's'}"
+            + (f", {len(canon['order_ids'])} linked order(s)" if canon.get("order_ids") else "")
         )
     return f"{head}. Proposed by {ctx.principal} for {who} via {ctx.channel}."
 
@@ -134,9 +135,10 @@ def _cap(text: str | None) -> str | None:
 
 
 def _note_dicts(snap: Snapshot) -> list[dict]:
-    """The notes linked to the evidence, as quoted data: the same text a person sees in the
-    inbox. Demo notes are flagged synthetic; a translation carries its model's name."""
-    return [
+    """The notes linked to the evidence, then those of the linked orders, as quoted data: the
+    same text a person sees in the inbox. Demo notes and order notes are flagged synthetic; a
+    translation carries its model's name."""
+    out = [
         {
             "event_id": n.event_id,
             "source": n.source,
@@ -148,6 +150,21 @@ def _note_dicts(snap: Snapshot) -> list[dict]:
         }
         for n in snap.notes[:NOTES_MAX]
     ]
+    out += [
+        {
+            "event_id": None,
+            "order_id": o.order_id,
+            "source": "synthetic.customer_order",
+            "synthetic": True,
+            "text": _cap(o.note),
+            "translation": None,
+            "translation_model": None,
+            "truncated": len(o.note) > NOTE_CAP,
+        }
+        for o in snap.orders[:NOTES_MAX]
+        if o.note
+    ]
+    return out
 
 
 def _evidence_dicts(snap: Snapshot) -> list[dict]:
@@ -701,15 +718,20 @@ class ActionService:
         ).fetchall()
         ctx = ActionContext(prop["principal"], prop["on_behalf_of"], prop["channel"])
         warnings = [c for c in prop["checks"] if c["level"] == "warn"]
-        live = check_instruction_like_text(
-            load_snapshot(conn, prop["action"], prop["args"], ctx, evidence_keys=keys)
-        )
+        snap = load_snapshot(conn, prop["action"], prop["args"], ctx, evidence_keys=keys)
+        live = check_instruction_like_text(snap)
         if live.level == "warn" and not any(w["name"] == live.name for w in warnings):
             warnings.append(live.to_dict())
+        order_notes = [
+            {"order_id": o.order_id, "text": o.note, "synthetic": True}
+            for o in snap.orders
+            if o.note
+        ]
         return {
             **prop,
             "evidence": evidence,
             "notes": notes,
+            "order_notes": order_notes,
             "warnings": warnings,
         }
 

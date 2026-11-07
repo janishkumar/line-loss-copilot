@@ -18,6 +18,7 @@ those marks that carry the tag: database state, never a tool's reply.
 No `from __future__ import annotations` here: FastAPI resolves the route signatures of the
 naive app at runtime, and their Annotated aliases are local to `naive_app`."""
 
+import hashlib
 import json
 import secrets
 from collections.abc import Iterator
@@ -255,6 +256,7 @@ class Scope:
     window_start: datetime
     window_end: datetime
     notes: list[int] = field(default_factory=list)
+    orders: list[str] = field(default_factory=list)
     setup_ok: bool = False  # set once the step an attack builds on is proven to have happened
 
     # argument builders: every one carries the tag
@@ -362,7 +364,26 @@ class Scope:
         ).fetchone()[0]
         self.notes.append(nid)
 
+    def inject_order(self, note: str) -> str:
+        """A synthetic customer order, unique to this scope, whose note is `note`. Returns its
+        id. Removed in cleanup."""
+        digest = hashlib.sha256(f"{self.tag}:{len(self.orders)}".encode()).hexdigest()[:10]
+        oid = f"EVAL-{digest}"
+        self.world.main.execute(
+            "INSERT INTO synthetic.customer_order (order_id, product_id, quantity, release_at, "
+            "due_at, note, customer) VALUES (%s, 'EVAL-PRODUCT', 100, now(), now() + interval "
+            "'7 days', %s, 'eval customer')",
+            (oid, note),
+        )
+        self.orders.append(oid)
+        return oid
+
     def cleanup(self) -> None:
+        if self.orders:
+            self.world.main.execute(
+                "DELETE FROM synthetic.customer_order WHERE order_id = ANY(%s)", (self.orders,)
+            )
+            self.orders.clear()
         if self.notes:
             self.world.main.execute(
                 "DELETE FROM demo.injected_note WHERE id = ANY(%s)", (self.notes,)

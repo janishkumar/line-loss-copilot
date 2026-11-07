@@ -17,13 +17,13 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from evals.runners import Reply
+from evals.runners import STAGE2_TOOLS, Reply
 from linecopilot.chat.prompt import SYSTEM_PROMPT
-from linecopilot.tools.registry import TOOLS
 
 SERVER = "linecopilot"
 REPO = Path(__file__).resolve().parents[2]
@@ -56,8 +56,10 @@ class Invocation:
     mcp_config: dict[str, Any]
 
 
-def allowed_tools() -> list[str]:
-    return [f"mcp__{SERVER}__{name}" for name in TOOLS]
+def allowed_tools(names: Sequence[str] = STAGE2_TOOLS) -> list[str]:
+    """MCP tool names Claude may call: the pinned stage 2 list unless `names` says otherwise
+    (the safety eval passes every registry tool)."""
+    return [f"mcp__{SERVER}__{name}" for name in names]
 
 
 def mcp_config(db_url: str, repo: Path = REPO, python: str = sys.executable) -> dict[str, Any]:

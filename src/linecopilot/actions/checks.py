@@ -64,6 +64,14 @@ class NoteText:
 
 
 @dataclass(frozen=True)
+class OrderText:
+    """A linked synthetic customer order and its free-text note (None when it has none)."""
+
+    order_id: str
+    note: str | None
+
+
+@dataclass(frozen=True)
 class Duplicate:
     kind: str  # work_order, quality_hold, proposal, released_hold
     ref: int
@@ -83,6 +91,7 @@ class Snapshot:
     duplicates: tuple[Duplicate, ...]
     proposer_role: str | None
     released_holds: tuple[Duplicate, ...] = ()
+    orders: tuple[OrderText, ...] = ()  # the linked orders that exist
 
     @property
     def asset_id(self) -> str | None:
@@ -131,6 +140,22 @@ def check_evidence_exists(s: Snapshot) -> CheckResult:
             {"missing": missing, "wrong_asset": wrong},
         )
     return CheckResult("evidence_exists", "pass", f"{len(wanted)} evidence event(s) found")
+
+
+def check_orders_exist(s: Snapshot) -> CheckResult:
+    wanted = s.canon.get("order_ids", [])
+    if not wanted:
+        return CheckResult("orders_exist", "pass", "no orders linked")
+    found = {o.order_id for o in s.orders}
+    missing = [i for i in wanted if i not in found]
+    if missing:
+        return CheckResult(
+            "orders_exist",
+            "block",
+            f"order id(s) not found: {missing}",
+            {"missing": missing},
+        )
+    return CheckResult("orders_exist", "pass", f"{len(wanted)} linked order(s) found")
 
 
 def check_duplicate_open(s: Snapshot) -> CheckResult:
@@ -229,6 +254,10 @@ def check_instruction_like_text(s: Snapshot) -> CheckResult:
         m = _INSTRUCTION_RE.search(_fold(n.text))
         if m:
             hits[_note_key(n)] = m.group(0)
+    for o in s.orders:
+        m = _INSTRUCTION_RE.search(_fold(o.note)) if o.note else None
+        if m:
+            hits[f"order:{o.order_id}"] = m.group(0)
     if hits:
         return CheckResult(
             "instruction_like_text",
@@ -244,6 +273,7 @@ def run_checks(s: Snapshot, policy: Policy) -> list[CheckResult]:
     return [
         check_asset_exists(s),
         check_evidence_exists(s),
+        check_orders_exist(s),
         check_duplicate_open(s),
         check_role_may_propose(s, policy),
         check_priority_sanity(s, policy),
@@ -380,6 +410,23 @@ def _released_holds(
     ]
 
 
+def _load_orders(conn: psycopg.Connection, order_ids: Sequence[str]) -> list[OrderText]:
+    """The linked orders that exist, with their notes, in id order. Reads the synthetic orders
+    only; an unknown id is simply absent (check_orders_exist blocks on it)."""
+    if not order_ids:
+        return []
+    if conn.execute("SELECT to_regclass('synthetic.customer_order') IS NULL").fetchone()[0]:
+        return []
+    return [
+        OrderText(oid, note)
+        for oid, note in conn.execute(
+            "SELECT order_id, note FROM synthetic.customer_order WHERE order_id = ANY(%s) "
+            "ORDER BY order_id",
+            (list(order_ids),),
+        ).fetchall()
+    ]
+
+
 def load_snapshot(
     conn: psycopg.Connection,
     action: str,
@@ -437,6 +484,7 @@ def load_snapshot(
         ).fetchall():
             notes.append(NoteText(by_key[key], "demo.injected_note", text))
 
+    orders = tuple(_load_orders(conn, canon.get("order_ids", [])))
     user = get_user(conn, ctx.on_behalf_of)
     return Snapshot(
         action=action,
@@ -447,4 +495,5 @@ def load_snapshot(
         duplicates=tuple(_duplicates(conn, action, canon, exclude_proposal_id)),
         proposer_role=user.role if user else None,
         released_holds=tuple(_released_holds(conn, canon, since)),
+        orders=orders,
     )

@@ -181,3 +181,33 @@ def test_evidence_ids_must_be_real_ints():
     for bad in (True, "2", 3.0):
         with pytest.raises(args.InvalidArgs):
             args.parse("work_order", {**WO, "evidence_event_ids": [bad]})
+
+
+def test_follow_up_order_ids_canonical_sorted_deduped_and_bounded():
+    canon = args.canonical(
+        "follow_up", args.parse("follow_up", {**FU, "order_ids": ["B", " A", "B"]})
+    )
+    assert canon["order_ids"] == ["A", "B"]
+    flipped = args.canonical("follow_up", args.parse("follow_up", {**FU, "order_ids": ["A", "B"]}))
+    assert canon == flipped
+    assert args.parse("follow_up", {**FU, "order_ids": []}).order_ids == []
+    assert (
+        len(args.parse("follow_up", {**FU, "order_ids": [f"O{i}" for i in range(20)]}).order_ids)
+        == 20
+    )
+    for bad in ([f"O{i}" for i in range(21)], [""], ["  "], ["x" * 41], [1]):
+        with pytest.raises(args.InvalidArgs):
+            args.parse("follow_up", {**FU, "order_ids": bad})
+
+
+def test_follow_up_without_orders_hashes_as_before():
+    """An empty order list is left out of the canonical form, so follow-ups proposed before
+    order links existed still match their stored hash at approval."""
+    canon = args.canonical("follow_up", args.parse("follow_up", FU))
+    assert "order_ids" not in canon
+    assert canon == args.canonical("follow_up", args.parse("follow_up", {**FU, "order_ids": []}))
+
+
+def test_order_ids_only_on_follow_ups():
+    with pytest.raises(args.InvalidArgs):
+        args.parse("work_order", {**WO, "order_ids": ["O1"]})

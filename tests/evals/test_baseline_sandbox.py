@@ -6,6 +6,7 @@ from pathlib import Path
 
 import httpx
 
+from evals.runners import STAGE2_TOOLS
 from evals.runners import claude as cr
 from evals.runners.ollama import OllamaRunner, config
 from linecopilot.chat.ollama import OllamaClient
@@ -47,7 +48,7 @@ def test_baseline_sandbox_configs():
     assert "--strict-mcp-config" in t.argv
     assert flag(t.argv, "--tools") == ""
     allowed = flag(t.argv, "--allowedTools").split(",")
-    assert sorted(allowed) == sorted(f"mcp__linecopilot__{n}" for n in TOOLS)
+    assert sorted(allowed) == sorted(f"mcp__linecopilot__{n}" for n in STAGE2_TOOLS)
     assert all(a.startswith("mcp__linecopilot__") for a in allowed)
     assert flag(t.argv, "--permission-mode") == "dontAsk"
     assert flag(t.argv, "--setting-sources") == ""
@@ -120,7 +121,7 @@ def test_ollama_notools_sends_empty_tools():
 
     with_tools = OllamaRunner(conn=None, client=client, tools_enabled=True)
     with_tools.ask("q")
-    assert {t["function"]["name"] for t in bodies[1]["tools"]} == set(TOOLS)
+    assert {t["function"]["name"] for t in bodies[1]["tools"]} == set(STAGE2_TOOLS)
     assert bodies[0]["options"]["num_predict"] == 1024
 
 
@@ -242,3 +243,10 @@ def test_ollama_retries_once_on_timeout():
     assert "timed out" in reply.error and reply.retries == 1
     wrapped = RetryingClient(client, retries=1)
     assert wrapped.model == "m"
+
+
+def test_stage2_tool_list_is_the_original_twelve_and_still_in_the_registry():
+    assert len(STAGE2_TOOLS) == 12 and len(set(STAGE2_TOOLS)) == 12
+    assert set(STAGE2_TOOLS) < set(TOOLS)
+    assert {"get_plan", "shortages", "get_order"} == set(TOOLS) - set(STAGE2_TOOLS)
+    assert cr.allowed_tools() == [f"mcp__linecopilot__{n}" for n in STAGE2_TOOLS]

@@ -84,11 +84,27 @@ class QualityHoldArgs(_Base):
         return v.astimezone(UTC).isoformat()
 
 
+OrderId = Annotated[str, Field(min_length=1, max_length=40)]
+
+
 class FollowUpArgs(_Base):
     assignee_role: Role
     due_date: date
     description: str = Field(min_length=1, max_length=2000)
     evidence_event_ids: list[EventId] = _evidence(0)
+    order_ids: list[OrderId] = Field(
+        default_factory=list,
+        max_length=20,
+        description="synthetic customer order ids this follow-up is about (0 to 20)",
+    )
+
+    @field_validator("order_ids")
+    @classmethod
+    def _clean_orders(cls, v: list[str]) -> list[str]:
+        out = [unicodedata.normalize("NFC", i).strip() for i in v]
+        if any(not i for i in out):
+            raise ValueError("order ids must not be blank")
+        return out
 
 
 ACTION_ARGS: dict[str, type[_Base]] = {
@@ -111,6 +127,13 @@ def parse(action: str, raw: dict) -> _Base:
 def canonical(action: str, model: _Base) -> dict[str, Any]:
     out = model.model_dump(mode="json")
     out["evidence_event_ids"] = sorted(set(out["evidence_event_ids"]))
+    if "order_ids" in out:
+        # sorted and deduplicated; left out when empty, so a follow-up without orders hashes
+        # exactly as it did before order links existed
+        if out["order_ids"]:
+            out["order_ids"] = sorted(set(out["order_ids"]))
+        else:
+            del out["order_ids"]
     return out
 
 

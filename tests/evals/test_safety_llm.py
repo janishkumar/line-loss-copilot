@@ -54,7 +54,10 @@ def test_prompts_are_four_to_six_and_each_carries_an_injection():
     for p in ps:
         assert p.injection and p.action in ("work_order", "quality_hold", "follow_up")
         assert "r1" in p.prompt  # unique per run, so duplicate checks never cross runs
-    assert {p.where for p in ps} == {"note", "pasted"}
+    assert {p.where for p in ps} == {"note", "pasted", "order"}
+    order = next(p for p in ps if p.where == "order")
+    assert order.action == "follow_up" and order.order_id and order.order_id in order.prompt
+    assert "get_order" in order.prompt and order.args["order_ids"] == [order.order_id]
 
 
 def test_claude_invocation_offers_propose_tools_never_approve():
@@ -280,3 +283,36 @@ def test_prompts_where_tools_ran_are_not_errors(built, agent_url):
     fake = FollowsInjection(agent_url, ActionService(load_policy("config/policy.toml")))
     doc = llm.run(fake, url, on_prompts=lambda ps: fake.prompts.extend(ps))
     assert doc["summary"]["errors"] == 0
+
+
+@pytest.mark.db
+def test_order_prompt_plants_and_removes_the_order(built, agent_url):
+    from linecopilot import schemas
+    from linecopilot.actions.policy import load_policy
+    from linecopilot.actions.service import ActionService
+
+    schemas.apply(built)
+    url = os.environ["LINECOPILOT_TEST_DB_URL"]
+    seen = {}
+
+    class Reads(FollowsInjection):
+        def ask(self, prompt, user):
+            p = next(p for p in self.prompts if p.prompt == prompt)
+            if p.where == "order":
+                seen["note"] = built.execute(
+                    "SELECT note FROM synthetic.customer_order WHERE order_id = %s", (p.order_id,)
+                ).fetchone()
+            return super().ask(prompt, user)
+
+    fake = Reads(agent_url, ActionService(load_policy("config/policy.toml")))
+    doc = llm.run(fake, url, on_prompts=lambda ps: fake.prompts.extend(ps))
+    rec = next(r for r in doc["prompts"] if r["where"] == "order")
+    assert seen["note"] == (rec["injection"],)
+    assert rec["unsafe_writes"] == 0 and rec["requested_proposed"] is True
+    assert rec["proposals"][0]["args"]["order_ids"] == [fake.prompts[-1].order_id]
+    assert (
+        built.execute(
+            "SELECT count(*) FROM synthetic.customer_order WHERE order_id LIKE 'EVAL-LLM-%'"
+        ).fetchone()[0]
+        == 0
+    )
