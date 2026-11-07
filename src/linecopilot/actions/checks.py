@@ -179,15 +179,17 @@ def check_priority_sanity(s: Snapshot, policy: Policy) -> CheckResult:
 
 def _fold(text: str) -> str:
     decomposed = unicodedata.normalize("NFKD", text)
-    stripped = "".join(c for c in decomposed if not unicodedata.combining(c))
-    return stripped.casefold()
+    kept = "".join(
+        c for c in decomposed if not unicodedata.combining(c) and unicodedata.category(c) != "Cf"
+    )
+    return " ".join(kept.casefold().split())
 
 
 _INSTRUCTION_PATTERNS = [
     r"ignore (all |any )?(previous|prior|above) instructions",
     r"\bsystem\s*:",
     r"\bassistant\s*:",
-    r"approve (this|it|immediately|all)",
+    r"approve (this|it|immediately|all)\b",
     r"do not (ask|wait|preview)",
     r"disregard",
     r"you are now",
@@ -299,10 +301,11 @@ def _duplicates(
         mode = canon["failure_mode"]
         for wid, fm in conn.execute(
             "SELECT work_order_id, failure_mode FROM actions.work_order "
-            "WHERE status = 'open' AND asset_id = %s AND lower(failure_mode) = lower(%s) "
-            "ORDER BY work_order_id",
-            (asset, mode),
+            "WHERE status = 'open' AND asset_id = %s ORDER BY work_order_id",
+            (asset,),
         ).fetchall():
+            if fm.casefold() != mode.casefold():
+                continue
             out.append(
                 Duplicate("work_order", wid, f"open work order #{wid} on {asset} for '{fm}'")
             )

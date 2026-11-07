@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import unicodedata
 from datetime import UTC, date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -35,6 +36,15 @@ class InvalidArgs(ValueError):
 class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
+    @field_validator("*")
+    @classmethod
+    def _nfc(cls, v):
+        """NFC so a front end that re-normalises text cannot change the hash."""
+        return unicodedata.normalize("NFC", v) if isinstance(v, str) else v
+
+
+EventId = Annotated[int, Field(strict=True)]
+
 
 def _evidence(min_length: int):
     return Field(min_length=min_length, max_length=50)
@@ -45,7 +55,7 @@ class WorkOrderArgs(_Base):
     failure_mode: str = Field(min_length=1, max_length=140)
     priority: Literal["low", "medium", "high", "critical"]
     description: str = Field(min_length=1, max_length=2000)
-    evidence_event_ids: list[int] = _evidence(1)
+    evidence_event_ids: list[EventId] = _evidence(1)
 
 
 class QualityHoldArgs(_Base):
@@ -54,7 +64,7 @@ class QualityHoldArgs(_Base):
     window_start: datetime
     window_end: datetime
     reason: str = Field(min_length=1, max_length=2000)
-    evidence_event_ids: list[int] = _evidence(1)
+    evidence_event_ids: list[EventId] = _evidence(1)
 
     @field_validator("window_start", "window_end")
     @classmethod
@@ -78,7 +88,7 @@ class FollowUpArgs(_Base):
     assignee_role: Role
     due_date: date
     description: str = Field(min_length=1, max_length=2000)
-    evidence_event_ids: list[int] = _evidence(0)
+    evidence_event_ids: list[EventId] = _evidence(0)
 
 
 ACTION_ARGS: dict[str, type[_Base]] = {

@@ -16,7 +16,6 @@ from linecopilot.actions.identity import ActionContext
 
 ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 CODE_LENGTH = 8
-DEFAULT_TTL = timedelta(minutes=15)
 
 
 def normalise(code: str | None) -> str:
@@ -37,9 +36,10 @@ def issue(
     ctx: ActionContext,
     payload_sha256: str,
     now: datetime,
-    ttl: timedelta = DEFAULT_TTL,
+    ttl: timedelta,
 ) -> str:
-    """Store a hashed code for this action, identity and arguments; return the plain code."""
+    """Store a hashed code for this action, identity and arguments; return the plain code.
+    `ttl` has no default: callers pass the policy value (`confirmation.ttl_minutes`)."""
     code = new_code()
     conn.execute(
         "INSERT INTO actions.confirmation_code (code_sha256, action, principal, on_behalf_of, "
@@ -60,7 +60,10 @@ def redeem(
     """None if the code is good, else the refusal text.
 
     One UPDATE burns the code and returns its binding, so a second or concurrent attempt finds
-    nothing. The comparisons run after the burn: a wrong guess still spends the code."""
+    nothing. The comparisons run after the burn: a wrong guess still spends the code.
+
+    The caller must commit the burn whatever the outcome (autocommit, or a transaction of its
+    own for the redeem): a rollback later in the same transaction would un-burn a refused code."""
     if not normalise(code):
         return "missing code"
     row = conn.execute(

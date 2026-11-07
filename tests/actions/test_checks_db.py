@@ -1,5 +1,7 @@
 """load_snapshot against the fixture database."""
 
+import json
+import random
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -18,6 +20,17 @@ AGENT_CTX = ActionContext("copilot-agent", "sup.a", "mcp")
 def agent(agent_url, built):
     with psycopg.connect(agent_url, autocommit=True) as conn:
         yield conn
+
+
+@pytest.fixture
+def cleanup(built):
+    """Delete the actions rows a test inserts, so the test is re-runnable on a persistent DB."""
+    proposals: list[int] = []
+    yield proposals
+    for pid in proposals:
+        for table in ("work_order", "quality_hold", "follow_up", "proposal_evidence"):
+            built.execute(f"DELETE FROM actions.{table} WHERE proposal_id = %s", (pid,))
+        built.execute("DELETE FROM actions.proposal WHERE proposal_id = %s", (pid,))
 
 
 @pytest.fixture
@@ -132,7 +145,7 @@ def test_snapshot_unknown_proposer(agent, events):
     assert snap.proposer_role is None
 
 
-def test_duplicates_work_order_pending_and_open(agent, built, events):
+def test_duplicates_work_order_pending_and_open(agent, built, events, cleanup):
     eid, _, line, machine = events[0]
     asset = machine or line
     mode = f"mode-{uuid.uuid4().hex[:6]}"
@@ -142,8 +155,9 @@ def test_duplicates_work_order_pending_and_open(agent, built, events):
         "INSERT INTO actions.proposal (action, args, payload_sha256, summary, principal, "
         "on_behalf_of, channel) VALUES ('work_order', %s::jsonb, 'h', 's', 'copilot-agent', "
         "'sup.a', 'mcp') RETURNING proposal_id",
-        (__import__("json").dumps(c),),
+        (json.dumps(c),),
     ).fetchone()[0]
+    cleanup.append(pid)
     same = wo(asset, [eid], mode.upper())
     dups = checks.load_snapshot(agent, "work_order", same, AGENT_CTX).duplicates
     assert [d.kind for d in dups] == ["proposal"] and dups[0].ref == pid
@@ -177,10 +191,11 @@ def test_duplicates_work_order_pending_and_open(agent, built, events):
     )
 
 
-def test_duplicates_quality_hold_overlap_and_released(agent, built, events):
+def test_duplicates_quality_hold_overlap_and_released(agent, built, events, cleanup):
     eid, _, line, machine = events[0]
     asset = machine or line
-    t0 = datetime(2030, 5, 1, 8, tzinfo=UTC)
+    # a window no earlier run can overlap, so a persistent test database does not interfere
+    t0 = datetime(2030, 1, 1, 8, tzinfo=UTC) + timedelta(days=random.randrange(1, 100_000))
 
     def qh(start_h, end_h):
         return canon_for(
@@ -197,6 +212,7 @@ def test_duplicates_quality_hold_overlap_and_released(agent, built, events):
         "on_behalf_of, channel) VALUES ('quality_hold', '{}', 'h', 's', 'copilot-agent', "
         "'sup.a', 'mcp') RETURNING proposal_id"
     ).fetchone()[0]
+    cleanup.append(pid)
     hid = built.execute(
         "INSERT INTO actions.quality_hold (proposal_id, asset_id, window_start, window_end, "
         "reason, created_by) VALUES (%s, %s, %s, %s, 'r', 'ql.a') RETURNING hold_id",
@@ -235,3 +251,35 @@ def test_follow_up_snapshot_has_no_asset(agent, events):
     snap = checks.load_snapshot(agent, "follow_up", c, AGENT_CTX)
     assert snap.asset_exists and snap.duplicates == ()
     assert [e.event_id for e in snap.evidence] == [eid]
+
+
+def test_snapshot_with_empty_evidence_list(agent):
+    c = canon_for(
+        "follow_up",
+        assignee_role="planner",
+        due_date="2030-01-01",
+        description="d",
+        evidence_event_ids=[],
+    )
+    snap = checks.load_snapshot(agent, "follow_up", c, AGENT_CTX)
+    assert snap.evidence == () and snap.notes == ()
+    assert checks.check_evidence_exists(snap).message == "no evidence linked"
+
+
+def test_duplicate_failure_mode_is_case_insensitive_beyond_ascii(agent, built, events, cleanup):
+    eid, _, line, machine = events[0]
+    asset = machine or line
+    mode = f"Στάση-{uuid.uuid4().hex[:6]}"
+    pid = built.execute(
+        "INSERT INTO actions.proposal (action, args, payload_sha256, summary, principal, "
+        "on_behalf_of, channel) VALUES ('work_order', '{}', 'h', 's', 'copilot-agent', "
+        "'sup.a', 'mcp') RETURNING proposal_id"
+    ).fetchone()[0]
+    cleanup.append(pid)
+    built.execute(
+        "INSERT INTO actions.work_order (proposal_id, asset_id, failure_mode, priority, "
+        "description, created_by) VALUES (%s, %s, %s, 'low', 'd', 'sup.b')",
+        (pid, asset, mode),
+    )
+    dups = checks.load_snapshot(agent, "work_order", wo(asset, [eid], mode.upper()), AGENT_CTX)
+    assert [d.kind for d in dups.duplicates] == ["work_order"]

@@ -13,6 +13,7 @@ from linecopilot.actions.identity import ActionContext
 pytestmark = pytest.mark.db
 
 NOW = datetime(2021, 1, 1, 8, tzinfo=UTC)
+TTL = timedelta(minutes=15)
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def ctx():
 
 
 def issue(agent, ctx, action="work_order", h="hash1"):
-    return codes.issue(agent, action, ctx, h, NOW)
+    return codes.issue(agent, action, ctx, h, NOW, TTL)
 
 
 def test_code_single_use(agent, ctx):

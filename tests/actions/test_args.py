@@ -169,3 +169,15 @@ def test_aware_datetime_objects_accepted():
 def test_product_optional():
     raw = {k: v for k, v in QH.items() if k != "product"}
     assert args.canonical("quality_hold", args.parse("quality_hold", raw))["product"] is None
+
+
+def test_unicode_normalisation_same_hash():
+    nfc = {**WO, "description": "caf\u00e9 jam"}
+    nfd = {**WO, "description": "cafe\u0301 jam"}
+    assert h("work_order", nfc) == h("work_order", nfd)
+
+
+def test_evidence_ids_must_be_real_ints():
+    for bad in (True, "2", 3.0):
+        with pytest.raises(args.InvalidArgs):
+            args.parse("work_order", {**WO, "evidence_event_ids": [bad]})

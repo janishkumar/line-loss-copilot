@@ -34,3 +34,10 @@ def test_new_code_shape():
 def test_missing_code_needs_no_database():
     for blank in (None, "", "   "):
         assert codes.redeem(None, blank, "work_order", CTX, "h", NOW) == "missing code"
+
+
+def test_issue_requires_ttl():
+    import inspect
+
+    assert inspect.signature(codes.issue).parameters["ttl"].default is inspect.Parameter.empty
+    assert not hasattr(codes, "DEFAULT_TTL")
