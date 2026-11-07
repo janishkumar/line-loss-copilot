@@ -36,3 +36,9 @@ export function Loading({ error, children }: { error: string | null; children?: 
   if (error) return <div className="notice" role="alert">Could not load data: {error}</div>;
   return <p className="muted">{children ?? "Loading..."}</p>;
 }
+
+export const SyntheticBadge = () => (
+  <span className="badge synthetic" title="Orders, BOMs, stock and receipts are generated; rates, availability and stops are real">
+    Synthetic orders on real capacity
+  </span>
+);

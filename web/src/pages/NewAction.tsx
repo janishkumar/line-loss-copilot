@@ -23,16 +23,20 @@ function buildArgs(action: ActionName, f: Form): Record<string, unknown> {
     const iso = (v: string) => (v ? new Date(v).toISOString() : v);
     return { asset_id: f.asset, product: f.product || null, window_start: iso(f.window_start), window_end: iso(f.window_end), reason: f.reason, evidence_event_ids };
   }
-  return { assignee_role: f.assignee_role, due_date: f.due_date, description: f.description, evidence_event_ids };
+  return {
+    assignee_role: f.assignee_role, due_date: f.due_date, description: f.description, evidence_event_ids,
+    order_ids: (f.orders ?? "").split(/[,\s]+/).filter(Boolean),
+  };
 }
 
 export default function NewAction() {
   const { user } = useSession();
   const [params] = useSearchParams();
-  const [action, setAction] = useState<ActionName>("work_order");
+  const [action, setAction] = useState<ActionName>(params.get("action") === "follow_up" ? "follow_up" : "work_order");
   const [form, setForm] = useState<Form>({
     asset: params.get("asset") ?? "",
     events: parseSafe(params.get("events") ?? ""),
+    orders: parseSafe(params.get("orders") ?? ""),
     priority: "low",
     assignee_role: "shift_supervisor",
   });
@@ -115,6 +119,7 @@ export default function NewAction() {
           </label>
           {field("due_date", "Due date", { type: "date" })}
           {area("description", "Description")}
+          {field("orders", "Order ids", { placeholder: "SO-1001, SO-1002" })}
         </>)}
         {field("events", "Evidence event ids", { placeholder: "11, 12, 13" })}
         <button type="submit" disabled={!user || busy}>Preview</button>

@@ -489,3 +489,89 @@ export const changeStatus = async (kind: ActionKind, id: number, verb: "close" |
 
 export const getAudit = (proposalId?: number) =>
   list<AuditRow[]>(`/audit${proposalId ? `?proposal_id=${proposalId}` : ""}`);
+
+// ---- Stage 4: plan, shortages, orders (synthetic orders on real capacity) ----
+
+export interface Range {
+  median: number | null;
+  min: number | null;
+  max: number | null;
+}
+export interface SequenceItem {
+  order_id: string;
+  start_at: string;
+  end_at: string;
+  setup_min: number;
+}
+export interface PlanOut {
+  algorithm: string;
+  plan_run_id: number;
+  status: string;
+  solver_status: string | null;
+  stop_reason: string | null;
+  objective: number | null;
+  bound: number | null;
+  created_at: string;
+  kpis_nominal: Record<string, number>;
+  kpis_replayed: { windows: number; late_orders: Range; total_tardiness_min: Range; changeover_min: Range };
+  replay_windows: Record<string, unknown>[];
+  sequences: Record<string, SequenceItem[]>;
+  sequence_lengths: Record<string, number>;
+  blocked: { order_id: string; reason: string }[];
+  blocked_count: number;
+}
+export interface PlanData {
+  label: string;
+  is_synthetic: boolean;
+  generation_id: number | null;
+  seed: number | null;
+  stale: boolean;
+  plans: PlanOut[];
+}
+export interface ShortageRow {
+  material_id: string;
+  material_name: string | null;
+  order_id: string;
+  short_qty: number;
+  first_short_at: string;
+  bom_level: number;
+  product_id: string | null;
+  due_at: string | null;
+}
+export interface ShortagesData {
+  label: string;
+  is_synthetic: boolean;
+  generation_id: number | null;
+  seed: number | null;
+  total: number;
+  by_material: { material_id: string; material_name: string | null; orders: number; short_qty: number }[];
+  rows: ShortageRow[];
+}
+export interface OrderDetail {
+  label: string;
+  is_synthetic: boolean;
+  generation_id: number | null;
+  seed: number | null;
+  order: {
+    order_id: string;
+    product_id: string;
+    product_name: string | null;
+    family: string | null;
+    quantity: number;
+    release_at: string;
+    due_at: string;
+    customer: string;
+    note: string | null;
+    note_is_data: boolean;
+    note_notice: string | null;
+    source: string;
+  };
+  requirements: { material_id: string; material_name: string | null; kind: string | null; qty: number; unit: string | null; on_hand: number | null }[];
+  shortfalls: ShortageRow[];
+  planned: { algorithm: string; machine_id: string; start_at: string; end_at: string; setup_min: number }[];
+  blocked: { order_id: string; reason: string }[];
+}
+
+export const getPlan = () => get<PlanData>("/plan");
+export const getShortages = () => get<ShortagesData>("/shortages");
+export const getOrder = (id: string) => get<OrderDetail>(`/orders/${encodeURIComponent(id)}`);

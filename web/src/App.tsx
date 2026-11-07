@@ -12,6 +12,9 @@ import Approvals from "./pages/Approvals";
 import ApprovalDetail from "./pages/ApprovalDetail";
 import Actions from "./pages/Actions";
 import NewAction from "./pages/NewAction";
+import Plan from "./pages/Plan";
+import Shortages from "./pages/Shortages";
+import Order from "./pages/Order";
 import Audit from "./pages/Audit";
 import UserSwitcher, { SessionProvider } from "./UserSwitcher";
 
@@ -27,6 +30,8 @@ export default function App() {
           <NavLink to="/risk">Stop risk</NavLink>
           <NavLink to="/notes">Notes</NavLink>
           <NavLink to="/chat">Ask</NavLink>
+          <NavLink to="/plan">Plan</NavLink>
+          <NavLink to="/shortages">Shortages</NavLink>
           <NavLink to="/validation">Validation</NavLink>
           <NavLink to="/approvals">Approvals</NavLink>
           <NavLink to="/actions" end>Actions</NavLink>
@@ -42,6 +47,9 @@ export default function App() {
           <Route path="/risk" element={<StopRisk />} />
           <Route path="/notes" element={<Notes />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/plan" element={<Plan />} />
+          <Route path="/shortages" element={<Shortages />} />
+          <Route path="/orders/:id" element={<Order />} />
           <Route path="/validation" element={<Validation />} />
           <Route path="/approvals" element={<Approvals />} />
           <Route path="/approvals/:id" element={<ApprovalDetail />} />
