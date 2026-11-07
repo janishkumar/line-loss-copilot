@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -189,10 +189,19 @@ register(
 )
 
 
+def format_errors(errors: Sequence[Mapping[str, Any]]) -> str:
+    """Pydantic or FastAPI validation errors as one line: `field: message; ...`."""
+    out = []
+    for err in errors:
+        loc = list(err.get("loc", ()))
+        if loc and loc[0] in ("query", "path", "body"):
+            loc = loc[1:]
+        out.append(f"{'.'.join(str(p) for p in loc) or 'args'}: {err.get('msg', 'invalid')}")
+    return "; ".join(out)
+
+
 def _errors(e: ValidationError) -> str:
-    return "; ".join(
-        f"{'.'.join(str(p) for p in err['loc']) or 'args'}: {err['msg']}" for err in e.errors()
-    )
+    return format_errors(e.errors())
 
 
 def call_tool(conn: Any, name: str, args: dict | None) -> Result:

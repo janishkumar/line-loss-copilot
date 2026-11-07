@@ -1,19 +1,25 @@
 """Read-only API. Routes are thin wrappers over the tools in linecopilot.tools; every route
-returns the tool's Result envelope unchanged."""
+returns the tool's Result envelope unchanged. Invalid query arguments on a tool route also get
+the envelope (out_of_scope, HTTP 200), as the MCP server and the chat loop answer them.
+Database sessions are read-only."""
 
+import threading
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 import httpx
 import psycopg
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, Query, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from linecopilot.chat.loop import ChatResult, run_chat
 from linecopilot.chat.ollama import OllamaClient, OllamaError, OllamaUnreachable
 from linecopilot.config import get_settings
+from linecopilot.db import connect_read_only
 from linecopilot.reports.oee_validation import validate_oee
 from linecopilot.tools.assets import AssetsData, ListAssetsArgs, list_assets
 from linecopilot.tools.envelope import Result, Window
@@ -38,6 +44,7 @@ from linecopilot.tools.losses import (
 )
 from linecopilot.tools.notes import NotesData, SearchNotesArgs, search_notes
 from linecopilot.tools.oee import MAX_ROWS, GetOeeArgs, GroupBy, OeeData, get_oee
+from linecopilot.tools.registry import format_errors
 from linecopilot.tools.reliability import (
     CompareArgs,
     CompareData,
@@ -56,6 +63,9 @@ from linecopilot.tools.risk import (
 
 CHAT_MAX_MESSAGES = 20
 CHAT_MAX_CHARS = 4000
+# One chat request can hold a worker and a database connection for minutes while the local
+# model runs; more than this many at once get a 429 envelope.
+CHAT_MAX_CONCURRENT = 2
 
 
 class ChatMessage(BaseModel):
@@ -88,10 +98,22 @@ def create_app(
     url = db_url or settings.database_url
 
     def get_conn() -> Iterator[psycopg.Connection]:
-        with psycopg.connect(url, autocommit=True) as conn:
+        with connect_read_only(url) as conn:
             yield conn
 
     Conn = Annotated[psycopg.Connection, Depends(get_conn)]
+    chat_slots = threading.BoundedSemaphore(CHAT_MAX_CONCURRENT)
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_args(request: Request, exc: RequestValidationError) -> JSONResponse:
+        path = request.url.path
+        if not path.startswith("/api/") or path == "/api/chat":
+            return await request_validation_exception_handler(request, exc)
+        res = Result(
+            status="out_of_scope",
+            missing=f"invalid arguments for {path}: {format_errors(exc.errors())}",
+        )
+        return JSONResponse(res.model_dump(mode="json"), status_code=200)
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
@@ -184,8 +206,15 @@ def create_app(
             ],
         )
 
-    @app.post("/api/chat", response_model=ChatResult, responses={502: {}, 503: {}})
+    @app.post("/api/chat", response_model=ChatResult, responses={429: {}, 502: {}, 503: {}})
     def chat(body: ChatRequest, conn: Conn) -> ChatResult | JSONResponse:
+        if not chat_slots.acquire(blocking=False):
+            busy = Result(
+                status="out_of_scope",
+                missing=f"the chat is busy ({CHAT_MAX_CONCURRENT} requests already running); "
+                "try again shortly",
+            )
+            return JSONResponse(busy.model_dump(mode="json"), status_code=429)
         client = OllamaClient(settings.ollama_url, settings.chat_model, transport=ollama_transport)
         try:
             return run_chat(conn, client, [m.model_dump() for m in body.messages])
@@ -201,6 +230,7 @@ def create_app(
             )
         finally:
             client.close()
+            chat_slots.release()
 
     @app.get("/api/shifts/{shift_id}/evidence")
     def shift_evidence_route(shift_id: str, conn: Conn) -> Result[ShiftEvidenceData]:

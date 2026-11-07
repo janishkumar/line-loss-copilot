@@ -139,7 +139,8 @@ def test_unknown_machine_is_out_of_scope(client):
 
 
 def test_bad_group_and_window_rejected(client):
-    assert client.get("/api/oee", params={"line_id": "s_1", "group": "week"}).status_code == 422
+    bad = get(client, "/api/oee", line_id="s_1", group="week")
+    assert bad["status"] == "out_of_scope" and "group:" in bad["missing"]
     body = get(client, "/api/oee", line_id="s_1", start="2020-02-01", end="2020-01-01")
     assert body["status"] == "out_of_scope" and body["missing"] == "end must be after start"
     assert body["data"] is None
@@ -270,7 +271,7 @@ def test_loss_routes_return_envelopes(client):
     assert body["status"] == "ok" and body["data"]["chains"][0]["count"] == 3
     body = get(client, "/api/losses/pareto", machine_id="s_1", by="location")
     assert body["status"] == "out_of_scope"
-    assert client.get("/api/losses/pareto", params={"line_id": "brick"}).status_code == 422
+    assert get(client, "/api/losses/pareto", line_id="brick")["status"] == "out_of_scope"
 
 
 def test_reliability_compare_events_routes(client):
@@ -306,3 +307,34 @@ def test_notes_search_route(client):
     assert body["data"]["hits"][0]["original_text"] == "grasarisma"
     assert body["citations"][0]["field"] == "notes"
     assert get(client, "/api/notes/search", query="zzzxqj")["status"] == "insufficient_evidence"
+
+
+@pytest.mark.parametrize(
+    ("path", "params", "field"),
+    [
+        ("/api/losses/pareto", {"line_id": "brick"}, "by: Field required"),
+        ("/api/oee", {"line_id": "brick", "group": "week"}, "group:"),
+        ("/api/events", {"line_id": "brick", "limit": 0}, "limit:"),
+        ("/api/events/abc/source", {}, "event_id:"),
+    ],
+)
+def test_invalid_query_args_get_the_envelope(client, path, params, field):
+    r = client.get(path, params=params)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "out_of_scope" and body["data"] is None
+    assert body["missing"].startswith(f"invalid arguments for {path}: ")
+    assert field in body["missing"] and "query." not in body["missing"]
+
+
+def test_chat_validation_keeps_422(client):
+    assert client.post("/api/chat", json={"messages": []}).status_code == 422
+
+
+def test_api_session_is_read_only(built):
+    from linecopilot.db import connect_read_only
+
+    with connect_read_only(os.environ["LINECOPILOT_TEST_DB_URL"]) as conn:
+        assert conn.execute("SHOW default_transaction_read_only").fetchone()[0] == "on"
+        with pytest.raises(Exception, match="read-only"):
+            conn.execute("CREATE TEMP TABLE should_fail (x int)")

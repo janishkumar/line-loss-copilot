@@ -24,7 +24,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "${LINECOPILOT_API_PORT:-8000}:8000"
+      - "127.0.0.1:${LINECOPILOT_API_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -32,7 +32,7 @@ services:
   web:
     build: ./web
     ports:
-      - "${LINECOPILOT_WEB_PORT:-8080}:8080"
+      - "127.0.0.1:${LINECOPILOT_WEB_PORT:-8080}:8080"
     depends_on:
       - api
 

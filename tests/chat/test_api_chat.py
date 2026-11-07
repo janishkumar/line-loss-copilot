@@ -99,3 +99,40 @@ def test_chat_malformed_model_reply_is_not_a_500(built):
         "/api/chat", json={"messages": [{"role": "user", "content": "x"}]}
     )
     assert r.status_code == 200 and r.json()["answer"] == "The model returned a malformed reply."
+
+
+def test_chat_over_the_concurrency_cap_gets_429(built):
+    import threading
+
+    from linecopilot.api.app import CHAT_MAX_CONCURRENT
+
+    release = threading.Event()
+    entered = threading.Semaphore(0)
+
+    def held(request):
+        entered.release()
+        release.wait(10)
+        return httpx.Response(200, json={"message": {"role": "assistant", "content": "ok"}})
+
+    client = app_with(held)
+    body = {"messages": [{"role": "user", "content": "x"}]}
+    codes: list[int] = []
+    workers = [
+        threading.Thread(
+            target=lambda: codes.append(client.post("/api/chat", json=body).status_code)
+        )
+        for _ in range(CHAT_MAX_CONCURRENT)
+    ]
+    for w in workers:
+        w.start()
+    for _ in workers:
+        assert entered.acquire(timeout=10)
+    busy = client.post("/api/chat", json=body)
+    release.set()
+    for w in workers:
+        w.join(10)
+    assert busy.status_code == 429
+    assert busy.json()["status"] == "out_of_scope" and "busy" in busy.json()["missing"]
+    assert codes == [200] * CHAT_MAX_CONCURRENT
+    # slots are released after each request
+    assert client.post("/api/chat", json=body).status_code == 200
