@@ -1,6 +1,8 @@
 {
   "generated_at": "2026-11-07",
   "ollama_url": "http://localhost:11434",
+  "ollama_version": "0.40.14",
+  "question_set_hash": "72ef00260f3b748348396d6171d16eae030b693e38ece4e46b22d2157e5ed809",
   "rule": "most points (valid tool JSON + expected tool + ANSWER line, per prompt); ties go to the lower total wall time",
   "chosen": "qwen2.5:7b-instruct",
   "models": [
@@ -9,7 +11,7 @@
       "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
       "points": 22,
       "max_points": 24,
-      "wall_s_total": 220.2,
+      "wall_s_total": 209.4,
       "results": [
         {
           "id": "pareto_s1",
@@ -21,24 +23,35 @@
           "correct_tool": false,
           "answer_present": true,
           "points": 2,
-          "wall_s": 25.2,
+          "wall_s": 15.3,
           "rounds": 2,
           "tool_calls": [
             {
               "name": "breakdown",
               "args": {
-                "start": "2021-03-01",
-                "top": 1,
-                "cols": "reason",
                 "end": "2021-04-01",
                 "line_id": "s_1",
-                "rows": "month"
+                "rows": "month",
+                "start": "2021-03-01",
+                "top": 1,
+                "cols": "reason"
               },
               "status": "ok",
               "missing": null
             }
           ],
-          "cited_event_ids": [],
+          "cited_event_ids": [
+            77365,
+            75826,
+            75672,
+            76540,
+            76542,
+            77253,
+            76519,
+            76469,
+            77414,
+            77363
+          ],
           "unsupported_cited_ids": [],
           "answer": "The top stop reason by lost time on machine s_1 in March 2021 was A_065, with 56,900.9 seconds of lost time [event:77365, event:75826, event:75672, event:76540, event:76542, event:77253, event:76519, event:76469, event:77414, event:77363]. ANSWER: A_065"
         },
@@ -52,7 +65,7 @@
           "correct_tool": true,
           "answer_present": true,
           "points": 3,
-          "wall_s": 5.5,
+          "wall_s": 5.7,
           "rounds": 2,
           "tool_calls": [
             {
@@ -81,17 +94,17 @@
           "correct_tool": true,
           "answer_present": true,
           "points": 3,
-          "wall_s": 5.6,
+          "wall_s": 5.7,
           "rounds": 2,
           "tool_calls": [
             {
               "name": "reliability",
               "args": {
+                "line_id": "brick",
                 "machine_id": "s_2",
                 "start": "2021-01-01",
                 "end": "2021-12-31",
-                "group": "none",
-                "line_id": "brick"
+                "group": "none"
               },
               "status": "out_of_scope",
               "missing": "machine 's_2' is not on line 'brick'"
@@ -142,7 +155,7 @@
           "correct_tool": true,
           "answer_present": true,
           "points": 3,
-          "wall_s": 29.6,
+          "wall_s": 28.9,
           "rounds": 2,
           "tool_calls": [
             {
@@ -166,7 +179,7 @@
           "correct_tool": true,
           "answer_present": true,
           "points": 3,
-          "wall_s": 17.3,
+          "wall_s": 17.1,
           "rounds": 2,
           "tool_calls": [
             {
@@ -194,7 +207,7 @@
           "correct_tool": true,
           "answer_present": true,
           "points": 3,
-          "wall_s": 35.0,
+          "wall_s": 34.7,
           "rounds": 2,
           "tool_calls": [
             {
@@ -237,11 +250,11 @@
             {
               "name": "get_oee",
               "args": {
-                "machine_id": "s_5",
-                "start": "2020-01-01",
                 "end": "2022-01-03",
                 "group": "month",
-                "line_id": "s_5"
+                "line_id": "s_5",
+                "machine_id": "s_5",
+                "start": "2020-01-01"
               },
               "status": "ok",
               "missing": null
@@ -258,7 +271,7 @@
       "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
       "points": 19,
       "max_points": 24,
-      "wall_s_total": 332.9,
+      "wall_s_total": 333.4,
       "results": [
         {
           "id": "pareto_s1",
@@ -276,13 +289,13 @@
             {
               "name": "loss_pareto",
               "args": {
-                "start": "2021-03-01T00:00:00",
-                "top": "1",
                 "by": "reason",
                 "end": "2021-03-31T23:59:59",
                 "include_not_in_oee": "false",
                 "line_id": "s_1",
-                "machine_id": "s_1"
+                "machine_id": "s_1",
+                "start": "2021-03-01T00:00:00",
+                "top": "1"
               },
               "status": "ok",
               "missing": null
@@ -302,7 +315,7 @@
           "correct_tool": true,
           "answer_present": true,
           "points": 3,
-          "wall_s": 10.4,
+          "wall_s": 10.1,
           "rounds": 2,
           "tool_calls": [
             {
@@ -362,17 +375,17 @@
           "correct_tool": true,
           "answer_present": true,
           "points": 3,
-          "wall_s": 37.1,
+          "wall_s": 37.4,
           "rounds": 2,
           "tool_calls": [
             {
               "name": "search_notes",
               "args": {
+                "limit": 100,
                 "query": "valves",
                 "line_id": "brick",
                 "start": "2025-09-01T00:00:00Z",
-                "end": "2026-04-01T00:00:00Z",
-                "limit": 100
+                "end": "2026-04-01T00:00:00Z"
               },
               "status": "ok",
               "missing": null
@@ -392,7 +405,7 @@
           "correct_tool": true,
           "answer_present": true,
           "points": 3,
-          "wall_s": 21.9,
+          "wall_s": 22.1,
           "rounds": 2,
           "tool_calls": [
             {
@@ -416,7 +429,7 @@
           "correct_tool": true,
           "answer_present": true,
           "points": 3,
-          "wall_s": 15.5,
+          "wall_s": 15.7,
           "rounds": 2,
           "tool_calls": [
             {
@@ -444,19 +457,19 @@
           "correct_tool": true,
           "answer_present": false,
           "points": 2,
-          "wall_s": 12.0,
+          "wall_s": 12.1,
           "rounds": 2,
           "tool_calls": [
             {
               "name": "compare_periods",
               "args": {
+                "top": "10",
                 "a_start": "2025-09-01T00:00:00Z",
                 "a_end": "2025-12-31T23:59:59Z",
                 "b_start": "2026-01-01T00:00:00Z",
                 "b_end": "2026-04-30T23:59:59Z",
                 "line_id": "brick",
-                "machine_id": "brick",
-                "top": "10"
+                "machine_id": "brick"
               },
               "status": "out_of_scope",
               "missing": "period A: unknown machine_id 'brick'"
@@ -473,7 +486,7 @@
             "list_assets",
             "reliability"
           ],
-          "error": "OllamaUnreachable: local model not reachable at http://localhost:11434",
+          "error": "OllamaError: local model timed out after 180 s",
           "wall_s": 180.0,
           "valid_tool_json": false,
           "correct_tool": false,

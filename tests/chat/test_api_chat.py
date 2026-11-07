@@ -83,3 +83,19 @@ def test_chat_502_when_ollama_errors(built):
         "/api/chat", json={"messages": [{"role": "user", "content": "x"}]}
     )
     assert r.status_code == 502 and "model not found" in r.json()["missing"]
+
+
+def test_chat_502_when_ollama_times_out(built):
+    def slow(request):
+        raise httpx.ReadTimeout("slow", request=request)
+
+    r = app_with(slow).post("/api/chat", json={"messages": [{"role": "user", "content": "x"}]})
+    assert r.status_code == 502
+    assert r.json()["status"] == "out_of_scope" and "timed out after" in r.json()["missing"]
+
+
+def test_chat_malformed_model_reply_is_not_a_500(built):
+    r = app_with(lambda req: httpx.Response(200, json={"message": ["x"]})).post(
+        "/api/chat", json={"messages": [{"role": "user", "content": "x"}]}
+    )
+    assert r.status_code == 200 and r.json()["answer"] == "The model returned a malformed reply."

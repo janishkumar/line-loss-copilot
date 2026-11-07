@@ -12,8 +12,8 @@ Writes evals/results/chat_model_smoke.json.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
-import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,6 +22,7 @@ import psycopg
 
 from linecopilot.chat.loop import run_chat
 from linecopilot.chat.ollama import OllamaClient
+from linecopilot.chat.prompt import split_answer
 from linecopilot.config import get_settings
 
 OUT = Path(__file__).resolve().parents[1] / "evals" / "results" / "chat_model_smoke.json"
@@ -55,7 +56,13 @@ PROMPTS: list[tuple[str, str, list[str]]] = [
     ),
 ]
 BAD_CALL = ("unknown tool", "invalid arguments", "arguments were not valid JSON", "arguments must")
-ANSWER_LINE = re.compile(r"ANSWER:\s*\S")  # own line or trailing; the UI hides both
+
+
+def question_set_hash() -> str:
+    """sha256 of the canonical JSON of PROMPTS, so results from different question sets are
+    never compared by mistake."""
+    canon = json.dumps(PROMPTS, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
 
 
 def score_one(conn, client: OllamaClient, prompt: str, expected: list[str]) -> dict:
@@ -75,7 +82,7 @@ def score_one(conn, client: OllamaClient, prompt: str, expected: list[str]) -> d
     names = [c.name for c in res.tool_calls]
     valid = bool(names) and not any((c.missing or "").startswith(BAD_CALL) for c in res.tool_calls)
     correct = all(e in names for e in expected)
-    answered = bool(ANSWER_LINE.search(res.answer))
+    answered = split_answer(res.answer)[1] is not None
     return {
         "valid_tool_json": valid,
         "correct_tool": correct,
@@ -96,6 +103,7 @@ def main() -> None:
     args = ap.parse_args()
     s = get_settings()
     models = []
+    ollama_version = OllamaClient(s.ollama_url, "").version()
     with psycopg.connect(s.database_url, autocommit=True) as conn:
         for model in args.models:
             client = OllamaClient(s.ollama_url, model)
@@ -120,6 +128,8 @@ def main() -> None:
     out = {
         "generated_at": datetime.now(UTC).date().isoformat(),
         "ollama_url": s.ollama_url,
+        "ollama_version": ollama_version,
+        "question_set_hash": question_set_hash(),
         "rule": "most points (valid tool JSON + expected tool + ANSWER line, per prompt); "
         "ties go to the lower total wall time",
         "chosen": chosen,

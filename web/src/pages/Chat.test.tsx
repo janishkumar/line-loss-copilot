@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import Chat, { visibleAnswer } from "./Chat";
+import Chat, { refIds, visibleAnswer } from "./Chat";
 import { cite } from "./testkit";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -100,6 +100,27 @@ describe("Chat", () => {
   });
 });
 
+describe("history", () => {
+  it("leaves empty assistant turns out of the next request", async () => {
+    const { fn, release } = stubChat(
+      [200, result({ answer: "", unsupported_cited_ids: [], citation_count: 0 })],
+      [200, result({ answer: "Now.\nANSWER: y", unsupported_cited_ids: [] })],
+    );
+    render(<MemoryRouter><Chat /></MemoryRouter>);
+    ask("first");
+    await act(async () => release());
+    await screen.findByText(/Tool trace/);
+    ask("second");
+    await act(async () => release());
+    await screen.findByText("Now.");
+    const sent = JSON.parse(String(fn.mock.calls[1][1]?.body)).messages;
+    expect(sent).toEqual([
+      { role: "user", content: "first" },
+      { role: "user", content: "second" },
+    ]);
+  });
+});
+
 describe("event links", () => {
   it("links every id in a grouped citation", async () => {
     const { release } = stubChat([200, result({ answer: "Lost [event:5, event:6] and [event:7, 8].\nANSWER: x", unsupported_cited_ids: [], citation_count: 0 })]);
@@ -112,10 +133,22 @@ describe("event links", () => {
 });
 
 describe("visibleAnswer", () => {
-  it("drops the ANSWER line, trailing or on its own line", () => {
+  it("drops the ANSWER marker on the last line only", () => {
     expect(visibleAnswer("Body.\nANSWER: x")).toBe("Body.");
-    expect(visibleAnswer("Body. ANSWER: x")).toBe("Body.");
+    expect(visibleAnswer("Body. ANSWER: x  \n")).toBe("Body.");
     expect(visibleAnswer("ANSWER: only this")).toBe("only this");
     expect(visibleAnswer("No line")).toBe("No line");
+    expect(visibleAnswer("ANSWER: early\nthen more")).toBe("ANSWER: early\nthen more");
+    expect(visibleAnswer("Use XANSWER: y")).toBe("Use XANSWER: y");
+    expect(visibleAnswer("a\nb ANSWER: z")).toBe("a\nb");
+  });
+});
+
+describe("refIds", () => {
+  it("accepts the same forms as the server", () => {
+    expect(refIds("1, event:2")).toEqual(["1", "2"]);
+    expect(refIds(" 3, 4")).toEqual(["3", "4"]);
+    expect(refIds("x")).toBeNull();
+    expect(refIds("5,")).toBeNull();
   });
 });

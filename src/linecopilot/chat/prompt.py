@@ -1,5 +1,7 @@
 """System prompt for the web chat: the shared instructions plus chat-only rules."""
 
+import re
+
 from linecopilot.prompting import BASE_INSTRUCTIONS
 
 SYSTEM_PROMPT = (
@@ -16,3 +18,19 @@ SYSTEM_PROMPT = (
     "[event:123]. Keep the answer short. Finish with a separate last line in the form "
     "'ANSWER: <short answer>'."
 )
+
+# The ANSWER marker counts only on the answer's last line, on its own or after the text
+# (small models often write "... ANSWER: x" on one line). The web page mirrors this rule.
+_ANSWER_TAIL = re.compile(r"(?:^|[ \t])ANSWER:[ \t]*([^\n]*?)[ \t]*$")
+
+
+def split_answer(text: str) -> tuple[str, str | None]:
+    """(body, short answer). The short answer is None when the last line has no ANSWER marker
+    or the marker has no text; the body is everything before the marker."""
+    stripped = text.rstrip()
+    head, _, last = stripped.rpartition("\n")
+    m = _ANSWER_TAIL.search(last)
+    if not m or not m.group(1):
+        return stripped, None
+    body = (head + "\n" + last[: m.start()]) if head else last[: m.start()]
+    return body.strip(), m.group(1)

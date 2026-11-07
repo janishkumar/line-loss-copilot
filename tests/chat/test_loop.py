@@ -208,8 +208,69 @@ def test_internal_tool_error_is_reported_not_raised(monkeypatch):
     monkeypatch.setattr(loop, "call_tool", boom)
     fake = FakeOllama(call(("list_assets", {})), say("failed\nANSWER: none"))
     res = run_chat(None, fake.client(), [{"role": "user", "content": "x"}])
-    assert res.tool_calls[0].status == "error"
-    assert json.loads(fake.requests[1]["messages"][-1]["content"])["status"] == "error"
+    assert res.tool_calls[0].status == "out_of_scope"
+    assert res.tool_calls[0].missing == "internal error in list_assets"
+    fed = json.loads(fake.requests[1]["messages"][-1]["content"])
+    assert fed == {"status": "out_of_scope", "missing": "internal error in list_assets"}
+
+
+@pytest.mark.parametrize("content", ["", "   \n ", None])
+def test_empty_final_answer_is_replaced(tools_called, content):
+    fake = FakeOllama({"message": {"role": "assistant", "content": content}})
+    res = run_chat(None, fake.client(), [{"role": "user", "content": "x"}])
+    assert res.answer == "The model returned no answer." and res.rounds == 1
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        {"message": "not a dict"},
+        {"message": None},
+        {"done": True},
+        {"message": {"role": "assistant", "content": "", "tool_calls": "list_assets"}},
+        {"message": {"role": "assistant", "content": "", "tool_calls": {"a": 1}}},
+    ],
+)
+def test_malformed_reply_stops_with_a_message(tools_called, reply):
+    fake = FakeOllama(reply)
+    res = run_chat(None, fake.client(), [{"role": "user", "content": "x"}])
+    assert res.answer == "The model returned a malformed reply."
+    assert tools_called == [] and res.tool_calls == []
+
+
+def test_malformed_tool_call_items_become_out_of_scope(tools_called):
+    fake = FakeOllama(
+        {
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": ["oops", {"function": "list_assets"}, None],
+            }
+        },
+        say("sorry\nANSWER: none"),
+    )
+    res = run_chat(None, fake.client(), [{"role": "user", "content": "x"}])
+    assert [t.status for t in res.tool_calls] == ["out_of_scope"] * 3
+    assert {t.missing for t in res.tool_calls} == {"malformed tool call"}
+    assert tools_called == [] and res.answer.startswith("sorry")
+
+
+def test_time_budget_stops_between_rounds(tools_called):
+    ticks = iter([0.0, 100.0, 600.0])  # start, before round 2, before round 3
+    fake = FakeOllama(*[call(("list_assets", {}))] * 5)
+    res = run_chat(
+        None,
+        fake.client(),
+        [{"role": "user", "content": "x"}],
+        time_budget_s=540,
+        clock=lambda: next(ticks),
+    )
+    assert res.rounds == 2 and len(fake.requests) == 2
+    assert "stopped after 540 s" in res.answer
+
+
+def test_default_time_budget_is_below_the_proxy_timeout():
+    assert loop.TIME_BUDGET_S == 540
 
 
 def test_tool_schemas_are_flat_and_keep_names():
@@ -272,6 +333,48 @@ def test_client_unreachable_raises_typed_error():
     assert "http://nowhere.test" in str(e.value)
 
 
+def test_client_timeout_is_an_error_not_unreachable():
+    def slow(request):
+        raise httpx.ReadTimeout("slow", request=request)
+
+    client = OllamaClient("http://o.test", "m", transport=httpx.MockTransport(slow), timeout=7)
+    with pytest.raises(OllamaError) as e:
+        client.chat([], [])
+    assert not isinstance(e.value, OllamaUnreachable)
+    assert str(e.value) == "local model timed out after 7 s"
+
+
+def test_client_other_transport_error_is_an_error():
+    def broken(request):
+        raise httpx.RemoteProtocolError("bad frame", request=request)
+
+    client = OllamaClient("http://o.test", "m", transport=httpx.MockTransport(broken))
+    with pytest.raises(OllamaError) as e:
+        client.chat([], [])
+    assert not isinstance(e.value, OllamaUnreachable)
+    assert "RemoteProtocolError" in str(e.value)
+
+
+@pytest.mark.parametrize("body", [b"not json", b"[1, 2]"])
+def test_client_bad_body_is_an_error(body):
+    client = OllamaClient(
+        "http://o.test",
+        "m",
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, content=body)),
+    )
+    with pytest.raises(OllamaError):
+        client.chat([], [])
+
+
+def test_client_version():
+    client = OllamaClient(
+        "http://o.test",
+        "m",
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"version": "0.1.2"})),
+    )
+    assert client.version() == "0.1.2"
+
+
 def test_client_http_error_raises_ollama_error():
     client = OllamaClient(
         "http://ollama.test",
@@ -296,5 +399,36 @@ def test_client_tags():
 def test_cited_ids_grouped_forms():
     from linecopilot.chat.loop import cited_ids
 
-    text = "a [event:1, event:2] b [event: 3, 4] c [event:1] d [event:x] [events:9]"
+    text = "a [event:1, event:2] b [event: 3, 4] c [event:1] d [event:x] [events:9] [event:5,]"
     assert cited_ids(text) == [1, 2, 3, 4]
+    assert cited_ids("[event:²]") == [] and cited_ids("[event:6, event: 7 ]") == [6, 7]
+
+
+def test_cited_ids_fast_on_hostile_text():
+    import time
+
+    from linecopilot.chat.loop import cited_ids
+
+    hostile = "[event:1" + ", " * 50_000 + "x" + "[event:" * 20_000
+    t0 = time.perf_counter()
+    assert cited_ids(hostile) == []
+    assert time.perf_counter() - t0 < 0.5
+
+
+@pytest.mark.parametrize(
+    "text, body, short",
+    [
+        ("Body.\nANSWER: x", "Body.", "x"),
+        ("Body. ANSWER: x  \n", "Body.", "x"),
+        ("ANSWER: only", "", "only"),
+        ("No marker", "No marker", None),
+        ("ANSWER: early\nthen more text", "ANSWER: early\nthen more text", None),
+        ("Body.\nANSWER:   ", "Body.\nANSWER:", None),
+        ("Use XANSWER: y", "Use XANSWER: y", None),
+        ("a\nb ANSWER: z", "a\nb", "z"),
+    ],
+)
+def test_split_answer_uses_the_last_line_only(text, body, short):
+    from linecopilot.chat.prompt import split_answer
+
+    assert split_answer(text) == (body, short)

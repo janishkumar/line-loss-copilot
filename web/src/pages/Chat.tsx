@@ -5,18 +5,38 @@ import Citations from "../components/Citations";
 
 const MAX_MESSAGES = 20;
 const MAX_CHARS = 4000;
-// [event:12], and the grouped forms small models write: [event:12, event:13] or [event:12, 13]
-const EVENT_REF = /\[event:\s*\d+(?:\s*,\s*(?:event:)?\s*\d+)*\s*\]/g;
+// [event:12], and the grouped forms small models write: [event:12, event:13] or [event:12, 13].
+// The bracket body is a bounded class (no nested quantifiers), then checked by refIds.
+const EVENT_REF = /\[event:([^[\]\n]{1,200})\]/g;
+// Mirrors split_answer in src/linecopilot/chat/prompt.py: the marker counts on the last line only.
+const ANSWER_TAIL = /(?:^|[ \t])ANSWER:[ \t]*([^\n]*?)[ \t]*$/;
+
+/** Ids in one bracket body after "event:", or null if it is not a list of ids. */
+export function refIds(body: string): string[] | null {
+  const ids: string[] = [];
+  for (const raw of body.split(",")) {
+    let part = raw.trim();
+    if (ids.length && part.startsWith("event:")) part = part.slice("event:".length).trim();
+    if (!/^[0-9]+$/.test(part)) return null;
+    ids.push(part);
+  }
+  return ids;
+}
 
 type Turn = { role: "user"; content: string } | { role: "assistant"; content: string; result: ChatResult };
 
-/** The answer without its trailing `ANSWER:` line (kept for evals). If that line is all the
- * model wrote, its text is the answer. */
+/** The answer without its `ANSWER:` marker (kept for evals), which counts only on the last
+ * line, on its own or after the text. If the marker is all the model wrote, its text is the
+ * answer. */
 export function visibleAnswer(answer: string): string {
-  const i = answer.lastIndexOf("ANSWER:");
-  if (i < 0) return answer.trim();
-  const body = answer.slice(0, i).trim();
-  return body || answer.slice(i + "ANSWER:".length).trim();
+  const text = answer.trimEnd();
+  const cut = text.lastIndexOf("\n");
+  const head = cut < 0 ? "" : text.slice(0, cut);
+  const last = text.slice(cut + 1);
+  const m = ANSWER_TAIL.exec(last);
+  if (!m || !m[1]) return text.trim();
+  const body = `${head}\n${last.slice(0, m.index)}`.trim();
+  return body || m[1];
 }
 
 /** Plain text with each [event:N] turned into a link to that event's source rows. */
@@ -24,8 +44,10 @@ function withEventLinks(text: string): ReactNode[] {
   const out: ReactNode[] = [];
   let last = 0;
   for (const m of text.matchAll(EVENT_REF)) {
+    const ids = refIds(m[1]);
+    if (!ids) continue;
     out.push(text.slice(last, m.index));
-    (m[0].match(/\d+/g) ?? []).forEach((id, j) => {
+    ids.forEach((id, j) => {
       if (j) out.push(", ");
       out.push(
         <Link key={`${m.index}-${j}`} to={`/evidence/${id}`} title="Source rows for this event">
@@ -107,7 +129,9 @@ export default function Chat() {
     const q = draft.trim();
     if (!q || pending) return;
     const next: Turn[] = [...turns, { role: "user", content: q }];
+    // empty turns would be rejected by the API, so they are left out of the history
     const messages: ChatMessage[] = next
+      .filter((t) => t.content.trim())
       .slice(-MAX_MESSAGES)
       .map((t) => ({ role: t.role, content: t.content.slice(0, MAX_CHARS) }));
     if (messages[0]?.role === "assistant") messages.shift();

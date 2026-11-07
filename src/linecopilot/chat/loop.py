@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -25,8 +27,11 @@ log = logging.getLogger(__name__)
 MODEL_CITATIONS = 10
 MODEL_NESTED_CITATIONS = 3
 MODEL_LIST_ROWS = 30
-# [event:12], and the grouped forms small models write: [event:12, event:13] or [event:12, 13]
-EVENT_REF = re.compile(r"\[event:\s*\d+(?:\s*,\s*(?:event:)?\s*\d+)*\s*\]")
+TIME_BUDGET_S = 540.0  # stop before the web proxy's 600 s read timeout
+NO_ANSWER = "The model returned no answer."
+# [event:12], and the grouped forms small models write: [event:12, event:13] or [event:12, 13].
+# The bracket body is matched by a bounded class (no nested quantifiers), then checked by split.
+EVENT_REF = re.compile(r"\[event:([^\[\]\n]{1,200})\]")
 
 
 class ToolCall(BaseModel):
@@ -166,8 +171,20 @@ def _event_ids(node: Any, into: set[int]) -> None:
             _event_ids(x, into)
 
 
+def _ref_ids(body: str) -> list[int] | None:
+    """Ids in one bracket body after "event:", or None if it is not a list of ids."""
+    ids = []
+    for part in body.split(","):
+        part = part.strip()
+        part = part.removeprefix("event:").strip() if ids else part
+        if not part.isascii() or not part.isdigit():
+            return None
+        ids.append(int(part))
+    return ids
+
+
 def cited_ids(answer: str) -> list[int]:
-    ids = (int(n) for ref in EVENT_REF.findall(answer) for n in re.findall(r"\d+", ref))
+    ids = (i for body in EVENT_REF.findall(answer) for i in (_ref_ids(body) or []))
     return list(dict.fromkeys(ids))
 
 
@@ -192,57 +209,80 @@ def _dumps(obj: Any) -> str:
 # ---- the loop ------------------------------------------------------------------------------
 
 
+def _tool_payload(conn: Any, tc: Any) -> tuple[str, dict[str, Any] | str, dict[str, Any], Any]:
+    """Run one requested tool call. Returns (name, args, payload for the model, Result or
+    None). Nothing here raises: every failure is an out_of_scope payload."""
+    fn = tc.get("function") if isinstance(tc, dict) else None
+    if not isinstance(fn, dict):
+        return "", "", {"status": "out_of_scope", "missing": "malformed tool call"}, None
+    name = str(fn.get("name") or "")
+    args, err = _parse_args(fn.get("arguments"))
+    if err is not None:
+        return name, args, {"status": "out_of_scope", "missing": err}, None
+    try:
+        res = call_tool(conn, name, args)  # type: ignore[arg-type]
+    except Exception:
+        log.exception("tool %s failed", name)
+        return name, args, {"status": "out_of_scope", "missing": f"internal error in {name}"}, None
+    return name, args, trim_result(res), res
+
+
 def run_chat(
     conn: Any,
     client: OllamaClient,
     messages: list[dict],
     tools_enabled: bool = True,
     max_rounds: int = 6,
+    time_budget_s: float = TIME_BUDGET_S,
+    clock: Callable[[], float] = time.monotonic,
 ) -> ChatResult:
-    """Run the conversation until the model answers without a tool call, or `max_rounds`
-    model calls have been made. `messages` holds user and assistant turns only; the system
-    prompt is always ours."""
+    """Run the conversation until the model answers without a tool call, `max_rounds` model
+    calls have been made, or `time_budget_s` has passed (checked between rounds). `messages`
+    holds user and assistant turns only; the system prompt is always ours."""
     tools = tool_schemas() if tools_enabled else []
     convo: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
     convo += [{"role": m["role"], "content": m["content"]} for m in messages]
     cites: list[Citation] = []
     supported: set[int] = set()
     calls: list[ToolCall] = []
-    answer = ""
+    answer: str | None = None
     rounds = 0
-    for rounds in range(1, max_rounds + 1):  # noqa: B007 - rounds is reported
-        msg = client.chat(convo, tools).get("message") or {}
+    started = clock()
+    while answer is None:
+        if rounds >= max_rounds:
+            answer = (
+                f"The tool loop stopped after {max_rounds} rounds without a final answer. "
+                "Try a narrower question."
+            )
+            break
+        if rounds and clock() - started > time_budget_s:
+            answer = (
+                f"The tool loop stopped after {int(time_budget_s)} s without a final answer. "
+                "Try a narrower question."
+            )
+            break
+        rounds += 1
+        reply = client.chat(convo, tools)
+        msg = reply.get("message") if isinstance(reply, dict) else None
+        requested = msg.get("tool_calls") if isinstance(msg, dict) else None
+        if not isinstance(msg, dict) or not isinstance(requested, list | None):
+            answer = "The model returned a malformed reply."
+            break
         content = str(msg.get("content") or "")
-        requested = (msg.get("tool_calls") or []) if tools_enabled else []
+        requested = (requested or []) if tools_enabled else []
         if not requested:
-            answer = content
+            answer = content if content.strip() else NO_ANSWER
             break
         convo.append({"role": "assistant", "content": content, "tool_calls": requested})
         for tc in requested:
-            fn = (tc or {}).get("function") or {}
-            name = str(fn.get("name") or "")
-            args, err = _parse_args(fn.get("arguments"))
-            if err is not None:
-                payload: dict[str, Any] = {"status": "out_of_scope", "missing": err}
-            else:
-                try:
-                    res = call_tool(conn, name, args)  # type: ignore[arg-type]
-                except Exception:
-                    log.exception("tool %s failed", name)
-                    payload = {"status": "error", "missing": f"tool {name} failed internally"}
-                else:
-                    payload = trim_result(res)
-                    cites.extend(res.citations)
-                    _event_ids(res.model_dump(mode="json"), supported)
+            name, args, payload, res = _tool_payload(conn, tc)
+            if res is not None:
+                cites.extend(res.citations)
+                _event_ids(res.model_dump(mode="json"), supported)
             calls.append(
                 ToolCall(name=name, args=args, status=payload["status"], missing=payload["missing"])
             )
             convo.append({"role": "tool", "tool_name": name, "content": _dumps(payload)})
-    else:
-        answer = (
-            f"The tool loop stopped after {max_rounds} rounds without a final answer. "
-            "Try a narrower question."
-        )
     capped, count = cap_citations(cites)
     ids = cited_ids(answer)
     return ChatResult(

@@ -17,7 +17,7 @@ class OllamaError(RuntimeError):
 
 
 class OllamaUnreachable(OllamaError):
-    """No connection to Ollama (refused, DNS, or timed out)."""
+    """No connection to Ollama (refused or DNS)."""
 
 
 class OllamaClient:
@@ -30,19 +30,27 @@ class OllamaClient:
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.timeout = timeout
         self._http = httpx.Client(base_url=self.base_url, transport=transport, timeout=timeout)
 
     def _request(self, method: str, path: str, **kw: Any) -> dict:
         try:
             resp = self._http.request(method, path, **kw)
-        except (httpx.ConnectError, httpx.TimeoutException) as e:
+        except httpx.ConnectError as e:
             raise OllamaUnreachable(f"local model not reachable at {self.base_url}") from e
+        except httpx.TimeoutException as e:
+            raise OllamaError(f"local model timed out after {self.timeout:g} s") from e
+        except httpx.TransportError as e:
+            raise OllamaError(f"local model connection failed: {type(e).__name__}") from e
         if resp.status_code >= 400:
             raise OllamaError(f"local model returned {resp.status_code}: {resp.text[:200]}")
         try:
-            return resp.json()
+            body = resp.json()
         except ValueError as e:
             raise OllamaError("local model returned a body that is not JSON") from e
+        if not isinstance(body, dict):
+            raise OllamaError("local model returned a body that is not a JSON object")
+        return body
 
     def chat(self, messages: list[dict], tools: list[dict]) -> dict:
         return self._request(
@@ -56,6 +64,9 @@ class OllamaClient:
                 "options": OPTIONS,
             },
         )
+
+    def version(self) -> str | None:
+        return self._request("GET", "/api/version").get("version")
 
     def tags(self) -> list[dict]:
         return list(self._request("GET", "/api/tags").get("models", []))
