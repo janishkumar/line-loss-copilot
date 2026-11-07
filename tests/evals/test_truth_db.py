@@ -185,6 +185,33 @@ def test_effect_size_and_ambiguity():
     assert f["status"] == "scored" and f["direction"] == "down"
 
 
+def test_stop_episode_matches_recount_from_core_event(built):
+    # one brick month and one PIADE month of the fixture, recounted from core.event
+    assert truth.crosscheck_episodes(built, "brick", "2025-09") == []
+    assert truth.crosscheck_episodes(built, "brick", "2026-02") == []
+    assert truth.crosscheck_episodes(built, "s_2", "2020-01") == []
+    core = truth._reason_totals(built, truth.CORE_PIADE_REASONS, "s_2", "2020-01")
+    assert sum(n for n, _ in core.values()) == truth.stop_count(built, "s_2", "2020-01").expected
+    brick = truth._reason_totals(built, truth.CORE_BRICK_REASONS, "brick", "2026-02")
+    assert sum(n for n, _ in brick.values()) == truth.stop_count(built, "brick", "2026-02").expected
+    assert truth.crosscheck_episodes(built, "s_3", "2021-02") == [
+        "crosscheck s_3 2021-02: no stops in core.event"
+    ]
+
+
+def test_crosscheck_reports_a_mart_that_drifts(built):
+    with built.transaction():  # psycopg.Rollback below is caught by the block
+        built.execute(
+            "UPDATE mart.stop_episode SET duration_s = duration_s + 60 "
+            "WHERE episode_id = (SELECT min(episode_id) FROM mart.stop_episode "
+            "WHERE line_id = 'brick' AND in_oee AND start_ts >= '2026-02-01')"
+        )
+        problems = truth.crosscheck_episodes(built, "brick", "2026-02")
+        raise psycopg.Rollback
+    assert len(problems) == 1 and "mart.stop_episode" in problems[0]
+    assert truth.crosscheck_episodes(built, "brick", "2026-02") == []
+
+
 def test_check_reports_missing_truth_on_fixture(built):
     # the fixture holds a sliver of the data, so most live-data questions are flagged
     problems = check(built, build_questions()[:3])

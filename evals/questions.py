@@ -294,11 +294,12 @@ def in_question_unit(q: Question, expected: float) -> float:
 
 def check(conn, qs: list[Question]) -> list[str]:
     """Problems with the question set on this database: a truth that cannot be computed, a
-    top reason within TOP_MARGIN of the runner-up, or an answerable question with zero
-    evidence."""
-    from evals.truth import NoTruth, compute
+    top reason within TOP_MARGIN of the runner-up, an answerable question with zero
+    evidence, or mart.stop_episode disagreeing with a recount from core.event on the
+    cross-check months (the answer key shares the marts with the tools)."""
+    from evals.truth import CROSSCHECK_MONTHS, NoTruth, compute, crosscheck_episodes
 
-    problems = []
+    problems = [p for a, m in CROSSCHECK_MONTHS for p in crosscheck_episodes(conn, a, m)]
     for q in qs:
         try:
             t = compute(conn, q.expected_fn, q.params)

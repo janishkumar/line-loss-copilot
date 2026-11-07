@@ -524,3 +524,79 @@ def before_after_facts(conn) -> dict[str, Any]:
             for x in metric_facts + reason_facts
         },
     }
+
+
+# ---- mart cross-check from core.event ----------------------------------------------------------
+# The answer key reads the dbt marts, as the tools do, so a mart bug would be shared by both.
+# This recomputes stop count and lost seconds per reason for one asset-month straight from
+# core.event (brick: one stop per stop-log row; PIADE: gaps and islands over stopped intervals,
+# 5 s join rule, overlapping seconds counted once) and compares with mart.stop_episode.
+# questions.check runs it on CROSSCHECK_MONTHS; a db test runs it on the fixture.
+
+CORE_BRICK_REASONS = """
+SELECT reason_code AS reason, count(*) AS n, sum(duration_s)::float8 AS lost_s
+FROM core.event
+WHERE source_system = 'brick' AND event_type = 'stop'
+  AND stop_type IS DISTINCT FROM %(not_in_oee)s
+  AND to_char(start_ts AT TIME ZONE %(tz)s, 'YYYY-MM') = %(month)s
+GROUP BY 1
+"""
+CORE_PIADE_REASONS = """
+WITH stopped AS (
+    SELECT event_id, start_ts, end_ts, alarm_code,
+           max(end_ts) OVER (ORDER BY start_ts, event_id
+                             ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prev_end
+    FROM core.event
+    WHERE source_system = 'piade' AND machine_id = %(asset)s AND state = 'stopped'
+), islands AS (
+    SELECT *, sum(CASE WHEN prev_end IS NULL OR start_ts > prev_end + interval '5 seconds'
+                       THEN 1 ELSE 0 END)
+                  OVER (ORDER BY start_ts, event_id
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS island
+    FROM stopped
+), episodes AS (
+    SELECT min(start_ts) AS start_ts,
+           coalesce((array_agg(alarm_code ORDER BY start_ts, event_id))[1], 'NO_ALARM')
+               AS reason,
+           range_agg(tstzrange(start_ts, end_ts)) AS spans
+    FROM islands GROUP BY island
+)
+SELECT reason, count(*) AS n,
+       sum((SELECT coalesce(sum(extract(epoch FROM upper(r) - lower(r))), 0)
+            FROM unnest(spans) AS r))::float8 AS lost_s
+FROM episodes
+WHERE to_char(start_ts AT TIME ZONE %(tz)s, 'YYYY-MM') = %(month)s
+GROUP BY 1
+"""
+MART_REASONS = """
+SELECT reason, count(*) AS n, sum(duration_s)::float8 AS lost_s
+FROM mart.stop_episode
+WHERE line_id = %(asset)s AND in_oee
+  AND to_char(start_ts AT TIME ZONE %(tz)s, 'YYYY-MM') = %(month)s
+GROUP BY 1
+"""
+CROSSCHECK_MONTHS = (("brick", "2026-02"), ("s_1", "2021-03"))
+
+
+def _reason_totals(conn, sql: str, asset: str, month: str) -> dict[str | None, tuple[int, float]]:
+    p = {"asset": asset, "month": month, "tz": _tz(asset), "not_in_oee": NOT_IN_OEE}
+    return {r["reason"]: (int(r["n"]), float(r["lost_s"])) for r in _rows(conn, sql, p)}
+
+
+def crosscheck_episodes(conn, asset: str, month: str) -> list[str]:
+    """Differences between mart.stop_episode and a recount from core.event, per reason (stop
+    count, lost seconds to 0.5 s). Empty when they agree; a month with no stops is a problem."""
+    core_sql = CORE_BRICK_REASONS if asset == BRICK else CORE_PIADE_REASONS
+    core = _reason_totals(conn, core_sql, asset, month)
+    mart = _reason_totals(conn, MART_REASONS, asset, month)
+    if not core:
+        return [f"crosscheck {asset} {month}: no stops in core.event"]
+    out = []
+    for reason in sorted(set(core) | set(mart), key=str):
+        c, m = core.get(reason, (0, 0.0)), mart.get(reason, (0, 0.0))
+        if c[0] != m[0] or abs(c[1] - m[1]) > 0.5:
+            out.append(
+                f"crosscheck {asset} {month} {reason}: core.event {c[0]} stops / {c[1]:.1f} s, "
+                f"mart.stop_episode {m[0]} / {m[1]:.1f} s"
+            )
+    return out
