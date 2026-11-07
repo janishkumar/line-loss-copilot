@@ -25,9 +25,9 @@ def row(**over):
 
 def test_fixture_parses_clean():
     parsed = parse_piade_raw(FIX)
-    assert len(parsed.rows) == 36
+    assert len(parsed.rows) == 37
     assert parsed.rejected == []
-    assert parsed.source_rows == list(range(1, 37))
+    assert parsed.source_rows == list(range(1, 38))
     assert set(parsed.rows[0]) == {
         "machine_id", "alarm", "state", "start_utc", "end_utc",
         "elapsed_ms", "pi", "po", "speed",
@@ -184,9 +184,9 @@ def test_quality_report_counts():
             "counter_resets_po": 0,
         },
         "s_3": {
-            "rows": 4,
-            "gaps_over_60s": 0,
-            "max_gap_s": 0.0,
+            "rows": 5,
+            "gaps_over_60s": 1,
+            "max_gap_s": 21600.0,
             "overlaps_over_1s": 0,
             "counter_resets_pi": 0,
             "counter_resets_po": 0,

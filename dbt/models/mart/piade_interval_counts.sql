@@ -8,6 +8,12 @@
 -- Rule: negative delta = reset, delta > 3 x max_speed x row hours = glitch; both null.
 -- Rows are ordered by start time, then file row, within each machine. A delta that spans a
 -- gap between rows is attributed to the later row like any other.
+--
+-- Overlaps: an interval that starts before an earlier interval of the same machine has ended
+-- (by start order) has its start clipped to that end, so no second is counted twice.
+-- start_ts_source and duration_s_source keep the logged values; clipped_s is what was cut
+-- (a fully covered interval keeps its counter delta and gets duration 0). The glitch limit
+-- uses the logged duration.
 with iv as (
     select
         e.event_id,
@@ -32,6 +38,21 @@ with iv as (
     where e.source_system = 'piade'
       and e.event_type = 'state_interval'
 ),
+prev as (
+    select
+        iv.*,
+        max(iv.end_ts) over (
+            partition by iv.machine_id order by iv.start_ts, iv.source_row
+            rows between unbounded preceding and 1 preceding
+        ) as prev_end
+    from iv
+),
+clipped as (
+    select
+        prev.*,
+        least(greatest(start_ts, coalesce(prev_end, start_ts)), end_ts) as start_clip
+    from prev
+),
 raw_delta as (
     select
         iv.*,
@@ -40,7 +61,7 @@ raw_delta as (
         iv.po - lag(iv.po) over w as po_raw,
         lead(iv.pi) over w - iv.pi as pi_raw_start,
         lead(iv.po) over w - iv.po as po_raw_start
-    from iv
+    from clipped iv
     join {{ ref('piade_ideal_rate') }} r using (machine_id)
     window w as (partition by iv.machine_id order by iv.start_ts, iv.source_row)
 )
@@ -53,9 +74,18 @@ select
     source_state,
     is_planned,
     is_run,
-    start_ts,
+    start_clip as start_ts,
     end_ts,
-    duration_s,
+    case
+        when start_clip > start_ts then extract(epoch from end_ts - start_clip)
+        else duration_s
+    end as duration_s,
+    start_ts as start_ts_source,
+    duration_s as duration_s_source,
+    case
+        when start_clip > start_ts then duration_s - extract(epoch from end_ts - start_clip)
+        else 0
+    end as clipped_s,
     pi,
     po,
     speed,

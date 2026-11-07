@@ -175,24 +175,31 @@ coverage, first to last interval (s_1 2020-01-01 to 2021-12-31, s_2 2020-06-15 t
 
 | Machine | Planned h | A | P count (p95) | P count (p90) | P count (p99) | P time | Q | OEE (p95) | OEE (p90) | OEE (p99) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| s_1 | 11,906 | 0.777 | 0.786 | 0.795 | 0.769 | 0.833 | 0.998 | 0.609 | 0.616 | 0.596 |
-| s_2 | 4,163 | 0.413 | 0.702 | 0.702 | 0.702 | 0.789 | 0.993 | 0.288 | 0.288 | 0.288 |
-| s_3 | 6,760 | 0.492 | 0.777 | 0.777 | 0.728 | 0.908 | 0.998 | 0.381 | 0.381 | 0.358 |
-| s_4 | 6,132 | 0.691 | 0.563 | 0.563 | 0.534 | 0.637 | 0.996 | 0.387 | 0.387 | 0.368 |
-| s_5 | 8,635 | 0.655 | 0.769 | 0.769 | 0.769 | 0.815 | 0.997 | 0.502 | 0.502 | 0.502 |
+| s_1 | 11,905 | 0.777 | 0.786 | 0.795 | 0.769 | 0.833 | 0.998 | 0.609 | 0.616 | 0.596 |
+| s_2 | 4,163 | 0.413 | 0.704 | 0.704 | 0.704 | 0.789 | 0.993 | 0.289 | 0.289 | 0.289 |
+| s_3 | 6,759 | 0.492 | 0.777 | 0.777 | 0.729 | 0.908 | 0.998 | 0.381 | 0.381 | 0.358 |
+| s_4 | 6,132 | 0.691 | 0.567 | 0.567 | 0.539 | 0.637 | 0.996 | 0.390 | 0.390 | 0.371 |
+| s_5 | 8,635 | 0.655 | 0.772 | 0.772 | 0.772 | 0.815 | 0.997 | 0.504 | 0.504 | 0.504 |
 
 Ideal rates (packages per hour, p90 / p95 / p99): s_1 4,500 / 4,550 / 4,650; s_2 6,500 for
 all three; s_3 4,500 / 4,500 / 4,800; s_4 6,176 / 6,176 / 6,500; s_5 6,500 for all three.
 
 Counter handling and caps over the same window:
 
-| Machine | Shifts | pi resets | pi glitches (on run rows) | Shifts with counts excluded | Run time excluded | P capped (p95) | Q capped |
-|---|---|---|---|---|---|---|---|
-| s_1 | 1,821 | 1 | 234 (62) | 62 | 3.7% | 2 | 262 |
-| s_2 | 1,167 | 3 | 4 (1) | 1 | 0.04% | 0 | 3 |
-| s_3 | 1,059 | 1 | 77 (21) | 21 | 2.5% | 6 | 9 |
-| s_4 | 1,079 | 79 | 15 (7) | 8 | 0.95% | 0 | 212 |
-| s_5 | 1,405 | 1 | 116 (47) | 48 | 4.3% | 2 | 26 |
+| Machine | Shifts | pi resets | pi glitches (on run rows) | Glitch shifts excluded (run h) | Ran, zero input: shifts excluded (run h) | Run time excluded | P capped (p95) | Q capped | Overlap clipped |
+|---|---|---|---|---|---|---|---|---|---|
+| s_1 | 1,821 | 1 | 234 (62) | 62 (339.2) | 32 (1.8) | 3.7% | 2 | 262 | 18 rows, 2.0 h |
+| s_2 | 1,167 | 3 | 4 (1) | 1 (0.6) | 86 (6.0) | 0.39% | 0 | 3 | none |
+| s_3 | 1,059 | 1 | 77 (21) | 21 (83.0) | 14 (0.4) | 2.5% | 6 | 9 | 12 rows, 1.0 h |
+| s_4 | 1,079 | 79 | 15 (7) | 8 (40.1) | 46 (31.8) | 1.7% | 0 | 212 | none |
+| s_5 | 1,405 | 1 | 116 (47) | 48 (240.7) | 86 (21.8) | 4.6% | 2 | 26 | none |
+
+Count-based performance and quality leave out every shift with incomplete counts: a glitch
+on a run row, or run time with no input counted at all (264 shifts, 61.9 run hours over the
+five machines; e.g. `piade:s_4:2021-05-02T06`, 6.5 h of performance_loss with the counter
+standing still). Before this rule those shifts entered the monthly rollup with zero input
+and pulled count-based performance down (s_4 0.563 to 0.567, s_5 0.769 to 0.772).
+Availability and time-based performance still use all run time.
 
 Points to read with it:
 
@@ -215,6 +222,30 @@ Points to read with it:
 - **Shift calendar is assumed** (3 × 8 h UTC from 06:00). s_4's first interval starts
   2020-01-01 00:05 UTC, inside the shift that began 2019-12-31 22:00, so its monthly rollup
   has a December 2019 row.
+
+- **Overlapping intervals are clipped.** An interval that starts before an earlier interval
+  of the same machine has ended has its start moved to that end, so no second counts twice
+  (`clipped_s` records the cut; the counter delta stays on the row). Before clipping, three
+  shifts held 32,400 s in an 8 h (28,800 s) shift. All clipped time is exactly one hour per
+  machine-night, on 2020-10-25 (s_1) and 2021-10-31 (s_1, s_3): the European daylight-saving
+  end dates. That fits a source clock that repeated an hour; the repeated hour is counted
+  once.
+
+### Assumptions behind the PIADE figures
+
+- Shift calendar is 3 × 8 h in UTC from 06:00. PIADE gives no site timezone, so the design's
+  "local" calendar cannot be known; the DST overlaps above hint at a European clock but do not
+  name one.
+- Months are assigned by shift start (UTC), so a shift starting 22:00 on the last day of a
+  month belongs to that month.
+- Counters are end-aligned. Counts that land on non-run rows (2 to 6% per machine) are left
+  out of input and output, which lowers count-based performance by about that much. A delta
+  spanning a gap between rows is credited to the next row (under 0.4% of counts).
+- A counter reset on a run row drops that row's count but keeps its run time, so
+  count-based performance on that shift is slightly low.
+- Ideal-rate percentiles are row-weighted (each production row counts once, whatever its
+  length), over production rows with speed above 0.
+- Idle counts as planned time; scheduled_downtime does not.
 
 Reproduce: `make dbt`, then `PYTHONPATH=src uv run python scripts/probe_piade_counts.py` and
 `PYTHONPATH=src uv run python scripts/piade_oee_summary.py`.

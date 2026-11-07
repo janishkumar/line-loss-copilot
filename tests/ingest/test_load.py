@@ -55,7 +55,7 @@ def test_load_fixtures_counts(conn, data_dir):
         accepted = sum(s.rows_accepted for s in summaries if s.table == table)
         assert accepted > 0
         assert count(conn, table) == accepted
-    assert count(conn, "piade_raw") == 36
+    assert count(conn, "piade_raw") == 37
     meta = conn.execute("SELECT count(*), sum(rows_accepted) FROM raw.load").fetchone()
     assert meta[0] == 5
     assert meta[1] == sum(s.rows_accepted for s in summaries)
@@ -125,5 +125,5 @@ def test_manifest_mismatch_raises_and_loads_nothing(conn, data_dir):
 def test_rows_visible_from_second_connection(conn, data_dir, db_url):
     load_all(conn, data_dir)
     with psycopg.connect(db_url) as other:
-        assert other.execute("SELECT count(*) FROM raw.piade_raw").fetchone()[0] == 36
+        assert other.execute("SELECT count(*) FROM raw.piade_raw").fetchone()[0] == 37
         assert other.execute("SELECT count(*) FROM raw.load").fetchone()[0] == 5

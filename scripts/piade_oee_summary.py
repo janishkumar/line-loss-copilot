@@ -44,6 +44,24 @@ c as (
         count(*) filter (where pi_flag = 'glitch' and is_run) as pi_glitches_run
     from mart.piade_interval_counts
     group by 1
+),
+z as (
+    select
+        machine_id,
+        count(*) filter (where quality_reason in ('pi_glitch', 'po_glitch')) as n_glitch_shifts,
+        sum(run_s) filter (where quality_reason in ('pi_glitch', 'po_glitch')) / 3600.0
+            as glitch_run_h,
+        count(*) filter (where quality_reason = 'no_input' and run_s > 0) as n_zero_input_run,
+        coalesce(sum(run_s) filter (where quality_reason = 'no_input' and run_s > 0), 0)
+            / 3600.0 as zero_input_run_h
+    from mart.piade_shift_oee
+    group by 1
+),
+o as (
+    select machine_id, count(*) filter (where clipped_s > 0) as n_clipped,
+        sum(clipped_s) / 3600.0 as clipped_h
+    from mart.piade_interval_counts
+    group by 1
 )
 select
     m.machine_id,
@@ -75,6 +93,12 @@ select
     c.pi_glitches,
     c.po_glitches,
     c.pi_glitches_run,
+    z.n_glitch_shifts,
+    z.glitch_run_h,
+    z.n_zero_input_run,
+    z.zero_input_run_h,
+    o.n_clipped,
+    o.clipped_h,
     r.p90,
     r.p95,
     r.p99,
@@ -82,6 +106,8 @@ select
     r.n_speed_zero
 from m
 join c using (machine_id)
+join z using (machine_id)
+join o using (machine_id)
 join mart.piade_ideal_rate r using (machine_id)
 order by 1
 """

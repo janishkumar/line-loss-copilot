@@ -93,7 +93,42 @@ def test_interval_split_across_shift(built):
     total = built.execute(
         "SELECT sum(planned_s + scheduled_s) FROM mart.piade_shift_oee WHERE machine_id = 's_3'"
     ).fetchone()[0]
-    assert float(total) == 3600 + 7200 + 1800 + 1800
+    assert float(total) == 3600 + 7200 + 1800 + 1800 + 3600
+
+
+def test_overlap_clipped_to_previous_end(built):
+    # s_1 16:04:58-16:09:58 starts 2 s before the previous row ends (16:05:00).
+    (row,) = rows(
+        built,
+        "SELECT * FROM mart.piade_interval_counts WHERE machine_id = 's_1'"
+        " AND start_ts_source = '2020-01-01 16:04:58+00'",
+    )
+    assert row["start_ts"].isoformat() == "2020-01-01T16:05:00+00:00"
+    assert float(row["duration_s"]) == 298
+    assert float(row["clipped_s"]) == 2
+    total = built.execute(
+        "SELECT sum(planned_s + scheduled_s) FROM mart.piade_shift_oee"
+        " WHERE shift_id = 'piade:s_1:2020-01-01T14'"
+    ).fetchone()[0]
+    assert float(total) == 5100 - 2 + 1800
+
+
+def test_run_without_input_excluded_from_counts(built):
+    # s_3 14:00-15:00 performance_loss, counters unchanged: ran, counted nothing.
+    zero = shift(built, "piade:s_3:2020-01-02T14")
+    assert float(zero["run_s"]) == 3600 and float(zero["input_qty"]) == 0
+    assert zero["quality_reason"] == "no_input"
+    assert zero["performance_count_p95"] is None and zero["quality"] is None
+    assert zero["oee"] is None
+    (month,) = rows(
+        built,
+        "SELECT * FROM mart.piade_machine_oee WHERE machine_id = 's_3' AND month = %s",
+        date(2020, 1, 1),
+    )
+    assert float(month["run_s"]) == 7200 + 5400 + 3600
+    assert float(month["run_s_counted"]) == 7200 + 5400
+    assert month["n_shifts_counts_excluded"] == 1
+    assert float(month["performance_count_p95_raw"]) == pytest.approx(11000 / (4800 * 3.5))
 
 
 def test_performance_capped_and_counted(built):
@@ -139,11 +174,12 @@ def test_rollup_is_time_weighted(built):
         "SELECT * FROM mart.piade_machine_oee WHERE machine_id = 's_1' AND month = %s",
         date(2020, 1, 1),
     )
-    # Run 2100 + 4500 s over planned 3900 + 5100 s.
-    assert float(month["availability"]) == pytest.approx(6600 / 9000)
+    # Run 2100 + 4500 s over planned 3900 + 5100 s, less the 2 s overlap clipped off the
+    # 16:04:58 performance_loss row.
+    assert float(month["availability"]) == pytest.approx(6598 / 8998)
     mean_of_shifts = sum(float(s["availability"]) for s in shifts) / 2
     assert float(month["availability"]) != pytest.approx(mean_of_shifts)
-    assert float(month["planned_s"]) == 9000
+    assert float(month["planned_s"]) == 8998
 
 
 def test_ideal_rate_ignores_zero_speed(built):

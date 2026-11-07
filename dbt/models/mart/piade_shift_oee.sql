@@ -22,10 +22,11 @@
 --
 -- Capping uses case, not least(): least() ignores nulls and would turn a null into 1.
 --
--- quality_reason says why quality is null: 'pi_glitch' or 'po_glitch' when a counter delta
--- on a run row in the shift was dropped as a glitch (counts incomplete; count-based
--- performance and oee are null too), 'no_input' when no input was counted. A shift that was
--- planned but never ran has availability 0 and oee 0.
+-- quality_reason says why the counts are incomplete: 'pi_glitch' or 'po_glitch' when a
+-- counter delta on a run row in the shift was dropped as a glitch, 'no_input' when no input
+-- was counted (including shifts that ran but whose counter never moved). With any reason,
+-- quality, count-based performance and oee are null. A shift that was planned but never ran
+-- has availability 0 and oee 0.
 with iv as (
     select
         c.*,
@@ -112,14 +113,11 @@ ratio as (
 perf as (
     select
         *,
-        case when quality_reason is distinct from 'pi_glitch'
-                  and quality_reason is distinct from 'po_glitch'
+        case when quality_reason is null
             then input_qty / nullif(p95 * run_s / 3600.0, 0) end as p95_raw,
-        case when quality_reason is distinct from 'pi_glitch'
-                  and quality_reason is distinct from 'po_glitch'
+        case when quality_reason is null
             then input_qty / nullif(p90 * run_s / 3600.0, 0) end as p90_raw,
-        case when quality_reason is distinct from 'pi_glitch'
-                  and quality_reason is distinct from 'po_glitch'
+        case when quality_reason is null
             then input_qty / nullif(p99 * run_s / 3600.0, 0) end as p99_raw,
         case when quality_reason is null then output_qty / input_qty end as quality_raw
     from ratio

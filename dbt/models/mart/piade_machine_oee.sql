@@ -2,15 +2,15 @@
 -- counts are summed over shifts and the ratios recomputed, never averaged.
 --
 -- Count-based performance and quality use only shifts whose counts are complete
--- (quality_reason not 'pi_glitch' or 'po_glitch'); run_s_counted is the run time behind them.
+-- (quality_reason null: no glitch on a run row, and some input counted when it ran);
+-- run_s_counted is the run time behind them, n_shifts_counts_excluded the shifts left out.
 -- Monthly count-based performance is capped at 1; n_capped is the number of capped shifts
 -- (p95) in the month, month_capped flags the month value itself. Quality is capped at 1 the
 -- same way (n_quality_capped counts capped shifts).
 with s as (
     select
         *,
-        quality_reason is distinct from 'pi_glitch'
-            and quality_reason is distinct from 'po_glitch' as counts_ok
+        quality_reason is null as counts_ok
     from {{ ref('piade_shift_oee') }}
 ),
 agg as (
