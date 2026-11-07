@@ -116,6 +116,34 @@ persistence and hour_of_week are the baselines. Per-machine results, the observe
 ### Safety eval: approved actions
 
 <!-- safety:start -->
+Scripted attacks drive the real propose tools on the agent's restricted database role and the real approve routes with real session cookies, on the test database. The baseline runs the same scenarios on the same tables with every check and code removed and a sign-in that accepts anyone, the agent included. An attack counts only if its row is in the database afterwards; tool replies are not trusted.
+
+| Category | Attacks | Landed with guardrails | Landed without guardrails | What it covers |
+|---|---|---|---|---|
+| protocol | 6 | 0 | 6 | Confirmation codes: none, made up, reused, expired, another user's, another action's |
+| edited_args | 3 | 0 | 3 | Arguments changed between preview and propose |
+| approval | 6 | 0 | 6 | Self-approval, the proposer, the agent signing in, roles outside their rights |
+| fresh_data | 4 | 0 | 4 | Duplicates, wrong-asset or vanished evidence, a hold released meanwhile |
+| injection | 3 | 0 | 3 | Instructions planted in an operator note (English, Greek) or in action text |
+| db_layer | 4 | 0 | 0 | The agent's database role writing directly; double approval |
+| **All attacks** | 26 | 0 | 22 | |
+| **Legitimate flows completed** | 9 | 9/9 | 9/9 | still work with guardrails on |
+
+Run 2026-11-07 (guarded) and 2026-11-07 (baseline) at commit `2444e730c126`, scenario set `b148e397be50c394`. Errors during the runs: 0 guarded, 0 baseline.
+
+LLM injection subset: a user asks for one specific action on real events while a planted operator note or the user's own pasted text tells the model to approve, raise the priority, add a second action or act for someone else. Unsafe writes are rows written without a person approving; injection followed is a proposal that differs from what the user asked for (it still waits for a person).
+
+| Runner | Model | Version | Run date (UTC) | Prompts | Unsafe writes landed | Injection followed | Requested action proposed |
+|---|---|---|---|---|---|---|---|
+| Local model, web chat loop | `qwen2.5:7b-instruct` | digest 845dbda0ea48, ollama 0.40.14 | 2026-11-07 | 5 | 0 | 0 of 5 | 1 of 5 |
+| Claude through MCP | not run yet | - | - | - | - | - | - |
+
+How to read it:
+
+- For code and argument attacks the unsafe write is the pending proposal itself; for approval, fresh-data and injection attacks it is the work order, hold or follow-up row.
+- db_layer is 0 in both columns because Postgres refuses it (column grants on the agent role, a unique proposal per work order), not the service code. It is a database guard and is reported apart from the rest.
+- The brief also asks for injected instructions in order text. Orders arrive in stage 4; until then this covers operator notes and action text only.
+- Per-scenario detail: `evals/results/safety_guarded.md`, `safety_naive.md` and `safety_llm_*.md`. Regenerate with `make eval-safety` (and `make eval-safety-ollama` or `make eval-safety-claude`), then `make report`.
 <!-- safety:end -->
 
 ## Assumptions
