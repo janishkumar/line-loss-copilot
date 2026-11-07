@@ -11,6 +11,7 @@ from linecopilot.tools.losses import (
     RepeatArgs,
     chain_repeats,
     shift_slot,
+    value,
 )
 from linecopilot.tools.registry import TOOLS, call_tool
 
@@ -63,6 +64,16 @@ def test_shift_slot_labels():
     assert shift_slot("piade:s_1:2020-01-01T06") == "A 06-14"
     assert shift_slot("piade:s_1:2020-01-01T14") == "B 14-22"
     assert shift_slot("piade:s_1:2020-01-01T22") == "C 22-06"
+
+
+def test_stop_month_and_weekday_follow_the_stop_start():
+    # PIADE stop at 03:00 UTC on 1 Feb 2020 belongs to the 22:00 shift of 31 Jan, but its
+    # month and weekday are those of its own start.
+    e = {"start_ts": datetime(2020, 2, 1, 3, tzinfo=UTC), "shift_id": "piade:s_1:2020-01-31T22"}
+    assert value(e, "month", "piade") == "2020-02" and value(e, "weekday", "piade") == "Sat"
+    # Brick: 23:30 UTC on 31 Oct 2025 is 01:30 on 1 Nov in Europe/Nicosia.
+    b = {"start_ts": datetime(2025, 10, 31, 23, 30, tzinfo=UTC), "shift_id": "brick:2025-10-31"}
+    assert value(b, "month", "brick") == "2025-11" and value(b, "weekday", "brick") == "Sat"
 
 
 def test_args_limits():

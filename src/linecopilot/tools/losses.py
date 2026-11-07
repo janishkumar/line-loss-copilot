@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 import psycopg
 from pydantic import BaseModel, Field
@@ -56,10 +57,10 @@ ASSUME_BRICK_OVERLAP = (
     "of stop time used for availability."
 )
 ASSUME_WINDOW = (
-    "A stop belongs to the window by its start; start is inclusive, end exclusive. Times "
-    "for weekday and month are those of the shift the stop starts in (brick: Europe/Nicosia "
-    "date; PIADE: assumed 3 x 8 h UTC shifts)."
+    "A stop belongs to the window by its start; start is inclusive, end exclusive. A stop's "
+    "weekday and month are those of its own start (brick: Europe/Nicosia; PIADE: UTC)."
 )
+STOP_TZ = {"brick": ZoneInfo("Europe/Nicosia"), "piade": ZoneInfo("UTC")}
 
 
 def _not_in_oee_note(include: bool) -> str:
@@ -169,9 +170,13 @@ def shift_slot(shift_id: str) -> str:
     return SLOTS[shift_id.rsplit("T", 1)[1][:2]]
 
 
-def _shift_date(shift_id: str) -> datetime:
-    # brick:YYYY-MM-DD and piade:s_n:YYYY-MM-DDTHH both end in the shift's date (and hour).
-    return datetime.strptime(shift_id.rsplit(":", 1)[1][:10], "%Y-%m-%d")
+def stop_start_local(ep: dict[str, Any], source: str) -> datetime:
+    """The stop's start in its line's time zone: the one rule for stop months and weekdays."""
+    return ep["start_ts"].astimezone(STOP_TZ[source])
+
+
+def stop_month(ep: dict[str, Any], source: str) -> str:
+    return stop_start_local(ep, source).strftime("%Y-%m")
 
 
 def value(ep: dict[str, Any], dim: str, source: str) -> str | None:
@@ -183,9 +188,9 @@ def value(ep: dict[str, Any], dim: str, source: str) -> str | None:
     if dim == "shift_slot":
         return shift_slot(ep["shift_id"])
     if dim == "weekday":
-        return _shift_date(ep["shift_id"]).strftime("%a")
+        return stop_start_local(ep, source).strftime("%a")
     if dim == "month":
-        return _shift_date(ep["shift_id"]).strftime("%Y-%m")
+        return stop_month(ep, source)
     return ep[dim]
 
 

@@ -250,3 +250,19 @@ def test_get_events_offset_past_end(built):
     assert r.status == "insufficient_evidence" and r.missing == "offset past end (4 events)"
     ok = get_events(built, GetEventsArgs(machine_id="s_2", state="stopped", offset=3))
     assert ok.status == "ok" and len(ok.data.events) == 1
+
+
+@pytest.mark.parametrize("scope", [{"line_id": "brick"}, {"machine_id": "s_2"}])
+def test_breakdown_month_totals_match_reliability_stop_counts(built, scope):
+    from linecopilot.tools.losses import BreakdownArgs, breakdown
+
+    b = breakdown(built, BreakdownArgs(**scope, rows="reason", cols="month", top=50))
+    r = reliability(built, ReliabilityArgs(**scope, group="month"))
+    assert b.status == r.status == "ok"
+    per_month: dict[str, int] = {}
+    for c in b.data.cells:
+        per_month[c.col] = per_month.get(c.col, 0) + c.stop_count
+    rel = {row.period: row.stop_count for row in r.data.rows if row.stop_count}
+    assert per_month == rel
+    texts = " ".join(r.assumptions)
+    assert "shift the stop starts in" not in texts and "of its own start" in texts

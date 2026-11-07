@@ -8,7 +8,6 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Literal
-from zoneinfo import ZoneInfo
 
 import psycopg
 from pydantic import BaseModel, ConfigDict, Field
@@ -37,6 +36,7 @@ from linecopilot.tools.losses import (
     _ranked,
     _top_union,
     episode_citations,
+    stop_month,
     value,
 )
 from linecopilot.tools.oee import window_oee
@@ -62,8 +62,8 @@ ASSUME_RUN_BRICK = (
     "shifts with no published planned time add no run time, though their failures are counted."
 )
 ASSUME_MONTH = (
-    "Months are calendar months of the stop's start (brick: Europe/Nicosia, PIADE: UTC); "
-    "run time is bucketed by the start of the interval (PIADE) or shift (brick)."
+    "Run time is bucketed into months by the start of the interval (PIADE, UTC) or shift "
+    "(brick, Europe/Nicosia)."
 )
 
 
@@ -122,12 +122,6 @@ def run_seconds(conn: psycopg.Connection, scope: Scope, month: bool) -> dict[str
     return {r["period"]: float(r["run_s"]) for r in recs}
 
 
-def _month(scope: Scope, e: dict[str, Any]) -> str:
-    tz = "Europe/Nicosia" if scope.source_system == "brick" else "UTC"
-
-    return e["start_ts"].astimezone(ZoneInfo(tz)).strftime("%Y-%m")
-
-
 def reliability_rows(
     conn, scope: Scope, month: bool
 ) -> tuple[list[ReliabilityRow], dict[str, list[dict]]]:
@@ -136,7 +130,7 @@ def reliability_rows(
     runs = run_seconds(conn, scope, month)
     by_stops: dict[str, list[dict]] = defaultdict(list)
     for e in stops:
-        by_stops[_month(scope, e) if month else ALL].append(e)
+        by_stops[stop_month(e, scope.source_system) if month else ALL].append(e)
     periods = sorted(set(by_stops) | set(runs))
     out, fails = [], {}
     for per in periods:
