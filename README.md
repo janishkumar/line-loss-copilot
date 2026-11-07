@@ -212,6 +212,20 @@ How to read it:
 ## Stage 4 results (synthetic orders on real capacity)
 
 <!-- shortages:start -->
+Synthetic orders, BOMs, stock and receipts (generation 2, seed 7, content sha256 `4b0b07cf42cb`): 46 orders, 6 planted shortages and 4 decoys. Netting by need date traces each shortfall to the order it hits. The naive rule flags a material when on hand is below its total gross requirement and flags every order that uses it. The detector and the generator share the netting definition, so a perfect detector score shows the code implements the definition, not real-world accuracy. Planted shortages test the software; they are not real-world results.
+
+| Method | Kind | (material, order) precision | (material, order) recall | Material precision | Material recall |
+|---|---|---|---|---|---|
+| netting detector | all | 1.00 | 1.00 | 1.00 | 1.00 |
+| netting detector | plain | 1.00 | 1.00 | 1.00 | 1.00 |
+| netting detector | timing | 1.00 | 1.00 | 1.00 | 1.00 |
+| netting detector | level_two | 1.00 | 1.00 | 1.00 | 1.00 |
+| naive rule | all | 0.60 | 1.00 | 0.60 | 1.00 |
+| naive rule | plain | 1.00 | 1.00 | 1.00 | 1.00 |
+| naive rule | timing | 0.50 | 1.00 | 0.50 | 1.00 |
+| naive rule | level_two | 0.50 | 1.00 | 0.50 | 1.00 |
+
+Decoys flagged: detector 0 of 4, naive rule 4 of 4. Flags outside the planted cases: detector 0, naive rule 0. Per-kind rows count only that kind's decoys as false positives. Detail: [evals/results/shortages.md](evals/results/shortages.md); regenerate with `make eval-shortages`, then `make report`.
 <!-- shortages:end -->
 
 ## Assumptions
