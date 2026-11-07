@@ -299,9 +299,12 @@ The before/after answer key reads every ratio fact (availability, performance, q
 oee) twice: over all shifts, and without the days whose published planned time exceeds
 published production plus published stops by more than 1 h. The rule is in SQL
 (`evals/truth.py`, `PLANNED_GAP`); it picks exactly the 13 October 2025 days (2025-10-14 to
-2025-10-31). On those days the unaccounted time is 2.9 to 8.1 h; on every other day it is at
-most 0.03 h, so any cut-off between about 0.1 h and 2.8 h gives the same 13 days. A 4 h
-cut-off would miss 2025-10-31 (2.9 h).
+2025-10-31). On those days the unaccounted time is 2.9 to 8.1 h; every other day has at most
+0.03 h of positive gap (planned time not accounted for). Negative gaps exist too (logged
+stops plus production above planned time); they are covered under "Normal-length before
+days" in the section "Brick line: recomputed availability against published". Any cut-off
+between about 0.1 h and 2.8 h gives the same 13 days. A 4 h cut-off would miss 2025-10-31
+(2.9 h).
 
 On live data, before (62 shifts) to after (45 shifts):
 

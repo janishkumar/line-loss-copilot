@@ -42,6 +42,39 @@ def test_context_full_is_recorded_and_counted(monkeypatch):
     assert run.summarize([rec, run.evaluate_one(ScriptedRunner({}), None, q)])["context_full"] == 1
 
 
+def test_summary_counts_dropped_context_from_rounds_detail(monkeypatch):
+    q = build_questions()[0]
+    monkeypatch.setattr(run, "compute", lambda conn, fn, params: Truth(0.5))
+    detail = [
+        {"prompt_eval_count": 9000, "eval_count": 9, "context_full": False},
+        {"prompt_eval_count": 7000, "eval_count": 9, "context_full": False},
+    ]
+
+    class Dropped(ScriptedRunner):
+        def ask(self, prompt):
+            return Reply(
+                answer="ANSWER: 50%", latency_s=1.0, rounds_detail=detail, context_full=False
+            )
+
+    rec = run.evaluate_one(Dropped({}), None, q)
+    assert rec["context_full"] is False
+    assert run.summarize([rec])["context_full"] == 1
+    assert "| 1 |" in run.answers_markdown(
+        {
+            "meta": {
+                "runner": "x",
+                "model": "m",
+                "date": "d",
+                "question_set_hash": "h",
+                "questions_run": 1,
+                "questions_total": 1,
+            },
+            "summary": run.summarize([rec]),
+            "questions": [rec],
+        }
+    )
+
+
 def test_evaluate_summary_and_markdown(monkeypatch, tmp_path):
     qs = build_questions()
     pick = [qs[0], next(q for q in qs if q.template == "top_reason"), qs[-1]]
@@ -73,7 +106,8 @@ def test_evaluate_summary_and_markdown(monkeypatch, tmp_path):
     assert s["format_ok"] == 1.0 and all(r["format_ok"] for r in records)
     assert s["citations_all"]["micro_support_rate"] == 2 / 3
     assert s["citations_answerable"]["share_fully_supported"] == 1 / 2
-    assert s["context_full"] == 0 and records[0]["rounds_detail"] == []
+    assert s["context_full"] is None and records[0]["rounds_detail"] == []
+    assert records[0]["context_full"] is None
 
     meta = {
         "runner": "fake",
@@ -86,7 +120,7 @@ def test_evaluate_summary_and_markdown(monkeypatch, tmp_path):
     doc = {"meta": meta, "summary": s, "questions": records}
     md = run.answers_markdown(doc)
     assert "fake:1b" in md and "2/3" in md and pick[0].id in md
-    assert "filled the context (Ollama) | 0 |" in md
+    assert "filled the context (Ollama) | n/a |" in md
     path = run.write(doc, "answers_fake_x", md, tmp_path)
     assert json.loads(path.read_text())["summary"]["overall"]["correct"] == 2
 

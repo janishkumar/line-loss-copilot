@@ -136,3 +136,26 @@ def test_chat_over_the_concurrency_cap_gets_429(built):
     assert codes == [200] * CHAT_MAX_CONCURRENT
     # slots are released after each request
     assert client.post("/api/chat", json=body).status_code == 200
+
+
+def test_client_construction_failure_does_not_leak_a_chat_slot(built, monkeypatch):
+    from linecopilot.api import app as app_module
+
+    ok = lambda request: httpx.Response(  # noqa: E731
+        200, json={"message": {"role": "assistant", "content": "ok"}}
+    )
+    client = TestClient(
+        create_app(os.environ["LINECOPILOT_TEST_DB_URL"], httpx.MockTransport(ok)),
+        raise_server_exceptions=False,
+    )
+    body = {"messages": [{"role": "user", "content": "x"}]}
+    real = app_module.OllamaClient
+
+    def broken(*a, **k):
+        raise RuntimeError("cannot build client")
+
+    monkeypatch.setattr(app_module, "OllamaClient", broken)
+    for _ in range(app_module.CHAT_MAX_CONCURRENT + 1):
+        assert client.post("/api/chat", json=body).status_code == 500
+    monkeypatch.setattr(app_module, "OllamaClient", real)
+    assert client.post("/api/chat", json=body).status_code == 200

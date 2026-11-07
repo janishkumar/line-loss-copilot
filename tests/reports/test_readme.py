@@ -71,11 +71,9 @@ def write(d: Path, name: str, doc: dict) -> None:
 
 
 def test_copilot_evals_one_row_per_runner_and_model(tmp_path):
-    write(
-        tmp_path,
-        "answers_ollama_a.json",
-        answers_doc("ollama", "qwen:7b", 50, model_digest="d" * 64, ollama_version="0.4"),
-    )
+    qwen_doc = answers_doc("ollama", "qwen:7b", 50, model_digest="d" * 64, ollama_version="0.4")
+    qwen_doc["questions"] = [{"context_full": True, "rounds_detail": []}] * 2
+    write(tmp_path, "answers_ollama_a.json", qwen_doc)
     write(tmp_path, "answers_ollama_b.json", answers_doc("ollama", "llama:8b", 40))
     write(tmp_path, "before_after_ollama_a.json", ba_doc("ollama", "qwen:7b"))
     write(tmp_path, "answers_ollama-notools_a.json", answers_doc("ollama-notools", "qwen:7b", 10))
@@ -96,6 +94,45 @@ def test_copilot_evals_one_row_per_runner_and_model(tmp_path):
     assert "| Claude through MCP, with tools | not run yet |" in out
     assert "| Claude, no tools | not run yet |" in out
     assert "dbt marts" in out and "5 questions" in out
+
+
+def test_partial_answers_file_is_marked_not_complete(tmp_path):
+    doc = answers_doc("ollama", "qwen:7b", 10, questions_run=70, questions_done=12)
+    doc["summary"]["overall"] = {"n": 12, "correct": 10, "accuracy": 10 / 12}
+    write(tmp_path, "answers_ollama_a.json", doc)
+    write(tmp_path, "answers_ollama_b.json", answers_doc("ollama", "llama:8b", 40))
+    out = rd.copilot_evals_section(tmp_path)
+    qwen = next(r for r in out.splitlines() if "`qwen:7b`" in r and "with tools" in r)
+    assert "(partial: 12 of 70)" in qwen and "10/12 (83.3%) (partial)" in qwen
+    llama = next(r for r in out.splitlines() if "`llama:8b`" in r)
+    assert "partial" not in llama
+
+
+def test_context_filled_is_recomputed_and_na_for_claude(tmp_path):
+    ollama = answers_doc("ollama", "qwen:7b", 50)
+    ollama["questions"] = [
+        {
+            "context_full": False,
+            "rounds_detail": [
+                {"prompt_eval_count": 9, "context_full": False},
+                {"prompt_eval_count": 5, "context_full": False},
+            ],
+        },
+        {
+            "context_full": False,
+            "rounds_detail": [{"prompt_eval_count": 5}, {"prompt_eval_count": 9}],
+        },
+    ]
+    write(tmp_path, "answers_ollama_a.json", ollama)
+    claude = answers_doc("claude", "sonnet", 60)
+    claude["summary"]["context_full"] = 0  # a file written before the field was left null
+    claude["questions"] = [{"context_full": False, "rounds_detail": []}]
+    write(tmp_path, "answers_claude_a.json", claude)
+    out = rd.copilot_evals_section(tmp_path)
+    qwen = next(r for r in out.splitlines() if "`qwen:7b`" in r and "with tools" in r)
+    sonnet = next(r for r in out.splitlines() if "`sonnet`" in r)
+    assert "| 90.0% | 1 |" in qwen
+    assert "| 90.0% | n/a |" in sonnet
 
 
 def test_claude_version_is_the_cli(tmp_path):

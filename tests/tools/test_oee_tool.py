@@ -174,12 +174,12 @@ def test_citation_count_is_distinct_raw_rows(built, args):
 
 def test_piade_day_group_honours_limit(built):
     full = get_oee(built, GetOeeArgs(machine_id="s_3", group="day"))
-    assert full.status == "ok" and len(full.data.rows) == 2
-    assert full.data.row_count == 2 and not full.data.rows_truncated
+    assert full.status == "ok" and len(full.data.rows) == 3
+    assert full.data.row_count == 3 and not full.data.rows_truncated
     one = get_oee(built, GetOeeArgs(machine_id="s_3", group="day", limit=1))
     assert [r.key for r in one.data.rows] == [full.data.rows[0].key]
-    assert one.data.row_count == 2 and one.data.rows_truncated
-    assert any("Showing the first 1 of 2 rows" in a for a in one.assumptions)
+    assert one.data.row_count == 3 and one.data.rows_truncated
+    assert any("Showing the first 1 of 3 rows" in a for a in one.assumptions)
     # top-level citations follow the returned rows only
     first = {(c.raw_table, c.raw_row_id) for c in full.data.rows[0].citations}
     assert {(c.raw_table, c.raw_row_id) for c in one.citations} <= first

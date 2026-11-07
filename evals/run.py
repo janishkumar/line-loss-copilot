@@ -26,6 +26,7 @@ from evals.questions import Question, build_questions, question_set_hash
 from evals.runners import Reply, build_prompt
 from evals.score import answer_line, score
 from evals.truth import NOT_AVAILABLE, before_after_facts, compute
+from linecopilot.chat.ollama import context_count
 
 RESULTS = Path(__file__).resolve().parent / "results"
 RUNNERS = ("ollama", "ollama-notools", "claude", "claude-notools")
@@ -87,7 +88,7 @@ def _record(q: Question) -> dict[str, Any]:
         "error": None,
         "retries": 0,
         "rounds_detail": [],
-        "context_full": False,
+        "context_full": None,
     }
 
 
@@ -187,8 +188,9 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
         # loop cut-offs count as incorrect but are reported apart from other errors
         "stopped_on_budget": sum(1 for r in records if r["error"] == "budget"),
         "stopped_on_rounds": sum(1 for r in records if r["error"] == "rounds"),
-        # questions where a model call came within 256 tokens of Ollama's num_ctx
-        "context_full": sum(1 for r in records if r.get("context_full")),
+        # questions where a model call came within 256 tokens of Ollama's num_ctx, or read
+        # fewer prompt tokens than the round before (context dropped); None if not measured
+        "context_full": context_count(records),
         "median_latency_s": sorted(r["latency_s"] for r in records)[len(records) // 2]
         if records
         else None,
@@ -236,6 +238,10 @@ def run_before_after(runner: Any, conn: Any) -> dict[str, Any]:
     }
 
 
+def _context_cell(n: int | None) -> str:
+    return "n/a" if n is None else str(n)
+
+
 def _pct(x: float | None) -> str:
     return "n/a" if x is None else f"{100 * x:.1f}%"
 
@@ -270,7 +276,7 @@ def answers_markdown(doc: dict[str, Any]) -> str:
         f"| Stopped on time budget / round limit (counted wrong) | "
         f"{s['stopped_on_budget']} / {s['stopped_on_rounds']} |",
         f"| Questions where a model call filled the context (Ollama) | "
-        f"{s.get('context_full', 'n/a')} |",
+        f"{_context_cell(s.get('context_full'))} |",
         "",
         "| Template | Correct |",
         "|---|---|",

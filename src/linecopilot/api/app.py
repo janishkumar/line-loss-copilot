@@ -215,8 +215,11 @@ def create_app(
                 "try again shortly",
             )
             return JSONResponse(busy.model_dump(mode="json"), status_code=429)
-        client = OllamaClient(settings.ollama_url, settings.chat_model, transport=ollama_transport)
+        client: OllamaClient | None = None
         try:
+            client = OllamaClient(
+                settings.ollama_url, settings.chat_model, transport=ollama_transport
+            )
             return run_chat(conn, client, [m.model_dump() for m in body.messages])
         except OllamaUnreachable as e:
             return JSONResponse(
@@ -229,7 +232,8 @@ def create_app(
                 status_code=502,
             )
         finally:
-            client.close()
+            if client is not None:
+                client.close()
             chat_slots.release()
 
     @app.get("/api/shifts/{shift_id}/evidence")

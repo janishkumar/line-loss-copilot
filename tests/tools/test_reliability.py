@@ -252,7 +252,9 @@ def test_get_events_offset_past_end(built):
     assert ok.status == "ok" and len(ok.data.events) == 1
 
 
-@pytest.mark.parametrize("scope", [{"line_id": "brick"}, {"machine_id": "s_2"}])
+@pytest.mark.parametrize(
+    "scope", [{"line_id": "brick"}, {"machine_id": "s_2"}, {"machine_id": "s_3"}]
+)
 def test_breakdown_month_totals_match_reliability_stop_counts(built, scope):
     from linecopilot.tools.losses import BreakdownArgs, breakdown
 
@@ -264,5 +266,9 @@ def test_breakdown_month_totals_match_reliability_stop_counts(built, scope):
         per_month[c.col] = per_month.get(c.col, 0) + c.stop_count
     rel = {row.period: row.stop_count for row in r.data.rows if row.stop_count}
     assert per_month == rel
+    if scope.get("machine_id") == "s_3":
+        # s_3 stops 2020-01-02 07:00 and 2020-02-01 00:00-06:00 UTC; the second sits in the
+        # shift starting 2020-01-31 22:00 but belongs to February (the stop's own start).
+        assert rel == {"2020-01": 1, "2020-02": 1}
     texts = " ".join(r.assumptions)
     assert "shift the stop starts in" not in texts and "of its own start" in texts

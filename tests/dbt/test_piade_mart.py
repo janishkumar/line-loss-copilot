@@ -93,7 +93,7 @@ def test_interval_split_across_shift(built):
     total = built.execute(
         "SELECT sum(planned_s + scheduled_s) FROM mart.piade_shift_oee WHERE machine_id = 's_3'"
     ).fetchone()[0]
-    assert float(total) == 3600 + 7200 + 1800 + 1800 + 3600
+    assert float(total) == 3600 + 7200 + 1800 + 1800 + 3600 + 21600  # + the 6 h stop on 2020-02-01
 
 
 def test_overlap_clipped_to_previous_end(built):

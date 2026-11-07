@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from linecopilot.chat.ollama import OllamaClient, context_full
+from linecopilot.chat.ollama import OllamaClient, context_dropped, context_full
 from linecopilot.chat.prompt import SYSTEM_PROMPT
 from linecopilot.tools.compact import compact_result, dumps
 from linecopilot.tools.envelope import Citation, cap_citations
@@ -45,6 +45,9 @@ class RoundStat(BaseModel):
     eval_count: int | None = Field(None, description="tokens Ollama generated")
     context_full: bool = Field(
         False, description="prompt_eval_count reached num_ctx - 256: the prompt may be cut"
+    )
+    context_dropped: bool = Field(
+        False, description="prompt_eval_count fell below the previous round's: context was dropped"
     )
 
 
@@ -251,6 +254,9 @@ def run_chat(
                 prompt_eval_count=pec,
                 eval_count=_count(reply, "eval_count"),
                 context_full=context_full(pec),
+                context_dropped=context_dropped(
+                    stats[-1].prompt_eval_count if stats else None, pec
+                ),
             )
         )
         msg = reply.get("message") if isinstance(reply, dict) else None

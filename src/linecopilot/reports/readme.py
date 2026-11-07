@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from linecopilot.chat.ollama import context_count
 from linecopilot.reports.oee_validation import PERIODS, RESULTS, _pct, _pts
 
 
@@ -181,6 +182,14 @@ def _frac(part: dict[str, Any]) -> str:
     return f"{part['correct']}/{part['n']} ({_pct(part['accuracy'])})"
 
 
+def _context_cell(doc: dict[str, Any]) -> str:
+    """Questions with a full or dropped context, recomputed from the recorded rounds so it
+    also reads result files written before the dropped-context flag. n/a when the runner
+    does not measure it."""
+    n = context_count(doc.get("questions") or [])
+    return "n/a" if n is None else str(n)
+
+
 def copilot_evals_section(results: Path) -> str:
     answers = _runs(results, "answers")
     befores = _runs(results, "before_after")
@@ -210,15 +219,18 @@ def copilot_evals_section(results: Path) -> str:
         cells = [name, f"`{key[1]}`", _version(meta), meta.get("date", "n/a")[:10]]
         if a:
             s, c = a["summary"], a["summary"]["citations_all"]
+            done = meta.get("questions_done", meta["questions_run"])
+            partial = done < meta["questions_run"]
             cells += [
                 f"`{meta['question_set_hash'][:12]}` ({meta['questions_run']} of "
-                f"{meta['questions_total']})",
-                _frac(s["overall"]),
+                f"{meta['questions_total']})"
+                + (f" (partial: {done} of {meta['questions_run']})" if partial else ""),
+                _frac(s["overall"]) + (" (partial)" if partial else ""),
                 _frac(s["answerable"]),
                 _frac(s["unanswerable"]),
                 f"{c['supported_rows']}/{c['cited_rows']} ({_pct(c['micro_support_rate'])})",
                 _pct(s["format_ok"]),
-                str(s["context_full"]) if "context_full" in s else "not recorded",
+                _context_cell(a),
             ]
         else:
             cells += [NOT_RUN] + ["-"] * 6

@@ -469,3 +469,45 @@ def test_identical_calls_in_one_round_run_once(tools_called):
     second = fake.requests[1]["messages"]
     assert len(second[-3]["tool_calls"]) == 2
     assert [m["role"] for m in second[-2:]] == ["tool", "tool"]
+
+
+def test_context_dropped_flags_a_round_that_read_fewer_tokens(tools_called):
+    first = call(("list_assets", {}))
+    first.update(prompt_eval_count=9000, eval_count=20)
+    second = call(("list_assets", {}))
+    second.update(prompt_eval_count=9500, eval_count=20)
+    last = say("ok\nANSWER: ok")
+    last.update(prompt_eval_count=7000, eval_count=7)
+    res = run_chat(
+        None, FakeOllama(first, second, last).client(), [{"role": "user", "content": "x"}]
+    )
+    assert [r.context_dropped for r in res.rounds_detail] == [False, False, True]
+    assert [r.context_full for r in res.rounds_detail] == [False, False, False]
+
+
+def test_context_dropped_needs_two_counts():
+    from linecopilot.chat.ollama import context_dropped
+
+    assert context_dropped(9000, 8999) and not context_dropped(9000, 9000)
+    assert not context_dropped(None, 5) and not context_dropped(5, None)
+
+
+def test_context_trouble_and_count_from_recorded_rounds():
+    from linecopilot.chat.ollama import context_count, context_trouble
+
+    def rec(*counts, full=False):
+        return {
+            "context_full": full,
+            "rounds_detail": [{"prompt_eval_count": c, "context_full": False} for c in counts],
+        }
+
+    assert not context_trouble(rec(4000, 6000, 8000))
+    assert context_trouble(rec(4000, 6000, 5000))  # dropped
+    assert context_trouble(rec(4000, full=True))  # full
+    assert context_trouble({"rounds_detail": [{"prompt_eval_count": 1, "context_full": True}]})
+    assert not context_trouble(rec(None, 5, None, 4))  # a missing count breaks the comparison
+    # a file from before the flag: only prompt_eval_count recorded
+    assert context_count([rec(1, 2), rec(5, 3), rec(9, full=True)]) == 2
+    # nothing recorded and no flag: not measured
+    assert context_count([{"rounds_detail": [], "context_full": None}]) is None
+    assert context_count([]) is None

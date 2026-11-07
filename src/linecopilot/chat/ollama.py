@@ -20,6 +20,31 @@ def context_full(prompt_eval_count: int | None, num_ctx: int = OPTIONS["num_ctx"
     return prompt_eval_count is not None and prompt_eval_count >= num_ctx - CONTEXT_MARGIN
 
 
+def context_dropped(previous: int | None, current: int | None) -> bool:
+    """Ollama may fit an overflowing prompt by dropping older messages, so the count can stay
+    below num_ctx. In one conversation the prompt only grows, so a round that read fewer
+    tokens than the round before it means context was dropped."""
+    return previous is not None and current is not None and current < previous
+
+
+def context_trouble(record: dict[str, Any]) -> bool:
+    """True when a recorded question had a round with a full context or dropped context.
+    Computed from the recorded rounds_detail, so it also works on result files written
+    before the context_dropped flag existed."""
+    detail = record.get("rounds_detail") or []
+    if record.get("context_full") or any(r.get("context_full") for r in detail):
+        return True
+    counts = [r.get("prompt_eval_count") for r in detail]
+    return any(context_dropped(a, b) for a, b in zip(counts, counts[1:], strict=False))
+
+
+def context_count(records: list[dict[str, Any]]) -> int | None:
+    """Questions with a full or dropped context, or None when the runner did not measure it
+    (no recorded rounds and no flag set, as with the Claude runner)."""
+    measured = any(r.get("rounds_detail") or r.get("context_full") for r in records)
+    return sum(1 for r in records if context_trouble(r)) if measured else None
+
+
 class OllamaError(RuntimeError):
     """Ollama answered with an error status or an unreadable body."""
 

@@ -25,9 +25,9 @@ def row(**over):
 
 def test_fixture_parses_clean():
     parsed = parse_piade_raw(FIX)
-    assert len(parsed.rows) == 40
+    assert len(parsed.rows) == 41
     assert parsed.rejected == []
-    assert parsed.source_rows == list(range(1, 41))
+    assert parsed.source_rows == list(range(1, 42))
     assert set(parsed.rows[0]) == {
         "machine_id", "alarm", "state", "start_utc", "end_utc",
         "elapsed_ms", "pi", "po", "speed",
@@ -49,6 +49,7 @@ def test_a000_becomes_none():
         "A_005",
         "A_101",
         "A_012",
+        "A_012",  # s_3, 2020-02-01 00:00 to 06:00 UTC: a stop starting the first of a month
     ]
 
 
@@ -193,9 +194,9 @@ def test_quality_report_counts():
             "counter_resets_po": 0,
         },
         "s_3": {
-            "rows": 5,
-            "gaps_over_60s": 1,
-            "max_gap_s": 21600.0,
+            "rows": 6,
+            "gaps_over_60s": 2,
+            "max_gap_s": 2538000.0,  # 2020-01-02 15:00 to 2020-02-01 00:00
             "overlaps_over_1s": 0,
             "counter_resets_pi": 0,
             "counter_resets_po": 0,

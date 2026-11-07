@@ -168,8 +168,8 @@ def test_dataset_from_fixture_database(built):
     assert set(iv.machine_id) == {"s_1", "s_2", "s_3"}
     assert set(iv.state) <= {"running", "idle", "off", "stopped"}
     # s_1: 12:25+12:40 (adjacent, one episode) and 16:45; s_2: 12:40, 15:16+15:21 (4 s
-    # apart), 15:26 (6 s after); s_3: 07:00.
-    assert ep.groupby("machine_id").size().to_dict() == {"s_1": 2, "s_2": 3, "s_3": 1}
+    # apart), 15:26 (6 s after); s_3: 07:00 and 2020-02-01 00:00.
+    assert ep.groupby("machine_id").size().to_dict() == {"s_1": 2, "s_2": 3, "s_3": 2}
     df, features = build_dataset(iv, ep, [])
     s2 = df[df.machine_id == "s_2"].set_index("t")
     # s_2 logs 12:00-12:50 and 13:50-15:31.

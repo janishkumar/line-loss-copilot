@@ -29,4 +29,5 @@ class Reply:
     # Ollama only: prompt_eval_count / eval_count per model call, and whether any call came
     # within 256 tokens of num_ctx (where Ollama silently cuts the prompt).
     rounds_detail: list[dict[str, Any]] = field(default_factory=list)
-    context_full: bool = False
+    # None when the runner does not measure it (Claude).
+    context_full: bool | None = None
