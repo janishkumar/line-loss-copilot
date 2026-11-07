@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -64,3 +64,17 @@ train-risk:
 # MCP server over stdio (read-only tools); the database comes from LINECOPILOT_DB_URL.
 mcp:
 	uv run python -m linecopilot.mcp_server
+
+# Answer, citation and before/after evals (long; not run in CI). Results in evals/results/.
+eval-ollama:
+	uv run python -m evals.run --runner ollama
+	uv run python -m evals.run --runner ollama-notools
+
+# Claude Code headless on plan limits; needs a logged-in claude CLI. Run once per sign-off.
+eval-claude:
+	uv run python -m evals.run --runner claude
+	uv run python -m evals.run --runner claude-notools
+
+# Check every eval question has a well-defined answer on the live database.
+check-questions:
+	uv run python -m evals.questions --check

@@ -11,3 +11,4 @@ __pycache__/
 dbt/.user.yml
 web/dist/
 requirements-audit.txt
+evals/results/partial/

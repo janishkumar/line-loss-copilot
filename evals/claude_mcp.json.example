@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "linecopilot": {
+      "command": "/absolute/path/to/line-loss-copilot/.venv/bin/python",
+      "args": ["-m", "linecopilot.mcp_server"],
+      "env": {
+        "LINECOPILOT_DB_URL": "postgresql://linecopilot:linecopilot@localhost:5434/linecopilot",
+        "PYTHONPATH": "/absolute/path/to/line-loss-copilot/src"
+      }
+    }
+  }
+}
