@@ -13,7 +13,8 @@ inspected by the checks, which warn."""
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
@@ -89,6 +90,10 @@ def _valid_identity(conn: psycopg.Connection, ctx: ActionContext) -> CheckResult
         return CheckResult(
             "valid_identity", "block", "principal must be the agent or the user themselves"
         )
+    if (ctx.principal == AGENT) != (ctx.channel in ("mcp", "web_chat")):
+        return CheckResult(
+            "valid_identity", "block", f"channel {ctx.channel} does not fit principal"
+        )
     return CheckResult("valid_identity", "pass", f"acting for {user.display_name}")
 
 
@@ -132,6 +137,21 @@ def _evidence_dicts(snap: Snapshot) -> list[dict]:
         }
         for r in snap.evidence
     ]
+
+
+@contextmanager
+def _error_audit(conn: psycopg.Connection, **fields: Any) -> Iterator[None]:
+    """Wrap a transaction: an unexpected exception (the transaction inside has already rolled
+    back) is recorded as an `error` audit row in a fresh statement, then re-raised unchanged so
+    the caller sees the failure (including InsufficientPrivilege on the wrong role)."""
+    try:
+        yield
+    except Exception as e:
+        try:
+            audit.write(conn, outcome="error", detail=f"{type(e).__name__}: {e}"[:500], **fields)
+        except Exception:  # noqa: S110 - never mask the original failure
+            pass
+        raise
 
 
 def _lock_asset(conn: psycopg.Connection, action: str, canon: dict) -> None:
@@ -238,7 +258,18 @@ class ActionService:
         if refusal is not None:
             return refuse(refusal, digest)
 
-        with conn.transaction():
+        with (
+            _error_audit(
+                conn,
+                event="proposed",
+                principal=ctx.principal,
+                on_behalf_of=ctx.on_behalf_of,
+                channel=ctx.channel,
+                action=action,
+                payload_sha256=digest,
+            ),
+            conn.transaction(),
+        ):
             _lock_asset(conn, action, canon)
             snap, results = self._checks(conn, ctx, action, canon)
             if blocked(results):
@@ -299,12 +330,17 @@ class ActionService:
         self, conn: psycopg.Connection, user_id: str, event: str, **ref: Any
     ) -> tuple[AppUser | None, Outcome | None]:
         """The acting user, or a refusal (already audited) if it is unknown or the agent."""
-        user = get_user(conn, user_id)
+        user = get_user(conn, user_id) if user_id else None
         if user is not None and user.role != "agent" and user_id != AGENT:
             return user, None
         why = "the agent cannot make decisions" if user_id == AGENT or user else "unknown user"
         aid = audit.write(
-            conn, event=event, outcome="refused", principal=user_id, detail=why, **ref
+            conn,
+            event=event,
+            outcome="refused",
+            principal=user_id or "anonymous",
+            detail=why,
+            **ref,
         )
         return None, Outcome("refused", why, audit_id=aid)
 
@@ -355,64 +391,56 @@ class ActionService:
             return refusal
         assert user is not None
         note = (note or "").strip()
-        try:
-            with conn.transaction():
-                prop = self._locked_pending(conn, proposal_id)
-                base = dict(
-                    event=event,
-                    principal=user_id,
-                    on_behalf_of=None,
-                    action=prop["action"] if prop else None,
-                    proposal_id=proposal_id,
-                    payload_sha256=prop["payload_sha256"] if prop else None,
-                )
-                if prop is None:
-                    aid = audit.write(conn, outcome="refused", detail="no such proposal", **base)
-                    return Outcome("refused", "no such proposal", audit_id=aid)
-                if prop["status"] != "pending":
-                    msg = f"proposal is not pending (status {prop['status']})"
-                    aid = audit.write(conn, outcome="refused", detail=msg, **base)
-                    return Outcome("refused", msg, proposal_id=proposal_id, audit_id=aid)
-
-                results = self._decision_checks(user, prop)
-                canon = None
-                if approve and not blocked(results):
-                    canon, results = self._recheck(conn, prop, results)
-                if blocked(results):
-                    msg = "; ".join(r.message for r in results if r.level == "block")
-                    aid = audit.write(conn, outcome="blocked", checks=results, detail=msg, **base)
-                    return Outcome("blocked", msg, results, proposal_id, audit_id=aid)
-
-                target_id = None
-                now = self.now()
-                if approve:
-                    assert canon is not None
-                    target_id = self._write_target(conn, prop, canon, user_id, now)
-                conn.execute(
-                    "UPDATE actions.proposal SET status = %s, decided_by = %s, decided_at = %s, "
-                    "decision_note = %s, target_id = %s WHERE proposal_id = %s",
-                    (
-                        "approved" if approve else "rejected",
-                        user_id,
-                        now,
-                        note,
-                        target_id,
-                        proposal_id,
-                    ),
-                )
-                aid = audit.write(conn, outcome="ok", checks=results, detail=note, **base)
-                msg = "approved and written" if approve else "rejected"
-                return Outcome(event, msg, results, proposal_id, target_id, aid)  # type: ignore[arg-type]
-        except psycopg.errors.IntegrityError as e:
-            aid = audit.write(
-                conn,
+        with (
+            _error_audit(conn, event=event, principal=user_id, proposal_id=proposal_id),
+            conn.transaction(),
+        ):
+            prop = self._locked_pending(conn, proposal_id)
+            base = dict(
                 event=event,
-                outcome="error",
                 principal=user_id,
+                on_behalf_of=None,
+                action=prop["action"] if prop else None,
                 proposal_id=proposal_id,
-                detail=f"integrity error: {e.diag.message_primary}",
+                payload_sha256=prop["payload_sha256"] if prop else None,
             )
-            return Outcome("error", "the write failed an integrity check", audit_id=aid)
+            if prop is None:
+                aid = audit.write(conn, outcome="refused", detail="no such proposal", **base)
+                return Outcome("refused", "no such proposal", audit_id=aid)
+            if prop["status"] != "pending":
+                msg = f"proposal is not pending (status {prop['status']})"
+                aid = audit.write(conn, outcome="refused", detail=msg, **base)
+                return Outcome("refused", msg, proposal_id=proposal_id, audit_id=aid)
+
+            results = self._decision_checks(user, prop)
+            canon = None
+            if approve and not blocked(results):
+                canon, results = self._recheck(conn, prop, results)
+            if blocked(results):
+                msg = "; ".join(r.message for r in results if r.level == "block")
+                aid = audit.write(conn, outcome="blocked", checks=results, detail=msg, **base)
+                return Outcome("blocked", msg, results, proposal_id, audit_id=aid)
+
+            target_id = None
+            now = self.now()
+            if approve:
+                assert canon is not None
+                target_id = self._write_target(conn, prop, canon, user_id, now)
+            conn.execute(
+                "UPDATE actions.proposal SET status = %s, decided_by = %s, decided_at = %s, "
+                "decision_note = %s, target_id = %s WHERE proposal_id = %s",
+                (
+                    "approved" if approve else "rejected",
+                    user_id,
+                    now,
+                    note,
+                    target_id,
+                    proposal_id,
+                ),
+            )
+            aid = audit.write(conn, outcome="ok", checks=results, detail=note, **base)
+            msg = "approved and written" if approve else "rejected"
+            return Outcome(event, msg, results, proposal_id, target_id, aid)  # type: ignore[arg-type]
 
     def _recheck(
         self, conn: psycopg.Connection, prop: dict, results: list[CheckResult]
@@ -513,7 +541,10 @@ class ActionService:
         if refusal:
             return refusal
         assert user is not None
-        with conn.transaction():
+        with (
+            _error_audit(conn, event=event, principal=user_id, action=kind),
+            conn.transaction(),
+        ):
             row = (
                 conn.cursor(row_factory=dict_row)
                 .execute(f"SELECT * FROM {table} WHERE {key} = %s FOR UPDATE", (row_id,))

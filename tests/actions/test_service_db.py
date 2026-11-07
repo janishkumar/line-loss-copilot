@@ -168,11 +168,6 @@ def test_propose_without_code_refused(service, agent, built, events, mark):
 def test_propose_reused_code_refused(service, agent, built, events, cleanup):
     raw = wo_args(events)
     out = propose(service, agent, cleanup, AGENT_FOR_A, "work_order", raw)
-    pv_code = built.execute(
-        "SELECT 1 FROM actions.confirmation_code WHERE used_at IS NOT NULL LIMIT 1"
-    ).fetchone()
-    assert pv_code
-    # a second preview issues a fresh code; reuse the first one by re-issuing via service
     pv = service.preview(agent, AGENT_FOR_A, "work_order", wo_args(events))
     first = service.propose(agent, AGENT_FOR_A, "work_order", pv.args, pv.code)
     cleanup.append(first.proposal_id)
@@ -330,7 +325,8 @@ def test_approve_blocks_when_hold_window_released(service, agent, built, events,
     cleanup.append(other)
     built.execute(
         "INSERT INTO actions.quality_hold (proposal_id, asset_id, window_start, window_end, "
-        "reason, status, created_by) VALUES (%s, %s, %s, %s, 'r', 'released', 'ql.a')",
+        "reason, status, created_by, created_at) "
+        "VALUES (%s, %s, %s, %s, 'r', 'released', 'ql.a', now() + interval '1 hour')",
         (other, raw["asset_id"], raw["window_start"], raw["window_end"]),
     )
     res = service.approve(built, "ql.a", out.proposal_id)
@@ -503,3 +499,82 @@ def test_every_refusal_audited(service, agent, built, events, cleanup, mark):
         "SELECT checks FROM actions.audit_log WHERE audit_id > %s AND outcome = 'blocked'", (mark,)
     ).fetchone()[0]
     assert json.dumps(chk) and chk[0]["name"]
+
+
+def error_rows(built, mark):
+    return [d for e, o, d in audit_rows(built, mark) if o == "error"]
+
+
+def test_unexpected_error_in_approve_audited_and_reraised(
+    service, agent, built, events, cleanup, mark, monkeypatch
+):
+    out = propose(service, agent, cleanup, AGENT_FOR_A, "work_order", wo_args(events))
+
+    def boom(*a, **k):
+        raise RuntimeError("disk on fire")
+
+    monkeypatch.setattr(svc.ActionService, "_write_target", boom)
+    with pytest.raises(RuntimeError):
+        service.approve(built, "sup.b", out.proposal_id)
+    assert any("RuntimeError" in d and "disk on fire" in d for d in error_rows(built, mark))
+    assert count_target(built, out.proposal_id) == 0
+    assert built.execute(
+        "SELECT status FROM actions.proposal WHERE proposal_id = %s", (out.proposal_id,)
+    ).fetchone() == ("pending",)
+    monkeypatch.undo()
+    assert service.approve(built, "sup.b", out.proposal_id).outcome == "approved"
+
+
+def test_integrity_error_in_approve_audited_and_reraised(
+    service, agent, built, events, cleanup, mark, monkeypatch
+):
+    out = propose(service, agent, cleanup, AGENT_FOR_A, "work_order", wo_args(events))
+
+    def boom(*a, **k):
+        raise psycopg.errors.UniqueViolation("dup")
+
+    monkeypatch.setattr(svc.ActionService, "_write_target", boom)
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        service.approve(built, "sup.b", out.proposal_id)
+    assert error_rows(built, mark)
+
+
+def test_unexpected_error_in_propose_audited(service, agent, built, events, mark, monkeypatch):
+    raw = wo_args(events)
+    pv = service.preview(agent, AGENT_FOR_A, "work_order", raw)
+    monkeypatch.setattr(svc, "_summary", lambda *a, **k: 1 / 0)
+    with pytest.raises(ZeroDivisionError):
+        service.propose(agent, AGENT_FOR_A, "work_order", raw, pv.code)
+    assert any("ZeroDivisionError" in d for d in error_rows(built, mark))
+
+
+def test_unexpected_error_in_close_audited(service, agent, built, events, cleanup, mark):
+    out = propose(service, agent, cleanup, AGENT_FOR_A, "work_order", wo_args(events))
+    done = service.approve(built, "sup.b", out.proposal_id)
+
+    def boom():
+        raise RuntimeError("clock broke")
+
+    service.now = boom
+    with pytest.raises(RuntimeError):
+        service.close_work_order(built, "pm.a", done.target_id)
+    assert any("clock broke" in d for d in error_rows(built, mark))
+    assert built.execute(
+        "SELECT status FROM actions.work_order WHERE work_order_id = %s", (done.target_id,)
+    ).fetchone() == ("open",)
+
+
+def test_none_user_refused_not_crashed(service, built, mark):
+    assert service.approve(built, None, 1).outcome == "refused"
+    assert service.close_work_order(built, None, 1).outcome == "refused"
+    assert ("approved", "refused") in [(e, o) for e, o, _ in audit_rows(built, mark)]
+
+
+def test_channel_must_match_principal(service, agent, events):
+    for ctx in (
+        ActionContext("copilot-agent", "sup.a", "web_form"),
+        ActionContext("sup.a", "sup.a", "mcp"),
+    ):
+        pv = service.preview(agent, ctx, "work_order", wo_args(events))
+        assert pv.blocked and pv.code is None
+        assert "valid_identity" in [c.name for c in pv.checks if c.level == "block"]
