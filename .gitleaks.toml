@@ -1,0 +1,5 @@
+# Default gitleaks rules.
+title = "line-loss-copilot"
+
+[extend]
+useDefault = true

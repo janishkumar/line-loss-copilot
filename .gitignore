@@ -10,3 +10,4 @@ __pycache__/
 .coverage
 dbt/.user.yml
 web/dist/
+requirements-audit.txt

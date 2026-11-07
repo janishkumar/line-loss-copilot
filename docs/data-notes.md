@@ -171,9 +171,12 @@ and s_5 215; they are left out of the percentiles.
 
 Built by `mart.piade_interval_counts`, `mart.piade_shift_oee` and `mart.piade_machine_oee`;
 the table below is printed by `scripts/piade_oee_summary.py`. Window: each machine's full
-coverage, first to last interval (s_1 2020-01-01 to 2021-12-31, s_2 2020-06-15 to
-2021-12-31, s_3 2020-10-07 to 2022-01-02, s_4 2020-01-01 to 2022-01-02, s_5 2020-01-12 to
-2022-01-02, UTC). Time-weighted: seconds and counts are summed, then the ratios computed.
+coverage. The window is the dates of each machine's first and last assumed shift start, UTC,
+the same definition the README uses (s_1 2020-01-01 to 2021-12-31, s_2 2020-06-15 to
+2021-12-31, s_3 2020-10-07 to 2022-01-01, s_4 2019-12-31 to 2022-01-01, s_5 2020-01-11 to
+2022-01-01). s_4's window starts 2019-12-31 because its first interval (2020-01-01 00:05
+UTC) falls in the 22:00 UTC shift that began the day before; the last intervals of s_3, s_4
+and s_5 run into 2022-01-02 UTC, inside shifts that started on 2022-01-01. Time-weighted: seconds and counts are summed, then the ratios computed.
 
 | Machine | Planned h | A | P count (p95) | P count (p90) | P count (p99) | P time | Q | OEE (p95) | OEE (p90) | OEE (p99) |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -196,10 +199,10 @@ Counter handling and caps over the same window:
 | s_4 | 1,079 | 79 | 15 (7) | 8 (40.1) | 46 (31.8) | 1.7% | 0 | 212 | none |
 | s_5 | 1,405 | 1 | 116 (47) | 48 (240.7) | 86 (21.8) | 4.6% | 2 | 26 | none |
 
-Count-based performance and quality leave out every shift with incomplete counts: a glitch
-on a run row, or run time with no input counted at all (264 shifts, 61.9 run hours over the
-five machines; e.g. `piade:s_4:2021-05-02T06`, 6.5 h of performance_loss with the counter
-standing still). Before this rule those shifts entered the monthly rollup with zero input
+Count-based performance and quality leave out every shift with incomplete counts, from two
+causes: 264 zero-input shifts (61.9 run hours: run time but no input counted at all; e.g.
+`piade:s_4:2021-05-02T06`, 6.5 h of performance_loss with the counter standing still) plus
+140 glitch shifts (703.6 run hours: a counter glitch on a run row), over the five machines. Before this rule those shifts entered the monthly rollup with zero input
 and pulled count-based performance down (s_4 0.563 to 0.567, s_5 0.769 to 0.772).
 Availability and time-based performance still use all run time.
 

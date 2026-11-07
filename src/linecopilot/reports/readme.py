@@ -90,9 +90,9 @@ def oee_section(val: dict, piade: list[dict]) -> str:
         "### PIADE: OEE per machine over full coverage",
         "",
         "Each machine is its own line. Time-weighted: seconds and counts are summed, then ratios "
-        "computed. Windows are each machine's first to last assumed shift (UTC). The ideal rate "
-        "is estimated from `speed`, so OEE is shown at p90, p95 (headline) and p99. P is "
-        "count-based; time-based P is the cross-check.",
+        "computed. Windows are the dates of each machine's first and last assumed shift start "
+        "(UTC). The ideal rate is estimated from `speed`, so OEE is shown at p90, p95 "
+        "(headline) and p99. P is count-based; time-based P is the cross-check.",
         "",
         "| Machine | Window | Planned h | A | P count (p95) | P time | Q | OEE p90 | OEE p95 | OEE p99 |",  # noqa: E501
         "|---|---|---|---|---|---|---|---|---|---|",
@@ -105,6 +105,9 @@ def oee_section(val: dict, piade: list[dict]) -> str:
             f"| {r['oee_p90']:.3f} | {r['oee_p95']:.3f} | {r['oee_p99']:.3f} |"
         )
     L += [
+        "",
+        "Note: s_4's window starts 2019-12-31 because its first interval (2020-01-01 00:05 UTC) "
+        "falls in the 22:00 UTC shift that began the day before.",
         "",
         "These PIADE figures have no published value to check against; they are computed, not "
         "validated. Brick and PIADE numbers are never combined.",
