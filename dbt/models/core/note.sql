@@ -3,6 +3,7 @@ select
     row_number() over (order by e.event_id)::bigint as note_id,
     e.event_id,
     d.note as original_text,
+    encode(sha256(convert_to(d.note, 'UTF8')), 'hex') as text_sha256,
     case
         when d.note ~ '[Ͱ-Ͽἀ-῿]' then 'el'
         else 'latin'

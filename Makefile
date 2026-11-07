@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -52,3 +52,7 @@ web:
 # Stack up, download and load the real data, build marts, write the validation report.
 demo-stage1: up wait-db data load validate-oee
 	@echo "Web app: http://localhost:8080  API: http://localhost:8000/api/health"
+
+# Machine-translate operator notes with a local Ollama model; appends to the dbt seed.
+translate-notes:
+	uv run python -m linecopilot.notes.translate --model $(or $(NOTES_MODEL),qwen2.5:7b-instruct)

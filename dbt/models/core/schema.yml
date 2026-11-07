@@ -41,6 +41,8 @@ models:
           - not_null
           - relationships:
               arguments: {to: ref('event'), field: event_id}
+      - name: text_sha256
+        data_tests: [not_null]
       - name: language
         data_tests:
           - accepted_values:

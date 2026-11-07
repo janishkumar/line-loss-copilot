@@ -41,7 +41,14 @@ def test_notes_only_non_blank(built):
     assert (
         scalar(built, "SELECT count(*) FROM core.note WHERE btrim(original_text) IN ('', '-')") == 0
     )
-    assert scalar(built, "SELECT count(*) FROM core.note_translation") == 0
+    # Translations join on the hash of the text: at most one per note, all machine-made.
+    # (The fixture reuses a few real note texts, so some have a seed translation.)
+    assert scalar(built, "SELECT count(*) FROM core.note_translation") <= expected
+    assert (
+        scalar(built, "SELECT count(*) FROM core.note_translation WHERE NOT machine_translated")
+        == 0
+    )
+    assert scalar(built, "SELECT count(*) FROM core.note WHERE length(text_sha256) <> 64") == 0
 
 
 def test_event_ids_are_deterministic_and_keyed(built):

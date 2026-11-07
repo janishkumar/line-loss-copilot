@@ -298,3 +298,11 @@ def test_reliability_compare_events_routes(client):
     assert body["status"] == "out_of_scope"
     body = get(client, "/api/events", machine_id="s_2", state="stopped", limit=2)
     assert body["data"]["total"] == 4 and len(body["data"]["events"]) == 2
+
+
+def test_notes_search_route(client):
+    body = get(client, "/api/notes/search", query="grasarisma")
+    assert body["status"] == "ok"
+    assert body["data"]["hits"][0]["original_text"] == "grasarisma"
+    assert body["citations"][0]["field"] == "notes"
+    assert get(client, "/api/notes/search", query="zzzxqj")["status"] == "insufficient_evidence"

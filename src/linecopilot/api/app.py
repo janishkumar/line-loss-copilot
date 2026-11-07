@@ -31,6 +31,7 @@ from linecopilot.tools.losses import (
     loss_pareto,
     repeat_failures,
 )
+from linecopilot.tools.notes import NotesData, SearchNotesArgs, search_notes
 from linecopilot.tools.oee import MAX_ROWS, GetOeeArgs, GroupBy, OeeData, get_oee
 from linecopilot.tools.reliability import (
     CompareArgs,
@@ -109,6 +110,10 @@ def create_app(db_url: str | None = None) -> FastAPI:
     @app.get("/api/events")
     def events_route(conn: Conn, args: Annotated[GetEventsArgs, Query()]) -> Result[EventsData]:
         return get_events(conn, args)
+
+    @app.get("/api/notes/search")
+    def notes_search(conn: Conn, args: Annotated[SearchNotesArgs, Query()]) -> Result[NotesData]:
+        return search_notes(conn, args)
 
     @app.get("/api/oee/validation")
     def validation(conn: Conn) -> Result[dict[str, Any]]:

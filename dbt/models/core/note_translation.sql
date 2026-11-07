@@ -1,8 +1,11 @@
--- Empty by design in stage 1; stage 2 fills it with machine translations.
+-- Machine translations of operator notes, joined on the hash of the original text so they
+-- survive rebuilds. The seed holds no original text.
 select
-    null::bigint as note_id,
-    null::text as translated_text,
-    null::text as model_name,
-    null::timestamptz as created_at,
-    true as machine_translated
-where false
+    n.note_id,
+    t.translated_text,
+    t.model_name,
+    t.created_at,
+    true as machine_translated,
+    n.text_sha256
+from {{ ref('note') }} n
+join {{ ref('note_translation_ollama') }} t on t.text_sha256 = n.text_sha256

@@ -26,7 +26,9 @@ from linecopilot.ingest.brick import parse_brick_downtime, parse_brick_oee
 from linecopilot.ingest.contracts import ParsedFile
 from linecopilot.ingest.piade import OUTPUT_COLUMNS, parse_piade_raw
 
-SCHEMA_FILE = Path(__file__).resolve().parents[3] / "sql" / "raw_schema.sql"
+SQL_DIR = Path(__file__).resolve().parents[3] / "sql"
+SCHEMA_FILE = SQL_DIR / "raw_schema.sql"
+ENRICH_FILE = SQL_DIR / "enrich_schema.sql"
 PIADE_COLUMNS = (*OUTPUT_COLUMNS, "start_raw", "end_raw")
 
 
@@ -73,6 +75,7 @@ class LoadSummary:
 
 def init_schema(conn: psycopg.Connection) -> None:
     conn.execute(SCHEMA_FILE.read_text())
+    conn.execute(ENRICH_FILE.read_text())
     conn.commit()
 
 

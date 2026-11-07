@@ -16,3 +16,9 @@ seeds:
     columns:
       - name: stop_type
         data_tests: [unique, not_null]
+  - name: note_translation_ollama
+    config:
+      column_types: {text_sha256: text, translated_text: text, model_name: text, created_at: timestamptz}
+    columns:
+      - name: text_sha256
+        data_tests: [unique, not_null]
