@@ -1,0 +1,22 @@
+# Who may propose and approve each action. Loaded by linecopilot.actions.policy.
+[confirmation]
+ttl_minutes = 15
+
+[propose]   # role -> actions it may propose
+operator = ["follow_up"]
+shift_supervisor = ["work_order", "quality_hold", "follow_up"]
+quality_lead = ["quality_hold", "follow_up"]
+planner = ["follow_up"]
+plant_manager = ["follow_up"]
+
+[approve]   # action -> roles that may approve
+work_order = ["shift_supervisor", "plant_manager"]
+quality_hold = ["quality_lead", "plant_manager"]
+follow_up = ["shift_supervisor"]
+
+[priority]  # minimum evidence for a priority before a warning
+high = { min_stop_s = 1800, min_events = 2 }
+critical = { min_stop_s = 7200, min_events = 3 }
+
+[evidence]
+max_events = 50

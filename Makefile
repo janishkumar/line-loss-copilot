@@ -36,12 +36,14 @@ data:
 load:
 	uv run python -m linecopilot.ingest.load
 
-# The enrich and ml schemas live outside dbt; applying them first is idempotent.
+# Schemas and grants outside dbt (enrich, ml, demo, actions); idempotent. dbt rebuilds core
+# and mart tables and drops their grants, so `dbt` applies this again after the build.
 schemas:
 	uv run python -m linecopilot.schemas
 
 dbt: schemas
 	uv run dbt build --project-dir dbt --profiles-dir dbt
+	$(MAKE) schemas
 
 validate-oee:
 	$(MAKE) dbt

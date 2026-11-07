@@ -8,8 +8,8 @@ pytestmark = pytest.mark.db
 
 
 def test_apply_is_idempotent(built):
-    assert schemas.apply(built) == ["enrich_schema.sql", "ml_schema.sql"]
-    assert schemas.apply(built) == ["enrich_schema.sql", "ml_schema.sql"]
+    assert schemas.apply(built) == [f.name for f in schemas.FILES]
+    assert schemas.apply(built) == [f.name for f in schemas.FILES]
     found = {
         r[0]
         for r in built.execute(

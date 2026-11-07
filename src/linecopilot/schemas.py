@@ -1,7 +1,9 @@
-"""Apply the schemas dbt does not build: enrich (notes search) and ml (stop-risk tables).
+"""Apply the schemas dbt does not build: enrich (notes search), ml (stop-risk tables), demo
+(synthetic users) and actions (approved actions, audit log, agent role grants).
 
-Both files are idempotent, so `make dbt` runs this before every build; a database first
-built at an earlier stage gets the schemas without a full reload.
+All files are idempotent. `make dbt` runs this before and after every build: dbt recreates
+core and mart tables, which drops their grants, so the second run restores the agent's
+read access.
 
     python -m linecopilot.schemas"""
 
@@ -14,7 +16,12 @@ import psycopg
 from linecopilot.config import get_settings
 
 SQL_DIR = Path(__file__).resolve().parents[2] / "sql"
-FILES = (SQL_DIR / "enrich_schema.sql", SQL_DIR / "ml_schema.sql")
+FILES = (
+    SQL_DIR / "enrich_schema.sql",
+    SQL_DIR / "ml_schema.sql",
+    SQL_DIR / "demo_schema.sql",
+    SQL_DIR / "actions_schema.sql",
+)
 
 
 def apply(conn: psycopg.Connection) -> list[str]:

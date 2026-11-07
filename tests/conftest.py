@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 import psycopg
 import pytest
 
+from linecopilot import schemas
 from linecopilot.ingest.load import load_all
 
 
@@ -20,6 +21,15 @@ def db_url() -> str:
     if not url:
         pytest.skip("LINECOPILOT_TEST_DB_URL is not set")
     return url
+
+
+@pytest.fixture
+def agent_url(db_url) -> str:
+    """The test URL with the restricted agent role's credentials."""
+    u = urlparse(db_url)
+    host = u.hostname or "localhost"
+    netloc = f"linecopilot_agent:linecopilot_agent@{host}" + (f":{u.port}" if u.port else "")
+    return u._replace(netloc=netloc).geturl()
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,6 +101,9 @@ def built(make_data_dir):
         text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+    # Schemas and agent grants after dbt, as `make dbt` does (dbt drops grants on rebuilt tables).
+    with psycopg.connect(url) as conn:
+        schemas.apply(conn)
     # Autocommit so one failing query cannot abort the shared session for later tests.
     with psycopg.connect(url, autocommit=True) as conn:
         yield conn

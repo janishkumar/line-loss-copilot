@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     chat_model: str = Field(
         default="qwen2.5:7b-instruct", validation_alias="LINECOPILOT_CHAT_MODEL"
     )
+    agent_database_url: str = Field(
+        default="postgresql://linecopilot_agent:linecopilot_agent@localhost:5434/linecopilot",
+        validation_alias="LINECOPILOT_AGENT_DB_URL",
+    )
+    mcp_user: str | None = Field(default=None, validation_alias="LINECOPILOT_MCP_USER")
+    policy_path: Path = Field(
+        default=Path("config/policy.toml"), validation_alias="LINECOPILOT_POLICY"
+    )
     test_database_url: str | None = Field(default=None, validation_alias="LINECOPILOT_TEST_DB_URL")
 
 
