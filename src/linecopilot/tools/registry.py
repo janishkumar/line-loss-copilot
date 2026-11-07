@@ -202,8 +202,8 @@ register(
         GetPlanArgs,
         "The stored production plan for the SYNTHETIC orders (generated orders on real machine "
         "capacity): CP-SAT against EDD (plain and family-batched) and FIFO, KPIs nominal and "
-        "replayed against real PIADE stops in later windows, per-machine sequences and blocked orders. Never real "
-        "production results.",
+        "replayed against real PIADE stops in later windows, per-machine sequences and blocked "
+        "orders. Never real production results.",
     )
 )
 register(
