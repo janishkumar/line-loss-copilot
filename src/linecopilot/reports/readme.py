@@ -606,7 +606,7 @@ def plan_section(results: Path) -> str:
     L = [
         "**Synthetic orders on real capacity and real stops.** Orders, BOMs, stock and receipts "
         "are synthetic (seeds "
-        f"{', '.join(map(str, m['seeds']))}, regenerated in memory per seed). Machine rates, "
+        f"{', '.join(map(str, m['seeds']))}, regenerated in memory per seed). Machine rates and "
         f"availability are anchored to PIADE rows from before {m['anchors']['cutoff'][:10]}; "
         "changeover minutes come from the brick line's stop log (2025 to 2026, a different "
         "process and period, not date-filtered). Each plan is then replayed against real PIADE "
@@ -614,7 +614,7 @@ def plan_section(results: Path) -> str:
         f"{m['n_windows']} non-overlapping 14-day windows from {m['windows'][0]['start'][:10]}: "
         "the same machines and sequence, processing at the nominal rate, setup and processing "
         "frozen while a machine is stopped. CP-SAT runs one worker with a deterministic limit of "
-        f"{m['cpsat_max_deterministic_time']:g} and a {m['cpsat_wall_cap_s']} s wall cap. This "
+        f"{m['cpsat_max_deterministic_time']:g} and a {m['cpsat_wall_cap_s']:g} s wall cap. This "
         "compares schedulers on a generator, not what a plant would gain.",
         "",
         "| Measure, median (q1 to q3) | Basis | " + " | ".join(algs) + " |",
@@ -663,11 +663,10 @@ def plan_section(results: Path) -> str:
         "means CP-SAT stopped at its limit with a solution and no optimality proof. FIFO and EDD "
         "are greedy list schedules that ignore changeovers when ordering jobs; `edd_batch` is a "
         f"stronger dispatch rule that, among jobs due within {BATCH_SLACK_MIN // 60} h of the "
-        "earliest due one, prefers the family the machine just ran. The gap between `edd` and "
-        "`edd_batch` is the part of CP-SAT's lead over EDD that a simple changeover-aware rule "
-        "recovers; what remains against `edd_batch` is the better measure of what the solver "
-        "adds. Jobs that finish after the 14-day horizon replay with no stops there (the stops "
-        "end with the window).",
+        "earliest due one, prefers the family the machine just ran. It cuts changeover minutes "
+        "but waits longer on due dates, so read it against both measures; CP-SAT's paired "
+        "lead over it is stated above. Jobs that finish after the 14-day horizon replay with no "
+        "stops there (the stops end with the window).",
         "",
         stop_sentence(doc)
         + " "
