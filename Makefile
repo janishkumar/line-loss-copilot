@@ -34,10 +34,11 @@ dbt:
 	uv run dbt build --project-dir dbt --profiles-dir dbt
 
 validate-oee:
-	@echo "not implemented yet (brick OEE validation)"
+	$(MAKE) dbt
+	uv run python -m linecopilot.reports.oee_validation
 
 report:
-	@echo "not implemented yet (results report)"
+	uv run python -m linecopilot.reports.readme
 
 web:
 	@echo "not implemented yet (web app)"

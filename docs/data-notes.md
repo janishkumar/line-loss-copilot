@@ -76,10 +76,12 @@ is low.
 
 | Before-period shifts | n | Mean abs gap | Median abs gap |
 |---|---|---|---|
-| Planned time over 9 h (Oct 14 to 31) | 13 | 46.54 pts | 46.74 pts |
+| Planned time over 9 h (Oct 14 to 31; threshold chosen after looking at the gaps) | 13 | 46.54 pts | 46.74 pts |
 | Planned time 9 h or less | 49 | 4.55 pts | 2.07 pts |
 
-The 5 worst shifts, all in that block:
+The 9 h cut-off was chosen after looking at the gaps, to isolate the October block, so this
+split explains the headline and is not a filtered replacement for it. The 5 worst shifts, all
+in that block:
 
 | Shift | Gap | In-OEE stop union | Planned - published run time | Planned (published) |
 |---|---|---|---|---|
@@ -101,10 +103,10 @@ would both fit; neither can be confirmed from the files.
 other way (mean signed -4.0 pts): logged stop time exceeds planned time minus published
 run time, so the recomputed availability is lower. The worst cases (2025-12-03 at -28.6,
 2025-11-26 at -27.1) have published run time plus published stop totals above planned
-time, so the two published measures disagree there too. The dataset notes that published
-availability is taken at the bottleneck, while the stop log covers every location on the
-line; that may explain part of this, but the stop log does not tag the bottleneck, so it
-cannot be tested.
+time, so the two published measures disagree there too. The dataset's published formulas
+use the bottleneck for availability and performance, while the stop log covers every
+location on the line; that may explain part of this, but the stop log does not tag the
+bottleneck, so it cannot be tested.
 
 **After period.** Planned time minus published run time matches logged in-OEE stop time
 closely (mean abs gap 1.15 pts). The one large gap, 2026-04-03 (-24.5 pts), is a short day
@@ -177,7 +179,7 @@ coverage, first to last interval (s_1 2020-01-01 to 2021-12-31, s_2 2020-06-15 t
 |---|---|---|---|---|---|---|---|---|---|---|
 | s_1 | 11,905 | 0.777 | 0.786 | 0.795 | 0.769 | 0.833 | 0.998 | 0.609 | 0.616 | 0.596 |
 | s_2 | 4,163 | 0.413 | 0.704 | 0.704 | 0.704 | 0.789 | 0.993 | 0.289 | 0.289 | 0.289 |
-| s_3 | 6,759 | 0.492 | 0.777 | 0.777 | 0.729 | 0.908 | 0.998 | 0.381 | 0.381 | 0.358 |
+| s_3 | 6,759 | 0.492 | 0.777 | 0.777 | 0.729 | 0.908 | 0.997 | 0.381 | 0.381 | 0.358 |
 | s_4 | 6,132 | 0.691 | 0.567 | 0.567 | 0.539 | 0.637 | 0.996 | 0.390 | 0.390 | 0.371 |
 | s_5 | 8,635 | 0.655 | 0.772 | 0.772 | 0.772 | 0.815 | 0.997 | 0.504 | 0.504 | 0.504 |
 
@@ -228,14 +230,15 @@ Points to read with it:
   (`clipped_s` records the cut; the counter delta stays on the row). Before clipping, three
   shifts held 32,400 s in an 8 h (28,800 s) shift. All clipped time is exactly one hour per
   machine-night, on 2020-10-25 (s_1) and 2021-10-31 (s_1, s_3): the European daylight-saving
-  end dates. That fits a source clock that repeated an hour; the repeated hour is counted
-  once.
+  end dates. The dates coincide with the EU daylight-saving end dates, but the in-day timing
+  (21:00 to 23:00 UTC) does not match a plain transition, so the cause is unexplained. The
+  overlapping time is counted once.
 
 ### Assumptions behind the PIADE figures
 
 - Shift calendar is 3 × 8 h in UTC from 06:00. PIADE gives no site timezone, so the design's
-  "local" calendar cannot be known; the DST overlaps above hint at a European clock but do not
-  name one.
+  "local" calendar cannot be known; the DST-date overlaps above are unexplained and do not
+  identify a timezone.
 - Months are assigned by shift start (UTC), so a shift starting 22:00 on the last day of a
   month belongs to that month.
 - Counters are end-aligned. Counts that land on non-run rows (2 to 6% per machine) are left
