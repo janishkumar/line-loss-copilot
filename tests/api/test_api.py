@@ -271,3 +271,30 @@ def test_loss_routes_return_envelopes(client):
     body = get(client, "/api/losses/pareto", machine_id="s_1", by="location")
     assert body["status"] == "out_of_scope"
     assert client.get("/api/losses/pareto", params={"line_id": "brick"}).status_code == 422
+
+
+def test_reliability_compare_events_routes(client):
+    body = get(client, "/api/reliability", machine_id="s_2")
+    assert body["status"] == "ok" and body["data"]["rows"][0]["mttr_s"] == 500
+    body = get(
+        client,
+        "/api/compare",
+        line_id="brick",
+        a_start="2025-09-01",
+        a_end="2026-01-01",
+        b_start="2026-01-01",
+        b_end="2026-05-01",
+    )
+    assert body["status"] == "ok" and body["data"]["deltas"]["failure_count"] == 1
+    body = get(
+        client,
+        "/api/compare",
+        line_id="brick",
+        a_start="2025-09-01",
+        a_end="2026-02-01",
+        b_start="2026-01-01",
+        b_end="2026-05-01",
+    )
+    assert body["status"] == "out_of_scope"
+    body = get(client, "/api/events", machine_id="s_2", state="stopped", limit=2)
+    assert body["data"]["total"] == 4 and len(body["data"]["events"]) == 2

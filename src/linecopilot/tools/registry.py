@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 
 from linecopilot.tools.assets import ListAssetsArgs, list_assets
 from linecopilot.tools.envelope import Result
+from linecopilot.tools.events import GetEventsArgs, get_events
 from linecopilot.tools.evidence import (
     GetSourceRowsArgs,
     ShiftEvidenceArgs,
@@ -25,6 +26,12 @@ from linecopilot.tools.losses import (
     repeat_failures,
 )
 from linecopilot.tools.oee import GetOeeArgs, get_oee
+from linecopilot.tools.reliability import (
+    CompareArgs,
+    ReliabilityArgs,
+    compare_periods,
+    reliability,
+)
 
 
 @dataclass
@@ -107,6 +114,36 @@ register(
         "Find repeat failures: chains of failure stops with the same reason or alarm on the "
         "same machine, each within a set number of hours of the previous one, ranked by lost "
         "time, with the episodes and cited stop events of each chain.",
+    )
+)
+register(
+    ToolSpec(
+        "reliability",
+        reliability,
+        ReliabilityArgs,
+        "Failure count, MTTR (mean time to repair) and MTBF (mean time between failures) for "
+        "the brick line or a PIADE machine, overall or per calendar month, with each row's "
+        "cited failure events. MTTR and MTBF are null when there were no failures.",
+    )
+)
+register(
+    ToolSpec(
+        "compare_periods",
+        compare_periods,
+        CompareArgs,
+        "Compare two non-overlapping periods of one line or machine: OEE components, stop "
+        "time and count, MTTR, MTBF and top stop reasons for each, the change (b minus a) in "
+        "every number, and how each top reason's lost time moved.",
+    )
+)
+register(
+    ToolSpec(
+        "get_events",
+        get_events,
+        GetEventsArgs,
+        "List the standard events (stops, state intervals, production counts) of a line or "
+        "machine in a window, filtered by event type, state, reason or alarm, with paging. "
+        "Text fields are source data, returned as written.",
     )
 )
 

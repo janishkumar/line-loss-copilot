@@ -151,55 +151,71 @@ def _brick_performance_over_1(conn, scope: Scope) -> tuple[int, float | None]:
     return n, f(mx)
 
 
+BRICK_MONTH_KEY = (
+    "to_char(date_trunc('month', s.shift_start AT TIME ZONE 'Europe/Nicosia'), 'YYYY-MM')"
+)
+BRICK_WINDOW_KEY = "'window'"
+
+
+def _brick_agg(conn, p: dict[str, Any], key_sql: str) -> list[dict[str, Any]]:
+    """Brick shifts in [p.s, p.e) summed per group; `key_sql` is a fixed expression from
+    code (a month or one group for the whole window), never input. Ratios are computed
+    from the sums by `_brick_agg_metrics`."""
+    return rows(
+        conn,
+        f"""SELECT {key_sql} AS key,
+                  min(s.shift_start) AS start,
+                  array_agg(m.shift_id ORDER BY s.shift_start) AS shift_ids,
+                  count(*) AS n_shifts,
+                  count(*) FILTER (WHERE m.planned_s_published IS NOT NULL)
+                      AS n_with_published,
+                  sum(m.planned_s_published) AS planned_s,
+                  sum(m.stop_s_union) FILTER (WHERE m.planned_s_published IS NOT NULL)
+                      AS stop_s_union,
+                  sum(m.stop_s_implied_pub) AS stop_s_implied_pub,
+                  sum(p.total_qty) AS total_qty,
+                  sum(p.good_qty) AS good_qty,
+                  sum(p.ideal_qty) AS ideal_qty
+           FROM mart.brick_shift_oee m
+           JOIN core.shift s ON s.shift_id = m.shift_id
+           LEFT JOIN core.brick_shift_published p ON p.shift_id = m.shift_id
+           WHERE s.shift_start >= %(s)s AND s.shift_start < %(e)s
+           GROUP BY 1 ORDER BY 1""",
+        p,
+    )
+
+
+def _brick_agg_metrics(m: dict[str, Any]) -> dict[str, float | None]:
+    planned = f(m["planned_s"])
+    ideal, total = f(m["ideal_qty"]), f(m["total_qty"])
+    a_calc = _ratio_1m(m["stop_s_union"], planned)
+    a_pub = _ratio_1m(m["stop_s_implied_pub"], planned)
+    perf = total / ideal if ideal and total is not None else None
+    qual = f(m["good_qty"]) / total if total else None
+    return {
+        "planned_s": planned,
+        "stop_s_union": f(m["stop_s_union"]),
+        "availability_calc": a_calc,
+        "availability_pub": a_pub,
+        "performance_pub": perf,
+        "quality_pub": qual,
+        "oee_calc_with_pub_pq": (
+            a_calc * perf * qual if None not in (a_calc, perf, qual) else None
+        ),
+    }
+
+
 def _brick(conn, scope: Scope, group: str, limit: int) -> tuple[OeeData, dict[str, list[str]]]:
     p: dict[str, Any] = {"s": scope.start, "e": scope.end, "lim": limit}
     if group == "month":
         out, sids = [], {}
-        for m in rows(
-            conn,
-            """SELECT to_char(date_trunc('month', s.shift_start AT TIME ZONE 'Europe/Nicosia'),
-                              'YYYY-MM') AS month,
-                      min(s.shift_start) AS start,
-                      array_agg(m.shift_id ORDER BY s.shift_start) AS shift_ids,
-                      count(*) AS n_shifts,
-                      count(*) FILTER (WHERE m.planned_s_published IS NOT NULL)
-                          AS n_with_published,
-                      sum(m.planned_s_published) AS planned_s,
-                      sum(m.stop_s_union) FILTER (WHERE m.planned_s_published IS NOT NULL)
-                          AS stop_s_union,
-                      sum(m.stop_s_implied_pub) AS stop_s_implied_pub,
-                      sum(p.total_qty) AS total_qty,
-                      sum(p.good_qty) AS good_qty,
-                      sum(p.ideal_qty) AS ideal_qty
-               FROM mart.brick_shift_oee m
-               JOIN core.shift s ON s.shift_id = m.shift_id
-               LEFT JOIN core.brick_shift_published p ON p.shift_id = m.shift_id
-               WHERE s.shift_start >= %(s)s AND s.shift_start < %(e)s
-               GROUP BY 1 ORDER BY 1""",
-            p,
-        ):
-            planned = f(m["planned_s"])
-            ideal, total = f(m["ideal_qty"]), f(m["total_qty"])
-            a_calc = _ratio_1m(m["stop_s_union"], planned)
-            a_pub = _ratio_1m(m["stop_s_implied_pub"], planned)
-            perf = total / ideal if ideal and total is not None else None
-            qual = f(m["good_qty"]) / total if total else None
-            sids[m["month"]] = list(m["shift_ids"])
+        for m in _brick_agg(conn, p, BRICK_MONTH_KEY):
+            sids[m["key"]] = list(m["shift_ids"])
             out.append(
                 OeeRow(
-                    key=m["month"],
+                    key=m["key"],
                     start=m["start"],
-                    metrics={
-                        "planned_s": planned,
-                        "stop_s_union": f(m["stop_s_union"]),
-                        "availability_calc": a_calc,
-                        "availability_pub": a_pub,
-                        "performance_pub": perf,
-                        "quality_pub": qual,
-                        "oee_calc_with_pub_pq": (
-                            a_calc * perf * qual if None not in (a_calc, perf, qual) else None
-                        ),
-                    },
+                    metrics=_brick_agg_metrics(m),
                     details={
                         "n_shifts": m["n_shifts"],
                         "n_with_published": m["n_with_published"],
@@ -251,9 +267,9 @@ PIADE_SHIFT = (
 
 # Day = UTC date of shift start; sums over shifts, ratios recomputed (not averaged).
 # Count-based P and Q use only shifts with complete counts, as in mart.piade_machine_oee.
-PIADE_DAYS = """WITH s AS (
+PIADE_AGG = """WITH s AS (
        SELECT *, quality_reason IS NULL AS ok,
-              (shift_start AT TIME ZONE 'UTC')::date AS day
+              {day_sql} AS day
        FROM mart.piade_shift_oee
        WHERE machine_id = %(m)s AND shift_start >= %(s)s AND shift_start < %(e)s),
    a AS (
@@ -288,6 +304,9 @@ PIADE_DAYS = """WITH s AS (
                (CASE WHEN p99 > 1 THEN 1 ELSE p99 END) *
                (CASE WHEN q > 1 THEN 1 ELSE q END) END AS oee_p99
    FROM r ORDER BY day"""
+PIADE_DAYS = PIADE_AGG.replace("{day_sql}", "(shift_start AT TIME ZONE 'UTC')::date")
+# One group over the whole window: the same sums and ratios as a day, with every shift in it.
+PIADE_WINDOW = PIADE_AGG.replace("{day_sql}", "date '1970-01-01'")
 
 # Whole calendar months from mart.piade_machine_oee: a month is included when its first day
 # falls in [date_trunc('month', start), end). Its shifts are every shift of the machine whose
@@ -351,3 +370,19 @@ def _piade(conn, scope: Scope, group: str, limit: int) -> tuple[OeeData, dict[st
     ]
     data = OeeData(source_system="piade", group=group, rows=out, row_count=len(out))
     return data, {r["key"]: list(r["shift_ids"]) for r in recs}
+
+
+# Whole-window aggregation, shared with compare_periods --------------------------------------
+
+
+def window_oee(conn, scope: Scope) -> dict[str, float | None] | None:
+    """OEE components over the scope's window as one group: the sums of get_oee's brick
+    month and PIADE day aggregation taken over every shift starting in the window (ratios
+    from sums, never averages of shift ratios). None when no shift starts in the window."""
+    if scope.source_system == "brick":
+        p = {"s": scope.start, "e": scope.end}
+        recs = _brick_agg(conn, p, BRICK_WINDOW_KEY)
+        return _brick_agg_metrics(recs[0]) if recs else None
+    p = {"m": scope.machine_id, "s": scope.start, "e": scope.end}
+    recs = rows(conn, PIADE_WINDOW, p)
+    return {k: f(recs[0][k]) for k in PIADE_SHIFT if k in recs[0]} if recs else None

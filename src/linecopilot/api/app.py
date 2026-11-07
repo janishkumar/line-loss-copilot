@@ -12,6 +12,7 @@ from linecopilot.config import get_settings
 from linecopilot.reports.oee_validation import validate_oee
 from linecopilot.tools.assets import AssetsData, ListAssetsArgs, list_assets
 from linecopilot.tools.envelope import Result, Window
+from linecopilot.tools.events import EventsData, GetEventsArgs, get_events
 from linecopilot.tools.evidence import (
     ShiftEvidenceArgs,
     ShiftEvidenceData,
@@ -31,6 +32,14 @@ from linecopilot.tools.losses import (
     repeat_failures,
 )
 from linecopilot.tools.oee import MAX_ROWS, GetOeeArgs, GroupBy, OeeData, get_oee
+from linecopilot.tools.reliability import (
+    CompareArgs,
+    CompareData,
+    ReliabilityArgs,
+    ReliabilityData,
+    compare_periods,
+    reliability,
+)
 
 
 def create_app(db_url: str | None = None) -> FastAPI:
@@ -86,6 +95,20 @@ def create_app(db_url: str | None = None) -> FastAPI:
     @app.get("/api/losses/repeats")
     def repeats(conn: Conn, args: Annotated[RepeatArgs, Query()]) -> Result[RepeatData]:
         return repeat_failures(conn, args)
+
+    @app.get("/api/reliability")
+    def reliability_route(
+        conn: Conn, args: Annotated[ReliabilityArgs, Query()]
+    ) -> Result[ReliabilityData]:
+        return reliability(conn, args)
+
+    @app.get("/api/compare")
+    def compare_route(conn: Conn, args: Annotated[CompareArgs, Query()]) -> Result[CompareData]:
+        return compare_periods(conn, args)
+
+    @app.get("/api/events")
+    def events_route(conn: Conn, args: Annotated[GetEventsArgs, Query()]) -> Result[EventsData]:
+        return get_events(conn, args)
 
     @app.get("/api/oee/validation")
     def validation(conn: Conn) -> Result[dict[str, Any]]:
