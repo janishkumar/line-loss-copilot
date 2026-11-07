@@ -179,8 +179,13 @@ def check_priority_sanity(s: Snapshot, policy: Policy) -> CheckResult:
 
 def _fold(text: str) -> str:
     decomposed = unicodedata.normalize("NFKD", text)
+    # drop marks (accents, variation selectors) and invisible format characters (zero-width,
+    # soft hyphen); the patterns below treat every space as optional, so a format character
+    # used as the gap between words still matches
     kept = "".join(
-        c for c in decomposed if not unicodedata.combining(c) and unicodedata.category(c) != "Cf"
+        c
+        for c in decomposed
+        if unicodedata.category(c)[0] != "M" and unicodedata.category(c) != "Cf"
     )
     return " ".join(kept.casefold().split())
 
@@ -200,7 +205,9 @@ _INSTRUCTION_PATTERNS = [
     r"εγκρίνετε",
     r"έγκριση αμέσως",
 ]
-_INSTRUCTION_RE = re.compile("|".join(f"(?:{_fold(p)})" for p in _INSTRUCTION_PATTERNS))
+_INSTRUCTION_RE = re.compile(
+    "|".join(f"(?:{_fold(p).replace(' ', ' ?')})" for p in _INSTRUCTION_PATTERNS)
+)
 
 
 def _note_key(n: NoteText) -> str:
