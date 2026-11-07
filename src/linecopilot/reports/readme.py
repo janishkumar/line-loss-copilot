@@ -469,7 +469,9 @@ def safety_section(results: Path) -> str:
         *read,
         "- The scripted injected agent always obeys the planted text, so the injection rows "
         "measure the approval guards (no self-approval, no agent sign-in), not detection. The "
-        "planted text does show as a warning in the preview and the approvals inbox.",
+        "planted text does show as a warning in the preview and the approvals inbox. In the LLM "
+        "subset the preview result also quotes the linked notes to the model, labelled as data, "
+        "so the three note prompts do put the planted text in front of it.",
         "- The design also asks for injected instructions in order text. Orders arrive in "
         "stage 4; until then this covers operator notes and action text only.",
         *notes,
