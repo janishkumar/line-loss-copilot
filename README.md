@@ -74,6 +74,7 @@ Details and the reasoning behind each choice are in `docs/data-notes.md`. Regene
 - Brick line planned time is a published input. Brick timestamps are local Europe/Nicosia.
 - Brick availability uses the union of in-OEE stop intervals, clipped to the date, so overlapping stops count once. On the real files no stops overlap, so union and plain sum give the same numbers.
 - Every metric states its window. Real-data figures are never blended into one headline number.
+- Next-hour stop risk (PIADE): a long stop is a stop episode of 600 s or more (2.9% of episodes; p95 is 412 s, p99 1183 s). Results and baselines are in [evals/results/stop_risk.md](evals/results/stop_risk.md); `make train-risk` regenerates them.
 
 The full list, with the evidence for each, is in [docs/data-notes.md](docs/data-notes.md).
 
@@ -115,6 +116,7 @@ Needs Docker, uv, and Node 24 (Node only for local web work).
 ```
 make demo-stage1   # db, api and web up; download data; load; dbt build; validation report
 make report        # rewrite the results section above from evals/results/
+make train-risk    # next-hour stop-risk models on PIADE (about 20 s)
 make lint          # ruff
 make test          # offline tests
 make test-db       # tests that need Postgres (uses the compose test database)

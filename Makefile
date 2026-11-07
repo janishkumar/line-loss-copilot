@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -56,3 +56,7 @@ demo-stage1: up wait-db data load validate-oee
 # Machine-translate operator notes with a local Ollama model; appends to the dbt seed.
 translate-notes:
 	uv run python -m linecopilot.notes.translate --model $(or $(NOTES_MODEL),qwen2.5:7b-instruct)
+
+# Next-hour stop-risk models on PIADE: writes ml.* tables, data/models/ and evals/results/stop_risk.*.
+train-risk:
+	uv run python -m linecopilot.ml.train

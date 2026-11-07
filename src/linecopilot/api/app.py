@@ -41,6 +41,13 @@ from linecopilot.tools.reliability import (
     compare_periods,
     reliability,
 )
+from linecopilot.tools.risk import (
+    RiskData,
+    RiskMetricsData,
+    StopRiskArgs,
+    risk_metrics,
+    stop_risk,
+)
 
 
 def create_app(db_url: str | None = None) -> FastAPI:
@@ -114,6 +121,14 @@ def create_app(db_url: str | None = None) -> FastAPI:
     @app.get("/api/notes/search")
     def notes_search(conn: Conn, args: Annotated[SearchNotesArgs, Query()]) -> Result[NotesData]:
         return search_notes(conn, args)
+
+    @app.get("/api/risk")
+    def risk_route(conn: Conn, args: Annotated[StopRiskArgs, Query()]) -> Result[RiskData]:
+        return stop_risk(conn, args)
+
+    @app.get("/api/risk/metrics")
+    def risk_metrics_route(conn: Conn) -> Result[RiskMetricsData]:
+        return risk_metrics(conn)
 
     @app.get("/api/oee/validation")
     def validation(conn: Conn) -> Result[dict[str, Any]]:
