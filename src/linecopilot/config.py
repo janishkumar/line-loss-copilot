@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     policy_path: Path = Field(
         default=Path("config/policy.toml"), validation_alias="LINECOPILOT_POLICY"
     )
+    # Origins allowed to send state-changing action requests (comma separated).
+    web_origins: str = Field(
+        default="http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173",
+        validation_alias="LINECOPILOT_WEB_ORIGINS",
+    )
     test_database_url: str | None = Field(default=None, validation_alias="LINECOPILOT_TEST_DB_URL")
 
 

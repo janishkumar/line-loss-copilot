@@ -216,10 +216,12 @@ def run_chat(
     max_rounds: int = 6,
     time_budget_s: float = TIME_BUDGET_S,
     clock: Callable[[], float] = time.monotonic,
+    action_ctx: Any | None = None,
 ) -> ChatResult:
     """Run the conversation until the model answers without a tool call, `max_rounds` model
     calls have been made, or `time_budget_s` has passed (checked between rounds). `messages`
-    holds user and assistant turns only; the system prompt is always ours."""
+    holds user and assistant turns only; the system prompt is always ours. `action_ctx` is the
+    acting identity for action tools; accepted here and not used yet."""
     tools = tool_schemas() if tools_enabled else []
     convo: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
     convo += [{"role": m["role"], "content": m["content"]} for m in messages]

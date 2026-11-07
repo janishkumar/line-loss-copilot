@@ -16,6 +16,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY src ./src
+COPY config ./config
 
 EXPOSE 8000
 CMD ["uvicorn", "linecopilot.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

@@ -10,12 +10,16 @@ from typing import Annotated, Any, Literal
 
 import httpx
 import psycopg
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Cookie, Depends, FastAPI, Query, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from linecopilot.actions.identity import AGENT, ActionContext
+from linecopilot.actions.policy import load_policy
+from linecopilot.actions.service import ActionService
+from linecopilot.api.actions_routes import make_router, session_user_id
 from linecopilot.chat.loop import ChatResult, run_chat
 from linecopilot.chat.ollama import OllamaClient, OllamaError, OllamaUnreachable
 from linecopilot.config import get_settings
@@ -90,8 +94,15 @@ class ChatRequest(BaseModel):
         return v
 
 
+# Action routes keep FastAPI's normal 422 for malformed bodies; every other /api route answers
+# invalid arguments with the out_of_scope envelope.
+NORMAL_422_PREFIXES = ("/api/chat", "/api/session", "/api/actions", "/api/proposals", "/api/audit")
+
+
 def create_app(
-    db_url: str | None = None, ollama_transport: httpx.BaseTransport | None = None
+    db_url: str | None = None,
+    ollama_transport: httpx.BaseTransport | None = None,
+    agent_db_url: str | None = None,
 ) -> FastAPI:
     app = FastAPI(title="line-loss-copilot API", version="0.1.0")
     settings = get_settings()
@@ -102,12 +113,21 @@ def create_app(
             yield conn
 
     Conn = Annotated[psycopg.Connection, Depends(get_conn)]
+    origins = {o.strip() for o in settings.web_origins.split(",") if o.strip()}
+    app.include_router(
+        make_router(
+            url,
+            agent_db_url or settings.agent_database_url,
+            ActionService(load_policy(settings.policy_path)),
+            origins,
+        )
+    )
     chat_slots = threading.BoundedSemaphore(CHAT_MAX_CONCURRENT)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_args(request: Request, exc: RequestValidationError) -> JSONResponse:
         path = request.url.path
-        if not path.startswith("/api/") or path == "/api/chat":
+        if not path.startswith("/api/") or path.startswith(NORMAL_422_PREFIXES):
             return await request_validation_exception_handler(request, exc)
         res = Result(
             status="out_of_scope",
@@ -207,7 +227,9 @@ def create_app(
         )
 
     @app.post("/api/chat", response_model=ChatResult, responses={429: {}, 502: {}, 503: {}})
-    def chat(body: ChatRequest, conn: Conn) -> ChatResult | JSONResponse:
+    def chat(
+        body: ChatRequest, conn: Conn, lc_session: Annotated[str | None, Cookie()] = None
+    ) -> ChatResult | JSONResponse:
         if not chat_slots.acquire(blocking=False):
             busy = Result(
                 status="out_of_scope",
@@ -220,7 +242,15 @@ def create_app(
             client = OllamaClient(
                 settings.ollama_url, settings.chat_model, transport=ollama_transport
             )
-            return run_chat(conn, client, [m.model_dump() for m in body.messages])
+            user = session_user_id(conn, lc_session)
+            action_ctx = (
+                ActionContext(principal=AGENT, on_behalf_of=user, channel="web_chat")
+                if user
+                else None
+            )
+            return run_chat(
+                conn, client, [m.model_dump() for m in body.messages], action_ctx=action_ctx
+            )
         except OllamaUnreachable as e:
             return JSONResponse(
                 Result(status="out_of_scope", missing=str(e)).model_dump(mode="json"),

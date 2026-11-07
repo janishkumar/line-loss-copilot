@@ -20,6 +20,8 @@ services:
     build: .
     environment:
       LINECOPILOT_DB_URL: postgresql://linecopilot:linecopilot@db:5432/linecopilot
+      # dev-only credentials for the restricted agent role (see sql/actions_schema.sql)
+      LINECOPILOT_AGENT_DB_URL: postgresql://linecopilot_agent:linecopilot_agent@db:5432/linecopilot
       LINECOPILOT_OLLAMA_URL: http://host.docker.internal:11434
     extra_hosts:
       - "host.docker.internal:host-gateway"
