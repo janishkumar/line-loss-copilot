@@ -47,8 +47,8 @@ def test_search_latin_greek(built):
 def test_search_english_via_translation(built, translated):
     r = search_notes(built, SearchNotesArgs(query="valve"))
     assert r.status == "ok", r.missing
-    (hit,) = r.data.hits
-    assert hit.original_text == "ΒΛΑΒΗ ΒΑΛΒΙΔΑΣ"
+    # Other fixture notes reuse real texts whose seed translation may also say "valve".
+    (hit,) = [h for h in r.data.hits if h.original_text == "ΒΛΑΒΗ ΒΑΛΒΙΔΑΣ"]
     t = hit.translation
     assert (t.text, t.model_name, t.machine_translated) == ("valve failure", "test-model", True)
 
@@ -108,3 +108,25 @@ def test_search_via_registry_validates(built):
     assert call_tool(built, "search_notes", {"query": "x" * 201}).status == "out_of_scope"
     assert call_tool(built, "search_notes", {"query": "x", "limit": 101}).status == "out_of_scope"
     assert call_tool(built, "search_notes", {"query": "grasarisma"}).status == "ok"
+
+
+def test_punctuation_only_query_is_insufficient_without_notice(built):
+    notices: list[str] = []
+
+    def handler(d):
+        notices.append(d.message_primary)
+
+    built.add_notice_handler(handler)
+    try:
+        for q in ("!!!", "  ... ?? ", "()"):
+            r = search_notes(built, SearchNotesArgs(query=q))
+            assert r.status == "insufficient_evidence" and r.data is None and r.missing
+    finally:
+        built._notice_handlers.remove(handler)
+    assert notices == []
+
+
+def test_word_matches_rank_before_similarity(built):
+    # 'grasarisma' is an exact word hit; ordering puts word hits first.
+    r = search_notes(built, SearchNotesArgs(query="grasarisma"))
+    assert r.data.hits[0].original_text == "grasarisma"

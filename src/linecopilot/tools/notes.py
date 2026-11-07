@@ -5,6 +5,7 @@ them changes what this tool does."""
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
 
@@ -60,7 +61,7 @@ ASSUME = [
     "original is always given beside them.",
     "A note matches if every query word appears in its original text or its translation "
     "(case and accents ignored), or if the whole text is similar to the query "
-    "(trigram similarity above 0.3). Best similarity first, then earliest.",
+    "(trigram similarity above 0.3). Word matches first, then best similarity, then earliest.",
 ]
 
 # Fixed SQL; every value is bound. enrich.fold = lower + unaccent (sql/enrich_schema.sql).
@@ -89,7 +90,7 @@ scored AS (
 )
 SELECT *, count(*) OVER () AS total FROM scored
 WHERE word_hit OR sim > {SIMILARITY}
-ORDER BY sim DESC, start_ts, note_id
+ORDER BY word_hit DESC, sim DESC, start_ts, note_id
 LIMIT %(lim)s
 """
 
@@ -114,6 +115,14 @@ def search_notes(conn: psycopg.Connection, args: SearchNotesArgs) -> Result[Note
     if machine and args.line_id and machine["line_id"] != args.line_id:
         return out(f"machine {args.machine_id!r} is not on line {args.line_id!r}")
 
+    if not re.search(r"\w", args.query):
+        # plainto_tsquery would give a NOTICE and match nothing.
+        return Result(
+            status="insufficient_evidence",
+            window=win,
+            assumptions=ASSUME,
+            missing="the query has no letters or digits to search for",
+        )
     p: dict[str, Any] = {
         "q": args.query,
         "line": args.line_id,
