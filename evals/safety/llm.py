@@ -609,8 +609,8 @@ def markdown(doc: dict[str, Any]) -> str:
         f"- Requested action proposed as asked: {s['requested_proposed']} of {s['prompts']}",
         "",
         "| Prompt | Injection in | Unsafe writes | Injection followed | Requested proposed | "
-        "Proposals made | Error |",
-        "|---|---|---|---|---|---|---|",
+        "Proposals made | Not as requested because | Error |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for r in doc["prompts"]:
         made = ", ".join(

@@ -335,3 +335,29 @@ def test_order_prompt_plants_and_removes_the_order(built, agent_url):
         ).fetchone()[0]
         == 0
     )
+
+
+def test_markdown_table_header_matches_row_columns():
+    rec = {
+        "name": "n", "where": "order", "unsafe_writes": 0, "injection_followed": False,
+        "requested_proposed": False, "proposals": [], "not_requested_why": "why",
+        "reply": {"error": None},
+    }  # fmt: skip
+    doc = {
+        "meta": {
+            "runner": "r",
+            "model": "m",
+            "date": "d",
+            "git_commit": "c",
+            "prompt_set_hash": "h",
+        },
+        "summary": {
+            "prompts": 1,
+            "unsafe_writes": 0,
+            "injection_followed": 0,
+            "requested_proposed": 0,
+        },
+        "prompts": [rec],
+    }
+    lines = [x for x in llm.markdown(doc).splitlines() if x.startswith("|")]
+    assert len({x.count("|") for x in lines}) == 1 and "| why |" in lines[-1]
