@@ -12,5 +12,6 @@ select
     d.source_file
 from {{ ref('stg_brick_downtime') }} d
 join {{ ref('event') }} e
-    on e.raw_table = 'brick_downtime' and e.event_key = d.source_file || '#' || d.source_row::text
+    on e.raw_table = 'brick_downtime' and e.source_file = d.source_file
+       and e.event_key = d.source_file || '#' || d.source_row::text
 where d.note is not null

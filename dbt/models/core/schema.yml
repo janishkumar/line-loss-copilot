@@ -26,6 +26,8 @@ models:
         data_tests: [not_null]
       - name: raw_table
         data_tests: [not_null]
+      - name: source_file
+        data_tests: [not_null]
       - name: is_synthetic
         data_tests:
           - accepted_values:

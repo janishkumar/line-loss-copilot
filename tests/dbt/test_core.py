@@ -142,3 +142,45 @@ def test_shift_and_timezone_rules(built):
 def test_notes_language_detected(built):
     langs = {r[0] for r in built.execute("SELECT DISTINCT language FROM core.note").fetchall()}
     assert langs <= {"el", "latin"}
+
+
+def test_event_citation_is_unique(built):
+    dupes = scalar(
+        built,
+        """SELECT count(*) FROM (SELECT 1 FROM core.event
+           GROUP BY raw_table, source_file, raw_row_ids[1], event_type HAVING count(*) > 1) d""",
+    )
+    assert dupes == 0
+    assert (
+        scalar(
+            built,
+            "SELECT count(DISTINCT source_file) FROM core.event WHERE source_system = 'brick'",
+        )
+        == 4
+    )
+
+
+def test_note_citation_is_unique(built):
+    dupes = scalar(
+        built,
+        """SELECT count(*) FROM (SELECT 1 FROM core.note
+           GROUP BY raw_table, source_file, raw_row_id HAVING count(*) > 1) d""",
+    )
+    assert dupes == 0
+    assert scalar(built, "SELECT count(*) FROM core.note WHERE source_file IS NULL") == 0
+
+
+def test_every_event_lineage_joins_to_exactly_one_raw_row(built):
+    bad = scalar(
+        built,
+        """SELECT count(*) FROM (
+             SELECT e.event_id FROM core.event e
+             LEFT JOIN (
+                 SELECT 'brick_downtime' AS t, source_file, source_row FROM raw.brick_downtime
+                 UNION ALL SELECT 'brick_oee', source_file, source_row FROM raw.brick_oee
+                 UNION ALL SELECT 'piade_raw', source_file, source_row FROM raw.piade_raw
+             ) r ON r.t = e.raw_table AND r.source_file = e.source_file
+                AND r.source_row = e.raw_row_ids[1]
+             GROUP BY e.event_id HAVING count(r.source_row) <> 1) x""",
+    )
+    assert bad == 0

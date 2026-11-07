@@ -110,6 +110,7 @@ select
     qty_good,
     qty_reject,
     raw_table,
+    source_file,
     array[source_row]::int[] as raw_row_ids,
     false as is_synthetic,
     location,
