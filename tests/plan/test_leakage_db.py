@@ -60,6 +60,10 @@ def test_plan_inputs_do_not_change_when_replay_period_rows_are_added(db_url, bui
         c.rollback()
     assert got == {"s_1": [(1440 + 600, 1440 + 630)]}
     assert stats["s_1"]["stopped_share"] == pytest.approx(30 / w.minutes)
+    # same denominator as planning availability: stopped over covered time (only the 30 stopped
+    # minutes are covered here), and the no-data share is everything else
+    assert stats["s_1"]["stopped_share_of_covered"] == pytest.approx(1.0)
+    assert stats["s_1"]["no_data_share"] == pytest.approx(1 - 30 / w.minutes)
     assert after_anchors == before_anchors
     assert after_problem.machines == before_problem.machines
     assert after_problem.jobs == before_problem.jobs

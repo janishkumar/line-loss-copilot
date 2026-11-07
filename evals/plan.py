@@ -32,7 +32,7 @@ from linecopilot.synth.generate import content_hash, generate, load_factor
 
 RESULTS = Path(__file__).resolve().parent / "results"
 SEEDS = (7, 8, 9, 10, 11)
-ALGORITHMS = ("cpsat", "edd", "fifo")
+ALGORITHMS = ("cpsat", "edd_batch", "edd", "fifo")
 MEASURES = ("late_orders", "total_tardiness_min", "changeover_min", "orders_after_horizon")
 MEASURE_LABEL = {
     "late_orders": "Late orders",
@@ -82,6 +82,16 @@ def paired(a: list[float], b: list[float]) -> dict[str, Any]:
     }
 
 
+def parse_key(key: str) -> tuple[str, str, str]:
+    """`cpsat_vs_<base>_<nominal|replayed>_<measure>` -> (base, kind, measure)."""
+    rest = key.removeprefix("cpsat_vs_")
+    for kind in ("nominal", "replayed"):
+        if f"_{kind}_" in rest:
+            base, meas = rest.split(f"_{kind}_", 1)
+            return base, kind, meas
+    raise ValueError(key)
+
+
 def evaluate(cases: dict[int, dict[str, Case]]) -> dict[str, Any]:
     """`cases[seed][algorithm]` -> the Case. Pure: this is the part tested on fakes."""
     seeds = sorted(cases)
@@ -97,7 +107,7 @@ def evaluate(cases: dict[int, dict[str, Case]]) -> dict[str, Any]:
         counts[key] = counts.get(key, 0) + 1
         stops[c["stop_reason"]] = stops.get(c["stop_reason"], 0) + 1
     out["solver"] = {"status": counts, "stop_reason": stops, "n": len(seeds)}
-    for base in ("edd", "fifo"):
+    for base in ("edd_batch", "edd", "fifo"):
         for kind in ("nominal", "replayed"):
             for m in ("total_tardiness_min", "late_orders"):
                 if kind == "nominal":
@@ -116,6 +126,7 @@ def run_case(problem, windows: list, stops_by_window: list, limit: float | None)
     plans = {
         "fifo": dispatch.fifo(problem),
         "edd": dispatch.edd(problem),
+        "edd_batch": dispatch.edd_batch(problem),
         "cpsat": cpsat.solve(problem, **kwargs),
     }
     out = {}
@@ -168,7 +179,7 @@ def run(conn, seeds=SEEDS, limit: float | None = EVAL_DET_LIMIT) -> dict[str, An
             "cpsat_max_deterministic_time": cpsat.MAX_DETERMINISTIC_TIME
             if limit is None
             else limit,
-            "cpsat_wall_cap_s": 120,
+            "cpsat_wall_cap_s": cpsat.WALL_CAP_S,
             "seconds": round(time.monotonic() - t0, 1),
             "anchors": {
                 "rates": anchors.rates,
@@ -193,20 +204,37 @@ def _cell(s: dict) -> str:
     return f"{_n(s['median'])} ({_n(s['q1'])} to {_n(s['q3'])})"
 
 
+def _pct(x: float | None) -> str:
+    return "n/a" if x is None else f"{x:.1%}"
+
+
 def window_table(doc: dict[str, Any]) -> list[str]:
-    """Realised stopped share and no-data share next to the planning availability, per window."""
+    """Realised stopped share of covered time (the planning availability's denominator) and the
+    no-data share, per window and machine, with the planning figure and the median of windows."""
     a = doc["meta"]["anchors"]["availability"]
     machines = sorted(a)
     L = [
-        "| Window start | " + " | ".join(f"{m} stopped / no data" for m in machines) + " |",
+        "| Window start | "
+        + " | ".join(f"{m} stopped of covered / no data" for m in machines)
+        + " |",
         "|---|" + "---|" * len(machines),
     ]
-    for w, st in zip(doc["meta"]["windows"], doc["window_stats"], strict=True):
-        cells = [f"{st[m]['stopped_share']:.1%} / {st[m]['no_data_share']:.1%}" for m in machines]
+    rows = list(zip(doc["meta"]["windows"], doc["window_stats"], strict=True))
+    for w, st in rows:
+        cells = [
+            f"{_pct(st[m]['stopped_share_of_covered'])} / {st[m]['no_data_share']:.1%}"
+            for m in machines
+        ]
         L.append(f"| {w['start'][:10]} | " + " | ".join(cells) + " |")
+    meds = []
+    for m in machines:
+        vals = [st[m]["stopped_share_of_covered"] for _, st in rows]
+        vals = [v for v in vals if v is not None]
+        meds.append(_pct(statistics.median(vals)) if vals else "n/a")
+    L.append("| Median over windows | " + " | ".join(meds) + " |")
     L.append(
-        "| Planning stopped share (before 2021-07-01) | "
-        + " | ".join(f"{1 - a[m]:.1%}" for m in machines)
+        "| Planning stopped share of covered time (before 2021-07-01) | "
+        + " | ".join(_pct(1 - a[m]) for m in machines)
         + " |"
     )
     return L
@@ -224,12 +252,15 @@ def markdown(doc: dict[str, Any]) -> str:
         f"- Date (UTC): {m['date']}; git commit {m['git_commit']}; run time {m['seconds']} s",
         f"- CP-SAT: 1 worker, seed 0, deterministic limit {m['cpsat_max_deterministic_time']}, "
         f"wall cap {m['cpsat_wall_cap_s']} s",
-        f"- Planning inputs (rate, availability, changeover) only from before "
-        f"{m['anchors']['cutoff'][:10]}; replay windows start on or after it",
+        f"- Planning inputs: rates and availability from PIADE rows before "
+        f"{m['anchors']['cutoff'][:10]}; changeover minutes from the brick line stop log "
+        "(2025 to 2026, a different process and period, not date-filtered). Replay windows "
+        "start on or after the PIADE cutoff",
         "",
         "Orders, BOMs, stock and receipts are synthetic; capacity and the replayed stops are "
-        "real PIADE data. The numbers say how the schedulers compare on this generator, not what "
-        "a plant would gain.",
+        "real PIADE data. `edd_batch` is EDD with family batching (window "
+        f"{dispatch.BATCH_SLACK_MIN} min). The numbers say how the schedulers compare on this "
+        "generator, not what a plant would gain.",
         "",
         "Nominal: the plan as the planner sees it (processing at rate x planning availability). "
         "Replayed: the same job-to-machine assignment and sequence executed against the real "
@@ -264,7 +295,7 @@ def markdown(doc: dict[str, Any]) -> str:
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for key, p in doc["paired"].items():
-        base, kind, meas = key.replace("cpsat_vs_", "").split("_", 2)
+        base, kind, meas = parse_key(key)
         L.append(
             f"| CP-SAT vs {base.upper()} | {kind} | {MEASURE_LABEL[meas]} | {p['n']} | "
             f"{p['better']} ({p['share_better']:.0%}) | {p['equal']} | {p['worse']} | "
@@ -274,9 +305,11 @@ def markdown(doc: dict[str, Any]) -> str:
         "",
         "## Real stops by window",
         "",
-        "Each cell: realised stopped share of the window / share of the window with no PIADE "
-        "data at all. A machine with data gaps looks more reliable than it was, because a gap "
-        "is replayed as no stops. Last row: the stopped share planning used.",
+        "Each cell: realised stopped time over time with data (the denominator planning "
+        "availability uses, so it compares with the last row) / share of the window with no "
+        "PIADE data at all. A gap is replayed as no stops, so a machine with gaps is stopped "
+        "less, over the whole window, than the first figure suggests. Last row: the stopped "
+        "share planning used, over covered time.",
         "",
         *window_table(doc),
         "",

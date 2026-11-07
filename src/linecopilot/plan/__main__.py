@@ -2,10 +2,13 @@
 
 python -m linecopilot.plan
 
-Builds the shortage result and the problem from `synthetic.*`, solves with CP-SAT, FIFO and
-EDD, replays each plan in the 8 windows of real PIADE stops and writes `plan.*`."""
+Builds the shortage result and the problem from `synthetic.*`, solves with CP-SAT, EDD with family
+batching, EDD and FIFO, replays each plan in the 8 windows of real PIADE stops and writes
+`plan.*`."""
 
 from __future__ import annotations
+
+import statistics
 
 import psycopg
 
@@ -24,7 +27,12 @@ def main() -> int:
         if gen is None:
             raise SystemExit("no synthetic data: run `make synth`")
         problem = split_unschedulable(load_problem(conn))
-        plans = [cpsat.solve(problem), dispatch.edd(problem), dispatch.fifo(problem)]
+        plans = [
+            cpsat.solve(problem),
+            dispatch.edd_batch(problem),
+            dispatch.edd(problem),
+            dispatch.fifo(problem),
+        ]
         wins = replay.windows(conn)
         machines = [m.machine_id for m in problem.machines]
         stops = [replay.stops(conn, w) for w in wins]
@@ -42,9 +50,9 @@ def main() -> int:
         k = p.kpis
         rep = [r[1]["total_tardiness_min"] for r in replays[p.algorithm]]
         print(
-            f"  {p.algorithm:6s} run {ids[p.algorithm]} {p.status:12s} late {k['late_orders']:2d} "
+            f"  {p.algorithm:9s} run {ids[p.algorithm]} {p.status:12s} late {k['late_orders']:2d} "
             f"tardiness {k['total_tardiness_min']:6d} changeover {k['changeover_min']:4d} min; "
-            f"replayed tardiness median {sorted(rep)[len(rep) // 2]}"
+            f"replayed tardiness median {statistics.median(rep)}"
         )
     return 0
 

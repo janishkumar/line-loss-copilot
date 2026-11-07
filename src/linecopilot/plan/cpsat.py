@@ -27,6 +27,7 @@ SCALE = 10
 # objective 6128, 60 gives 3617 (gap 0.8%, about 30 s wall on the dev Mac), 120 gives 3612 and
 # 250 gives 3610 (bound 3589), so 60 is where returns flatten.
 MAX_DETERMINISTIC_TIME = 60.0
+WALL_CAP_S = 120.0  # safety cap only
 
 
 def _det_time(solver: cp_model.CpSolver) -> float:
@@ -45,7 +46,7 @@ def _wall_time(solver: cp_model.CpSolver) -> float:
 
 def solve(
     problem: Problem,
-    time_limit_s: float = 120,
+    time_limit_s: float = WALL_CAP_S,
     seed: int = 0,
     max_deterministic_time: float = MAX_DETERMINISTIC_TIME,
 ) -> Plan:

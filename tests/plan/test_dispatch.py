@@ -55,3 +55,51 @@ def test_kpis_and_blocked_are_carried():
     plan = dispatch.fifo(p)
     assert plan.blocked == [("o9", "why")]
     assert kpis(p, plan.assignments)["total_tardiness_min"] == 50
+
+
+# ---- EDD with family batching ----------------------------------------------------------------
+
+
+def batch_prob(due_c):
+    # one machine; jobs A1 (due 100), B1 (due 110), A2 (due due_c): plain EDD runs A1, B1, A2
+    jobs = [
+        Job("a1", "pa1", "A", 60, 0, 100),
+        Job("b1", "pb1", "B", 60, 0, 110),
+        Job("a2", "pa2", "A", 60, 0, due_c),
+    ]
+    return prob(jobs)
+
+
+def test_edd_batch_prefers_same_family_inside_the_slack_window():
+    p = batch_prob(110 + dispatch.BATCH_SLACK_MIN - 1)
+    order = [a.order_id for a in sorted(dispatch.edd_batch(p).assignments, key=lambda a: a.start)]
+    assert order == ["a1", "a2", "b1"]
+    plain = [a.order_id for a in sorted(dispatch.edd(p).assignments, key=lambda a: a.start)]
+    assert plain == ["a1", "b1", "a2"]
+    assert dispatch.edd_batch(p).kpis["changeover_min"] < dispatch.edd(p).kpis["changeover_min"]
+
+
+def test_edd_batch_ignores_same_family_jobs_outside_the_window():
+    # window is measured from the earliest due job still waiting (b1, due 110)
+    p = batch_prob(110 + dispatch.BATCH_SLACK_MIN + 1)
+    order = [a.order_id for a in sorted(dispatch.edd_batch(p).assignments, key=lambda a: a.start)]
+    assert order == ["a1", "b1", "a2"]
+
+
+def test_edd_batch_schedules_everything_respecting_release_ready_and_eligibility():
+    ms = (Machine("M1", 60, 1.0, frozenset({"A"})), Machine("M2", 60, 1.0, frozenset({"A", "B"})))
+    jobs = [
+        Job("o1", "p1", "A", 60, 0, 300),
+        Job("o2", "p2", "B", 60, 30, 300, ready=45),
+        Job("o3", "p3", "A", 60, 0, 200),
+        Job("o4", "p4", "C", 60, 0, 200),  # no machine: blocked, not scheduled
+    ]
+    plan = dispatch.edd_batch(prob(jobs, ms))
+    assert plan.algorithm == "edd_batch"
+    assert {a.order_id for a in plan.assignments} == {"o1", "o2", "o3"}
+    assert dict(plan.blocked) == {"o4": "no eligible machine"}
+    by = {a.order_id: a for a in plan.assignments}
+    assert by["o2"].machine_id == "M2" and by["o2"].start >= 45
+    for m in ("M1", "M2"):
+        rows = sorted((a for a in plan.assignments if a.machine_id == m), key=lambda a: a.start)
+        assert all(b.start >= a.end + b.setup_before for a, b in zip(rows, rows[1:], strict=False))

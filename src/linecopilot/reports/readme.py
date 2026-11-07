@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import json
 import re
+import statistics
 from pathlib import Path
 from typing import Any
 
 from linecopilot.chat.ollama import context_count
+from linecopilot.plan.dispatch import BATCH_SLACK_MIN
 from linecopilot.reports.oee_validation import PERIODS, RESULTS, _pct, _pts
 
 
@@ -536,7 +538,7 @@ def shortages_section(results: Path) -> str:
     return "\n".join(L)
 
 
-PLAN_ALGS = ("cpsat", "edd", "fifo")
+PLAN_ALGS = ("cpsat", "edd_batch", "edd", "fifo")
 PLAN_MEASURES = (
     ("late_orders", "Late orders"),
     ("total_tardiness_min", "Total tardiness (min)"),
@@ -557,7 +559,7 @@ def gap_sentence(doc: dict) -> str:
     for mach in sorted(stats[0]):
         shares = sorted(w[mach]["no_data_share"] for w in stats)
         none = sum(x >= 0.99 for x in shares)
-        median = shares[len(shares) // 2]
+        median = statistics.median(shares)
         if median >= 0.05 or none:
             parts.append(
                 f"{mach}: no data at all in {none} of {n} windows, "
@@ -568,6 +570,31 @@ def gap_sentence(doc: dict) -> str:
     return "Data gaps matter. Share of a window with no PIADE data: " + "; ".join(parts) + "."
 
 
+def stop_sentence(doc: dict) -> str:
+    """Realised stopped share over covered time (planning availability's denominator), median
+    over windows, against the planning stopped share, per machine."""
+    avail = doc["meta"]["anchors"]["availability"]
+    parts, higher = [], 0
+    for mach in sorted(avail):
+        vals = [
+            w[mach]["stopped_share_of_covered"]
+            for w in doc["window_stats"]
+            if w[mach].get("stopped_share_of_covered") is not None
+        ]
+        if not vals:
+            parts.append(f"{mach} none (no data)")
+            continue
+        real, plan = statistics.median(vals), 1 - avail[mach]
+        higher += real > plan
+        parts.append(f"{mach} {real:.1%} against {plan:.1%}")
+    return (
+        "Realised stopped time over time with data (the planning availability's denominator), "
+        "median over windows, against the planning stopped share: "
+        + "; ".join(parts)
+        + f". Realised is higher than planning on {higher} of {len(avail)} machines."
+    )
+
+
 def plan_section(results: Path) -> str:
     path = results / "plan.json"
     if not path.exists():
@@ -575,20 +602,23 @@ def plan_section(results: Path) -> str:
     doc = _load(path)
     m, sv = doc["meta"], doc["solver"]
     n_cases = len(m["seeds"]) * m["n_windows"]
+    algs = [a for a in PLAN_ALGS if a in doc["replayed"]]  # an older result file lacks edd_batch
     L = [
         "**Synthetic orders on real capacity and real stops.** Orders, BOMs, stock and receipts "
         "are synthetic (seeds "
         f"{', '.join(map(str, m['seeds']))}, regenerated in memory per seed). Machine rates, "
-        "availability and changeover minutes are anchored to real data from before "
-        f"{m['anchors']['cutoff'][:10]}. Each plan is then replayed against real PIADE stops in "
+        f"availability are anchored to PIADE rows from before {m['anchors']['cutoff'][:10]}; "
+        "changeover minutes come from the brick line's stop log (2025 to 2026, a different "
+        "process and period, not date-filtered). Each plan is then replayed against real PIADE "
+        "stops in "
         f"{m['n_windows']} non-overlapping 14-day windows from {m['windows'][0]['start'][:10]}: "
         "the same machines and sequence, processing at the nominal rate, setup and processing "
         "frozen while a machine is stopped. CP-SAT runs one worker with a deterministic limit of "
         f"{m['cpsat_max_deterministic_time']:g} and a {m['cpsat_wall_cap_s']} s wall cap. This "
         "compares schedulers on a generator, not what a plant would gain.",
         "",
-        "| Measure, median (q1 to q3) | Basis | " + " | ".join(PLAN_ALGS) + " |",
-        "|---|---|" + "---|" * len(PLAN_ALGS),
+        "| Measure, median (q1 to q3) | Basis | " + " | ".join(algs) + " |",
+        "|---|---|" + "---|" * len(algs),
     ]
     for key, label in PLAN_MEASURES:
         for kind, basis in (
@@ -596,33 +626,55 @@ def plan_section(results: Path) -> str:
             ("replayed", f"replayed, n={n_cases}"),
         ):
             cells = []
-            for a in PLAN_ALGS:
+            for a in algs:
                 c = doc[kind][a][key]
                 cells.append(f"{_pn(c['median'])} ({_pn(c['q1'])} to {_pn(c['q3'])})")
             L.append(f"| {label} | {basis} | " + " | ".join(cells) + " |")
-    pe = doc["paired"]["cpsat_vs_edd_replayed_total_tardiness_min"]
-    pn = doc["paired"]["cpsat_vs_edd_nominal_total_tardiness_min"]
+
+    def paired_text(base: str, name: str) -> str:
+        pe = doc["paired"][f"cpsat_vs_{base}_replayed_total_tardiness_min"]
+        pn = doc["paired"][f"cpsat_vs_{base}_nominal_total_tardiness_min"]
+        return (
+            f"CP-SAT minus {name}: nominal, lower in {pn['better']} of {pn['n']} seeds; "
+            f"replayed, lower in {pe['better']} of {pe['n']} seed x window cases "
+            f"({pe['share_better']:.0%}), equal in {pe['equal']}, higher in {pe['worse']}, "
+            f"median difference {_pn(pe['median_diff'])} min"
+        )
+
     L += [
         "",
         f"CP-SAT outcome over {sv['n']} instances: "
         + ", ".join(f"{k} {v}" for k, v in sorted(sv["status"].items()))
         + "; stopped by "
         + ", ".join(f"{k} {v}" for k, v in sorted(sv["stop_reason"].items()))
-        + ". Paired CP-SAT minus EDD total tardiness: nominal, lower in "
-        f"{pn['better']} of {pn['n']} seeds; replayed, lower in {pe['better']} of {pe['n']} "
-        f"seed x window cases ({pe['share_better']:.0%}), equal in {pe['equal']}, higher in "
-        f"{pe['worse']}, median difference {_pn(pe['median_diff'])} min. Changeover minutes are "
-        "work minutes, so replaying leaves them unchanged. A nominal plan is built at rate x "
+        + ". Paired total tardiness, "
+        + "; ".join(
+            paired_text(b, name)
+            for b, name in (
+                ("edd_batch", "EDD with family batching (`edd_batch`)"),
+                ("edd", "plain EDD"),
+            )
+            if f"cpsat_vs_{b}_replayed_total_tardiness_min" in doc["paired"]
+        )
+        + ". Changeover minutes are work minutes, so replaying leaves them unchanged. A nominal "
+        "plan is built at rate x "
         "planning availability while the replay runs at the nominal rate with explicit stops, "
         "so nominal and replayed figures are different quantities, not before and after. FEASIBLE "
         "means CP-SAT stopped at its limit with a solution and no optimality proof. FIFO and EDD "
-        "are greedy list schedules that pick the machine with the earliest finish and ignore "
-        "changeovers when ordering jobs, so part of CP-SAT's lead is a weak baseline.",
+        "are greedy list schedules that ignore changeovers when ordering jobs; `edd_batch` is a "
+        f"stronger dispatch rule that, among jobs due within {BATCH_SLACK_MIN // 60} h of the "
+        "earliest due one, prefers the family the machine just ran. The gap between `edd` and "
+        "`edd_batch` is the part of CP-SAT's lead over EDD that a simple changeover-aware rule "
+        "recovers; what remains against `edd_batch` is the better measure of what the solver "
+        "adds. Jobs that finish after the 14-day horizon replay with no stops there (the stops "
+        "end with the window).",
         "",
-        gap_sentence(doc)
-        + " A gap is replayed as no stops, so a machine with gaps looks more reliable than it "
-        "was. The realised stopped share and the no-data share of every window and machine are in "
-        "[evals/results/plan.md](evals/results/plan.md), next to the stopped share planning used. "
+        stop_sentence(doc)
+        + " "
+        + gap_sentence(doc)
+        + " A gap is replayed as no stops, so a machine with gaps is stopped less over the whole "
+        "window than its share of covered time suggests. Both figures, per window and machine, "
+        "are in [evals/results/plan.md](evals/results/plan.md). "
         "Regenerate with `make eval-plan`, then `make report`; `make plan` stores the live "
         "generation's plans and replays in `plan.*`.",
     ]

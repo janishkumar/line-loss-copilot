@@ -132,3 +132,27 @@ def test_windows_start_dates():
     assert starts[1] == datetime(2021, 7, 15, tzinfo=UTC)
     assert all((b - a).days == 14 for a, b in zip(starts, starts[1:], strict=False))
     assert Assignment  # imported for type clarity
+
+
+def single(release=0, qty=60):
+    ms = (Machine("M1", 60, 1.0, frozenset({"A"})),)
+    p = Problem((Job("o1", "p1", "A", qty, release, 1000),), ms, co)
+    return p, dispatch.edd(p)
+
+
+def test_job_spanning_several_stops():
+    p, plan = single(qty=120)
+    (a,) = execute(p, plan, {"M1": [(10, 20), (50, 60), (100, 110)]})
+    assert (a.start, a.end) == (0, 150)  # 120 up-minutes plus three 10-minute stops
+
+
+def test_unmerged_overlapping_stops_count_once():
+    p, plan = single()
+    (a,) = execute(p, plan, {"M1": [(30, 50), (10, 40), (45, 55)]})
+    assert a.end == 60 + 45  # merged stop is 10..55
+
+
+def test_stop_during_a_release_wait_costs_nothing():
+    p, plan = single(release=100)
+    (a,) = execute(p, plan, {"M1": [(20, 60)]})
+    assert (a.start, a.end) == (100, 160)

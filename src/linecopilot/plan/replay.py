@@ -108,7 +108,9 @@ def stops(conn: psycopg.Connection, window: Window) -> Stops:
 
 
 def window_stats(conn: psycopg.Connection, window: Window, machines: list[str]) -> dict:
-    """Per machine: stopped share of the window (as replayed) and share with no data at all."""
+    """Per machine: `stopped_share` of the whole window, `stopped_share_of_covered` (stopped
+    minutes over minutes with data, the denominator planning availability uses) and
+    `no_data_share` (share of the window with no PIADE data at all)."""
     st = stops(conn, window)
     seen: dict[str, list[tuple[datetime, datetime]]] = {}
     for m, a, b in conn.execute(COVER_SQL, {"start": window.start, "end": window.end}):
@@ -126,8 +128,10 @@ def window_stats(conn: psycopg.Connection, window: Window, machines: list[str]) 
             if b > a:
                 covered_s += (b - a).total_seconds()
                 last = b
+        covered = covered_s / 60
         out[m] = {
             "stopped_share": stopped / total,
+            "stopped_share_of_covered": min(1.0, stopped / covered) if covered > 0 else None,
             "no_data_share": max(0.0, 1 - covered_s / 60 / total),
         }
     return out
@@ -141,7 +145,8 @@ def _next_up(t: int, stop: list[tuple[int, int]]) -> int:
 
 
 def _advance(t: int, work: int, stop: list[tuple[int, int]]) -> int:
-    """The time at which `work` up-minutes have passed since `t` (t itself when work is 0)."""
+    """The time at which `work` up-minutes have passed since `t`. With no work it returns t, or
+    the end of the stop t lies in when work is positive."""
     t = _next_up(t, stop) if work > 0 else t
     for a, b in stop:
         if b <= t:
