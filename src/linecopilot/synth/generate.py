@@ -7,14 +7,16 @@ deterministic: the same anchors and seed give the same rows and the same content
 Calendar: the horizon is 14 days from Monday 2026-01-05 00:00 UTC. This is a synthetic calendar;
 it has nothing to do with the real PIADE dates (planning uses real rates, replay uses real stops).
 
-Material need date: an order needs all its materials on hand at its release_at. A receipt due
-exactly at release_at counts as in time.
+Material need date (design 10.2): the order's due_at minus its processing minutes on the fastest
+eligible machine at rate x availability, rounded up to whole minutes. A receipt due exactly at
+the need date counts as in time. Subassemblies are never reported as shortages: their stock is
+netted and the remainder explodes to raw materials, which are the reported (material, order).
 
 Planted cases (each on its own product and dedicated materials, ordered exactly once):
   plain       stock covers 40% of the need, no receipt.
-  timing      stock covers 30%, the receipt that would cover the rest lands 2 days after release.
-  timing decoy  same stock, but the receipt lands before release (decoy 1) or exactly at it
-              (decoy 2): a stock-below-demand rule flags it, there is no shortage.
+  timing      stock covers 30%, the receipt covering the rest lands 1 day after the need date.
+  timing decoy  same stock, but the receipt lands 1 day before the need date (decoy 1) or exactly
+              on it (decoy 2): a stock-below-demand rule flags it, there is no shortage.
   level_two   product -> subassembly (60% in stock) -> raw (stock covers 50% of the raw the
               uncovered 40% of the subassembly needs, which is 80% of the order quantity). Only
               exploding below the first level and netting subassembly stock finds the raw material.
@@ -118,6 +120,11 @@ def _mean_rate(data: SynthData, anchors: Anchors, family: str) -> float:
     return sum(rates) / len(rates)
 
 
+def need_at(due_at: datetime, quantity: int, best_rate_per_hour: float) -> datetime:
+    """Need date: due minus processing minutes at the fastest eligible machine's effective rate."""
+    return due_at - timedelta(minutes=math.ceil(quantity / best_rate_per_hour * 60))
+
+
 def load_factor(data: SynthData, anchors: Anchors) -> float:
     """Nominal processing hours (quantity over the mean rate of the eligible machines, no
     changeovers) divided by the horizon capacity of all machines at their anchored availability."""
@@ -182,7 +189,7 @@ def generate(anchors: Anchors, seed: int = DEFAULT_SEED) -> SynthData:  # noqa: 
                         "from_family": a,
                         "to_family": b,
                         "same_product": False,
-                        "minutes": anchors.changeover_same_family_min,
+                        "minutes": max(1, anchors.changeover_same_family_min),
                         "basis": "real brick SETUPS-CHANGEOVERS p25",
                     }  # fmt: skip
                 )
@@ -192,7 +199,7 @@ def generate(anchors: Anchors, seed: int = DEFAULT_SEED) -> SynthData:  # noqa: 
                         "from_family": a,
                         "to_family": b,
                         "same_product": False,
-                        "minutes": anchors.changeover_cross_family_min,
+                        "minutes": max(1, anchors.changeover_cross_family_min),
                         "basis": "real brick SETUPS-CHANGEOVERS p75",
                     }  # fmt: skip
                 )
@@ -277,9 +284,11 @@ def generate(anchors: Anchors, seed: int = DEFAULT_SEED) -> SynthData:  # noqa: 
         it["order_id"] = oid
         qty = max(100, int(round(it["w"] * scale / 100.0)) * 100)
         sp = it["special"]
-        day = rng.randint(3, 7) if sp else rng.randint(0, 6)
+        day = rng.randint(3, 6) if sp else rng.randint(0, 6)
         release = HORIZON_START + timedelta(days=day, hours=rng.choice((0, 6, 12, 18)))
-        due = release + timedelta(days=rng.randint(4, 8), hours=rng.choice((0, 6, 12, 18)))
+        # planted orders get a long release-to-due gap so their need date sits after release
+        days = rng.randint(6, 8) if sp else rng.randint(4, 8)
+        due = release + timedelta(days=days, hours=rng.choice((0, 6, 12, 18)))
         due = min(due, HORIZON_END)
         note = notes[noted.index(i)] if i in noted else None
         d.customer_order.append(
@@ -294,6 +303,11 @@ def generate(anchors: Anchors, seed: int = DEFAULT_SEED) -> SynthData:  # noqa: 
             }
         )
         it["qty"], it["release"] = qty, release
+        eff = [
+            anchors.rates[m] * round(anchors.availability[m], 6)
+            for m in _eligible(machines, family[it["product_id"]])
+        ]
+        it["need"] = need_at(due, qty, max(eff))
 
     # Gross demand of the regular materials (all regular orders), to stock them comfortably.
     def explode(parent: str, qty: float, acc: dict[str, float]) -> None:
@@ -321,12 +335,12 @@ def generate(anchors: Anchors, seed: int = DEFAULT_SEED) -> SynthData:  # noqa: 
                 }
             )
 
-    # Plant the shortage cases relative to each order's quantity and release.
+    # Plant the shortage cases relative to each order's quantity and need date.
     for it in items:
         sp = it["special"]
         if not sp:
             continue
-        q, rel, tag, kind = it["qty"], it["release"], sp["tag"], sp["kind"]
+        q, rel, tag, kind = it["qty"], it["need"], sp["tag"], sp["kind"]
         note = ""
         if kind == "plain":
             mat = f"RM-{tag}"
@@ -336,9 +350,9 @@ def generate(anchors: Anchors, seed: int = DEFAULT_SEED) -> SynthData:  # noqa: 
             mat = f"RM-{tag}"
             stock[mat] = float(round(0.3 * q))
             receipts.append(
-                {"material_id": mat, "qty": float(q), "due_at": rel + timedelta(days=2)}
+                {"material_id": mat, "qty": float(q), "due_at": rel + timedelta(days=1)}
             )
-            note = "receipt lands 2 days after the need date"
+            note = "receipt lands 1 day after the need date"
         elif kind == "timing":
             mat = f"RM-{tag}"
             stock[mat] = float(round(0.3 * q))

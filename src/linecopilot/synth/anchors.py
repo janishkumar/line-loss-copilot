@@ -1,47 +1,63 @@
 """Real anchors for the synthetic generator, read from the database at generation time.
 
-Rates come from mart.piade_ideal_rate (p95, packages per hour). Availability is
-1 - stopped seconds / window seconds from PIADE stop episodes using only data before CUTOFF, so
-nothing from the replay period (on or after 2021-07-01) leaks into a plan input. Changeover
-minutes are the p25 and p75 of the brick line's SETUPS-CHANGEOVERS stops.
+Every anchor uses only rows that start before the cutoff (default 2021-07-01), so nothing from
+the replay period reaches a plan input. The cutoff is a parameter so a test can show that.
+
+- Rate: p95 of set speed over production intervals with speed above zero (packages per hour).
+- Availability: 1 - stopped seconds / covered seconds. Covered seconds are the summed durations
+  of the machine's PIADE state intervals (clipped at the cutoff); idle and planned off time
+  count as available, and gaps with no data are not in the denominator. The idle, off and gap
+  shares are recorded next to the figure.
+- A machine with no pre-cutoff data gets the median of the other machines' values, recorded.
+- Changeover minutes: p25 and p75 of the brick line's SETUPS-CHANGEOVERS stops (a different
+  process, brick not PIADE), floored at 1 minute.
 """
 
 from __future__ import annotations
 
+import statistics
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 import psycopg
 
 CUTOFF = datetime(2021, 7, 1, tzinfo=UTC)
-DEFAULT_AVAILABILITY = 0.90  # only if the database holds no PIADE events at all
+DEFAULT_AVAILABILITY = 0.90  # only if the database holds no pre-cutoff PIADE data at all
 
-RATE_SQL = "select machine_id, p95 from mart.piade_ideal_rate where p95 is not null order by 1"
+MACHINES_SQL = "select distinct machine_id from core.event where source_system = 'piade' order by 1"
 
-# Window = first PIADE event of the machine to the cutoff (or its last event if that is earlier).
-# Stopped seconds: episodes that start before the cutoff, clipped so none runs past it.
-AVAILABILITY_SQL = """
-with cov as (
-    select machine_id,
-           min(start_ts) as t0,
-           least(max(end_ts), %(cutoff)s::timestamptz) as t1
-    from core.event
-    where source_system = 'piade' and start_ts < %(cutoff)s
-    group by machine_id
-), stopped as (
-    select machine_id,
-           sum(least(duration_s, extract(epoch from %(cutoff)s::timestamptz - start_ts))) as s
-    from mart.stop_episode
-    where source_system = 'piade' and start_ts < %(cutoff)s
-    group by machine_id
-)
-select c.machine_id, c.t0, c.t1, extract(epoch from c.t1 - c.t0) as window_s,
-       coalesce(s.s, 0) as stopped_s
-from cov c left join stopped s using (machine_id)
-order by 1
+RATE_SQL = """
+select machine_id,
+       percentile_cont(0.95) within group (order by speed) filter (where speed > 0) as p95
+from mart.piade_interval_counts
+where source_state = 'production' and start_ts < %(cutoff)s
+group by machine_id
 """
 
-# Same-family (p25) and cross-family (p75) changeover minutes from real brick stops.
+COVERED_SQL = """
+select machine_id,
+       min(start_ts) as t0,
+       least(max(end_ts), %(cutoff)s::timestamptz) as t1,
+       sum(d) as covered_s,
+       coalesce(sum(d) filter (where source_state = 'idle'), 0) as idle_s,
+       coalesce(sum(d) filter (where source_state = 'scheduled_downtime'), 0) as off_s
+from (
+    select machine_id, source_state, start_ts, end_ts,
+           least(duration_s, extract(epoch from %(cutoff)s::timestamptz - start_ts)) as d
+    from mart.piade_interval_counts
+    where start_ts < %(cutoff)s
+) x
+group by machine_id
+"""
+
+STOPPED_SQL = """
+select machine_id,
+       sum(least(duration_s, extract(epoch from %(cutoff)s::timestamptz - start_ts))) as stopped_s
+from mart.stop_episode
+where source_system = 'piade' and start_ts < %(cutoff)s
+group by machine_id
+"""
+
 CHANGEOVER_SQL = """
 select count(*),
        percentile_cont(0.25) within group (order by duration_s),
@@ -62,59 +78,68 @@ class Anchors:
     sources: dict = field(default_factory=dict)
 
 
-def load_anchors(conn: psycopg.Connection) -> Anchors:
-    rates = {m: float(r) for m, r in conn.execute(RATE_SQL).fetchall()}
+def load_anchors(conn: psycopg.Connection, cutoff: datetime = CUTOFF) -> Anchors:
+    p = {"cutoff": cutoff}
+    machines = [r[0] for r in conn.execute(MACHINES_SQL).fetchall()]
+    rate = {m: float(v) for m, v in conn.execute(RATE_SQL, p).fetchall() if v is not None}
+    stopped = {m: float(v) for m, v in conn.execute(STOPPED_SQL, p).fetchall()}
     avail: dict[str, float] = {}
-    windows: dict[str, str] = {}
-    for m, t0, t1, window_s, stopped_s in conn.execute(
-        AVAILABILITY_SQL, {"cutoff": CUTOFF}
-    ).fetchall():
-        if m in rates and window_s and window_s > 0:
-            avail[m] = max(0.0, min(1.0, 1 - float(stopped_s) / float(window_s)))
-            windows[m] = (
-                f"{t0.date().isoformat()}..{t1.date().isoformat()} (before {CUTOFF.date()})"
-            )
-    # A machine with no data before the cutoff falls back to its availability over all its data,
-    # and failing that to the mean of the other machines; the window records which.
-    missing = [m for m in rates if m not in avail]
-    if missing:
-        rows = conn.execute(
-            """
-            with cov as (select machine_id, min(start_ts) t0, max(end_ts) t1 from core.event
-                         where source_system = 'piade' group by 1),
-            stopped as (select machine_id, sum(duration_s) s from mart.stop_episode
-                        where source_system = 'piade' group by 1)
-            select c.machine_id, c.t0, c.t1, extract(epoch from c.t1 - c.t0), coalesce(s.s, 0)
-            from cov c left join stopped s using (machine_id)
-            """
-        ).fetchall()
-        for m, t0, t1, window_s, stopped_s in rows:
-            if m in missing and window_s and window_s > 0:
-                avail[m] = max(0.0, min(1.0, 1 - float(stopped_s) / float(window_s)))
-                windows[m] = (
-                    f"{t0.date().isoformat()}..{t1.date().isoformat()} "
-                    f"(fallback: all data, none before {CUTOFF.date()})"
-                )
-    for m in rates:
+    window: dict[str, str] = {}
+    stats: dict[str, dict] = {}
+    for m, t0, t1, covered, idle, off in conn.execute(COVERED_SQL, p).fetchall():
+        covered = float(covered or 0)
+        if covered <= 0:
+            continue
+        span = (t1 - t0).total_seconds()
+        st = stopped.get(m, 0.0)
+        avail[m] = max(0.0, min(1.0, 1 - st / covered))
+        stats[m] = {
+            "covered_s": covered,
+            "stopped_s": st,
+            "idle_share": float(idle) / covered,
+            "off_share": float(off) / covered,
+            "gap_share": max(0.0, 1 - covered / span) if span > 0 else 0.0,
+        }
+        window[m] = (
+            f"{t0.date().isoformat()}..{t1.date().isoformat()} (before {cutoff.date()}); "
+            f"idle {stats[m]['idle_share']:.3f}, planned off {stats[m]['off_share']:.3f}, "
+            f"gaps {stats[m]['gap_share']:.3f} of the span"
+        )
+    if not rate:
+        raise ValueError(f"no PIADE production data before {cutoff.date()}: cannot anchor rates")
+    basis = {m: f"p95 of set speed, production rows before {cutoff.date()}" for m in rate}
+    med_rate = statistics.median(rate.values())
+    known_avail = list(avail.values())
+    med_avail = statistics.median(known_avail) if known_avail else DEFAULT_AVAILABILITY
+    fb = f"fallback: median of the other machines (no data before {cutoff.date()})"
+    for m in machines:
+        if m not in rate:
+            rate[m] = med_rate
+            basis[m] = fb
         if m not in avail:
-            known = list(avail.values())
-            avail[m] = sum(known) / len(known) if known else DEFAULT_AVAILABILITY
-            windows[m] = "fallback: mean of other machines" if known else "fallback: default 0.90"
+            avail[m] = med_avail
+            window[m] = fb if known_avail else f"fallback: default {DEFAULT_AVAILABILITY}"
+    for m in list(avail):  # machines seen only in the interval table
+        if m not in rate:
+            rate[m] = med_rate
+            basis[m] = fb
     n, p25, p75 = conn.execute(CHANGEOVER_SQL).fetchone()
     if n:
-        same, cross = round(float(p25) / 60), round(float(p75) / 60)
+        same, cross = max(1, round(float(p25) / 60)), max(1, round(float(p75) / 60))
     else:
         same, cross = DEFAULT_CHANGEOVER_MIN
     cross = max(cross, same)
     return Anchors(
-        rates=rates,
-        availability=avail,
+        rates=dict(sorted(rate.items())),
+        availability=dict(sorted(avail.items())),
         changeover_same_family_min=same,
         changeover_cross_family_min=cross,
         sources={
-            "rate": "mart.piade_ideal_rate.p95 (packages per hour)",
-            "availability_window": windows,
-            "availability_cutoff": CUTOFF.isoformat(),
+            "rate": f"p95 set speed, production rows before {cutoff.date()} (packages per hour)",
+            "rate_basis": dict(sorted(basis.items())),
+            "availability_window": dict(sorted(window.items())),
+            "availability_stats": dict(sorted(stats.items())),
+            "availability_cutoff": cutoff.isoformat(),
             "changeover": (
                 f"brick SETUPS-CHANGEOVERS stops, n={n}, p25/p75 rounded to minutes"
                 if n

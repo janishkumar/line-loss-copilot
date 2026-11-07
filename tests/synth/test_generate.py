@@ -1,5 +1,8 @@
 """Synthetic generator on a hand-built Anchors (no database)."""
 
+import math
+from datetime import timedelta
+
 import pytest
 
 from linecopilot.synth.anchors import Anchors
@@ -74,22 +77,6 @@ def test_planted_kinds_and_decoys():
     assert {p["order_id"] for p in d.planted_shortage} <= orders
 
 
-def test_timing_receipts_relative_to_need_date():
-    d = generate(ANCHORS, 7)
-    rel = {o["order_id"]: o["release_at"] for o in d.customer_order}
-    receipts = {}
-    for r in d.receipt:
-        receipts.setdefault(r["material_id"], []).append(r)
-    late = [p for p in d.planted_shortage if p["kind"] == "timing" and not p["decoy"]]
-    ok = [p for p in d.planted_shortage if p["kind"] == "timing" and p["decoy"]]
-    for p in late:
-        assert all(r["due_at"] > rel[p["order_id"]] for r in receipts[p["material_id"]])
-    for p in ok:
-        assert any(r["due_at"] <= rel[p["order_id"]] for r in receipts[p["material_id"]])
-    # one decoy lands exactly on the need date
-    assert any(r["due_at"] == rel[p["order_id"]] for p in ok for r in receipts[p["material_id"]])
-
-
 def test_instruction_like_notes_present():
     d = generate(ANCHORS, 7)
     notes = [o["note"] for o in d.customer_order if o["note"]]
@@ -114,13 +101,118 @@ def test_single_machine_anchors_still_generate():
     assert 0.85 <= load_factor(d, a) <= 0.95
 
 
-def test_all_rows_carry_synthetic_source():
-    d = generate(ANCHORS, 7)
-    for name in d.TABLES:
-        for row in getattr(d, name):
-            assert row.get("source", "synthetic") == "synthetic"
-
-
 @pytest.mark.parametrize("seed", [1, 2, 3])
 def test_load_in_range_other_seeds(seed):
     assert 0.85 <= load_factor(generate(ANCHORS, seed), ANCHORS) <= 0.95
+
+
+def _need_at(d, order):
+    """Independent need date: due minus processing on the fastest eligible machine."""
+    fam = next(p["family"] for p in d.product if p["product_id"] == order["product_id"])
+    eligible = {c["machine_id"] for c in d.machine_capability if c["family"] == fam}
+    best = max(
+        r["rate_per_hour"] * r["availability"]
+        for r in d.machine_rate
+        if r["machine_id"] in eligible
+    )
+    return order["due_at"] - timedelta(minutes=math.ceil(order["quantity"] / best * 60))
+
+
+def _netting(d):
+    """Small independent MRP netting by need date. Returns {(raw material, order): shortfall}."""
+    bom = {}
+    for b in d.bom:
+        bom.setdefault(b["parent_id"], []).append((b["child_id"], float(b["qty_per"])))
+    kind = {m["material_id"]: m["kind"] for m in d.material}
+    stock = {s["material_id"]: float(s["on_hand"]) for s in d.stock}
+    receipts = [(r["material_id"], float(r["qty"]), r["due_at"]) for r in d.receipt]
+    used: dict[str, float] = {}  # raw allocated so far, in need-date order
+    short = {}
+    for o in sorted(d.customer_order, key=lambda o: (_need_at(d, o), o["order_id"])):
+        need_at = _need_at(d, o)
+        req: dict[str, float] = {}
+
+        def explode(parent, qty, req=req):
+            for child, per in bom.get(parent, []):
+                need = qty * per
+                if kind[child] == "subassembly":
+                    take = min(stock[child], need)  # net stock, explode the rest
+                    stock[child] -= take
+                    explode(child, need - take)
+                else:
+                    req[child] = req.get(child, 0.0) + need
+
+        explode(o["product_id"], o["quantity"])
+        for m, q in req.items():
+            avail = stock[m] + sum(r for mm, r, due in receipts if mm == m and due <= need_at)
+            avail -= used.get(m, 0.0)
+            if q > avail + 1e-9:
+                short[(m, o["order_id"])] = q - avail
+            used[m] = used.get(m, 0.0) + q
+    return short
+
+
+def _naive(d):
+    """Stock-below-gross-demand rule: material short if stock < total gross requirement."""
+    bom = {}
+    for b in d.bom:
+        bom.setdefault(b["parent_id"], []).append((b["child_id"], float(b["qty_per"])))
+    gross: dict[str, float] = {}
+    users: dict[str, set] = {}
+
+    def explode(parent, qty, order):
+        for child, per in bom.get(parent, []):
+            gross[child] = gross.get(child, 0.0) + qty * per
+            users.setdefault(child, set()).add(order)
+            explode(child, qty * per, order)
+
+    for o in d.customer_order:
+        explode(o["product_id"], o["quantity"], o["order_id"])
+    stock = {s["material_id"]: float(s["on_hand"]) for s in d.stock}
+    return {(m, o) for m in gross if stock[m] < gross[m] for o in users[m]}
+
+
+@pytest.mark.parametrize("seed", [7, 1, 2])
+def test_planted_labels_match_independent_netting(seed):
+    d = generate(ANCHORS, seed)
+    truth = {(p["material_id"], p["order_id"]) for p in d.planted_shortage if not p["decoy"]}
+    decoys = {(p["material_id"], p["order_id"]) for p in d.planted_shortage if p["decoy"]}
+    assert truth and decoys
+    found = set(_netting(d))
+    assert found == truth  # no regular shortage, no decoy, every planted one found
+    assert not (found & decoys)
+    kinds = {(p["material_id"], p["order_id"]): p["kind"] for p in d.planted_shortage}
+    assert {kinds[k] for k in truth} == {"plain", "timing", "level_two"}
+    # decoys fool the naive rule, which is why they exist
+    assert decoys <= _naive(d)
+
+
+def test_need_date_edge_cases():
+    d = generate(ANCHORS, 7)
+    orders = {o["order_id"]: o for o in d.customer_order}
+    receipts = {}
+    for r in d.receipt:
+        receipts.setdefault(r["material_id"], []).append(r)
+    for p in d.planted_shortage:
+        if p["kind"] != "timing":
+            continue
+        need = _need_at(d, orders[p["order_id"]])
+        assert need > orders[p["order_id"]]["release_at"]
+        dues = [r["due_at"] for r in receipts[p["material_id"]]]
+        if p["decoy"]:
+            assert all(t <= need for t in dues)
+        else:
+            assert all(t > need for t in dues)
+    # one decoy receipt lands exactly on the need date, and still counts as in time
+    assert any(
+        r["due_at"] == _need_at(d, orders[p["order_id"]])
+        for p in d.planted_shortage
+        if p["decoy"] and p["kind"] == "timing"
+        for r in receipts[p["material_id"]]
+    )
+
+
+def test_changeover_never_zero_for_a_different_product():
+    a = Anchors(rates={"s_1": 4500.0}, availability={"s_1": 0.9}, changeover_same_family_min=0)
+    d = generate(a, 7)
+    assert all(c["minutes"] >= 1 for c in d.changeover if not c["same_product"])

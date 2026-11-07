@@ -109,6 +109,9 @@ BEGIN
         GRANT SELECT ON ALL TABLES IN SCHEMA synthetic TO linecopilot_agent;
         ALTER DEFAULT PRIVILEGES FOR ROLE linecopilot IN SCHEMA synthetic
             GRANT SELECT ON TABLES TO linecopilot_agent;
+        -- The answer key for the shortage eval; the owner reads it, the agent never does.
+        -- Last, so it overrides the grants above on every re-apply.
+        REVOKE ALL ON synthetic.planted_shortage FROM linecopilot_agent;
     END IF;
 END
 $$;
