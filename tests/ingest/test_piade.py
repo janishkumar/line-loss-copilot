@@ -60,6 +60,13 @@ def test_frame_matches_rows():
     assert parsed.frame.iloc[0]["alarm"] is None
 
 
+def test_frame_keeps_original_start_end_strings():
+    parsed = parse_piade_raw(FIX)
+    assert parsed.frame.iloc[0]["start_raw"] == "1577880000.000"
+    assert parsed.frame.iloc[0]["end_raw"] == "1577880600.000"
+    assert "start_raw" not in parsed.rows[0]
+
+
 def test_elapsed_mismatch_rejected(tmp_path):
     ok = row()
     bad = row(elapsed=600006)

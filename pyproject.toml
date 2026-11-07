@@ -5,6 +5,7 @@ description = "Data layer, OEE and copilot for a factory line"
 requires-python = ">=3.12"
 dependencies = [
     "pandas>=3.1.1",
+    "psycopg[binary]>=3.2",
     "pydantic-settings>=2.2",
 ]
 

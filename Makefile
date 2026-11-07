@@ -28,7 +28,7 @@ data:
 	uv run python -m linecopilot.ingest.download
 
 load:
-	@echo "not implemented yet (load raw tables)"
+	uv run python -m linecopilot.ingest.load
 
 dbt:
 	@echo "not implemented yet (build core and mart)"

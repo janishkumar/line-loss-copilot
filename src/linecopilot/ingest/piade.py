@@ -133,6 +133,9 @@ def parse_piade_raw(path: Path) -> ParsedFile:
     )
     frame["alarm"] = frame["alarm"].astype(object).where(frame["alarm"].notna(), None)
     rows = frame.to_dict("records")
+    # Original source strings for exact lineage; kept on the frame only (see raw.piade_raw).
+    frame["start_raw"] = good["start"]
+    frame["end_raw"] = good["end"]
     return ParsedFile(
         rows=rows,
         source_rows=[int(i) for i in frame.index],
