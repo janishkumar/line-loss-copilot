@@ -4,7 +4,9 @@ Mid-sized plants lose capacity to stops, changeovers, slow running, shortages an
 
 **Decision it supports:** where a line is losing time, and whether those numbers can be trusted before anyone builds an assistant on top of them. Stage 1 is the trusted layer: both real datasets in Postgres with row-level lineage, OEE computed from events, and a published-versus-recomputed check on the brick line.
 
-Status: stage 1 of 5 (data layer and true OEE). Stages 2 onward (copilot, approved actions, scheduling, visual inspection) are not built yet.
+Stage 2 adds the copilot on top: one read-only tool layer served by the API, an MCP server and a web chat on a local model, with loss ranking, MTTR and MTBF, repeat failures, operator-notes search, a next-hour stop-risk model, and evals that score answers and citations against SQL.
+
+Status: stages 1 and 2 of 5 (data layer and true OEE; copilot). Stages 3 onward (approved actions, scheduling, visual inspection) are not built yet.
 
 ## Stage 1 results
 <!-- oee:start -->
@@ -67,6 +69,48 @@ Assumptions:
 Details and the reasoning behind each choice are in `docs/data-notes.md`. Regenerate with `make validate-oee && make report`.
 <!-- oee:end -->
 
+## Stage 2 results
+
+### Copilot evals
+
+<!-- copilot-evals:start -->
+Each row is one runner and one model; rows are never averaged. Results from a local model are labelled with its name. Accuracy is scored against an answer key computed in SQL, apart from the tool code. Citation support is the share of cited event ids that belong to the answer key's evidence set.
+
+| Runner | Model | Version | Run date (UTC) | Question set | Accuracy, all | Answerable | Unanswerable (says not available) | Cited rows supporting the answer | ANSWER line parsed | Context filled | Before/after facts found | Before/after wrong claims |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Local model, with tools | not run yet | - | - | - | - | - | - | - | - | - | - | - |
+| Local model, no tools | not run yet | - | - | - | - | - | - | - | - | - | - | - |
+| Claude through MCP, with tools | not run yet | - | - | - | - | - | - | - | - | - | - | - |
+| Claude, no tools | not run yet | - | - | - | - | - | - | - | - | - | - | - |
+
+How to read it:
+
+- The answer key reads the same dbt marts as the tools (`mart.stop_episode`, the OEE marts), so a bug in a mart would be shared by the tools and the key. The dbt tests guard the marts, and `make check-questions` recounts stop count and lost seconds per reason from `core.event` for one brick month and one PIADE month and checks they match `mart.stop_episode`. Read the accuracy as model plus tools reproducing the marts, not as an end-to-end proof.
+- The scope and month hints in the tool descriptions and the fixed sentence asking for a final `ANSWER:` line were added after smoke runs on 5 questions from this question set. They apply to every runner, with and without tools.
+- Before/after facts are scored only when every reading agrees: totals also per shift, ratios also without the 13 October 2025 days whose published planned time is not accounted for. The brick file names (`afterLSS`) in citations reveal that an intervention happened, not its results.
+- Context filled counts questions where a local-model call came within 256 tokens of its context window, where Ollama cuts the prompt without an error.
+- Per-question detail: `evals/results/answers_*.md` and `before_after_*.md`. Regenerate with `make eval-ollama` or `make eval-claude`, then `make report`.
+<!-- copilot-evals:end -->
+
+### Next-hour stop risk (PIADE)
+
+<!-- stop-risk:start -->
+Real PIADE data only. Generated 2026-11-07T05:51:09Z with scikit-learn 1.9.1, feature list hash `e28113e96629a2ca`. Split by time: train t < 2021-07-01, validation 2021-07-01 <= t < 2021-10-01, test t >= 2021-10-01. The model was selected on validation PR-AUC; the numbers below are the test split. A long stop is a stop episode of 600 s or more. Compare PR-AUC with the base rate, not with 0. Alert volume: the top 3 (default) or top 1 hours per machine per 8 h shift.
+
+| Target | Model | Test base rate | PR-AUC | Precision, top 3 | Recall, top 3 | Precision, top 1 | Recall, top 1 |
+|---|---|---|---|---|---|---|---|
+| long | logistic | 0.055 | 0.170 | 0.062 | 0.467 | 0.063 | 0.163 |
+| long | hist_gb (served) | 0.055 | 0.181 | 0.067 | 0.511 | 0.067 | 0.173 |
+| long | persistence | 0.055 | 0.113 | 0.059 | 0.445 | 0.037 | 0.097 |
+| long | hour_of_week | 0.055 | 0.107 | 0.065 | 0.493 | 0.078 | 0.203 |
+| any | logistic | 0.508 | 0.851 | 0.611 | 0.502 | 0.661 | 0.185 |
+| any | hist_gb (served) | 0.508 | 0.870 | 0.620 | 0.509 | 0.663 | 0.186 |
+| any | persistence | 0.508 | 0.712 | 0.546 | 0.448 | 0.540 | 0.152 |
+| any | hour_of_week | 0.508 | 0.723 | 0.561 | 0.461 | 0.592 | 0.166 |
+
+persistence and hour_of_week are the baselines. Per-machine results, the observed-only figures and the leakage checks are in [evals/results/stop_risk.md](evals/results/stop_risk.md).
+<!-- stop-risk:end -->
+
 ## Assumptions
 
 - PIADE has no stated ideal rate. Performance rests on an estimate (a percentile of the set `speed` per machine), shown at p90, p95 and p99.
@@ -94,11 +138,11 @@ All three datasets are licensed CC BY 4.0. Raw files are not in this repository;
 |---|---|---|
 | PIADE machine intervals, alarms, counters | Real | 1 |
 | Brick line published OEE and stop log | Real | 1 |
-| Operator notes (Greek, original text kept) | Real | 1 (loaded; search comes in stage 2) |
+| Operator notes (Greek, original text kept beside a labelled machine translation) | Real | 1 (loaded), 2 (search) |
 | VisA images | Real | 5 |
 | Orders, products, BOMs, stock, supplier lead times, changeovers, demo users | Synthetic, generated by a seeded script, own schema, `source` column, badged in the app | 3 to 4 (none exist yet) |
 
-Stage 1 contains no synthetic data.
+Stages 1 and 2 contain no synthetic data.
 
 ## What didn't work (and what replaced it)
 
@@ -141,7 +185,8 @@ Needs Docker, uv, and Node 24 (Node only for local web work).
 
 ```
 make demo-stage1   # db, api and web up; download data; load; dbt build; validation report
-make report        # rewrite the results section above from evals/results/
+make demo-stage2   # demo-stage1, then the stop-risk models, so every page has data
+make report        # rewrite the results sections above from evals/results/
 make train-risk    # next-hour stop-risk models on PIADE (about 20 s)
 make mcp           # MCP server over stdio
 make lint          # ruff
@@ -152,7 +197,7 @@ make down
 
 Raw tables are created with `CREATE TABLE IF NOT EXISTS`, so after a schema change recreate the database volume (`docker compose down -v`) and reload.
 
-Then open http://localhost:8080 (overview, validation, evidence for a shift). The API is on http://localhost:8000.
+Then open http://localhost:8080 (overview, validation, evidence, losses, reliability, notes, stop risk, chat). The API is on http://localhost:8000. Both ports are bound to 127.0.0.1 only. The chat needs Ollama on the host (`LINECOPILOT_CHAT_MODEL`, default `qwen2.5:7b-instruct`).
 
 More: [docs/data-notes.md](docs/data-notes.md) (data findings and how each number is reproduced), [docs/design.md](docs/design.md) (design for all stages).
 
