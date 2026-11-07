@@ -185,6 +185,8 @@ claude mcp add linecopilot --env PYTHONPATH=src -- uv run --directory /path/to/l
 
 The tools then appear as `mcp__linecopilot__<tool>`, for example `mcp__linecopilot__get_oee`.
 
+Optional: set `LINECOPILOT_MCP_USER` to a demo user id (for example `sup.a`) in the `env` block to also get the propose tools (`preview_*`, `propose_*`, `list_my_proposals`), which act on behalf of that user through the restricted agent database role (`LINECOPILOT_AGENT_DB_URL`). They only create pending proposals; a different person approves them in the web app, and there is no approve tool. With the variable unset, or naming the agent or an unknown user, the server stays read-only and prints one line to stderr saying why.
+
 ## Run it
 
 Needs Docker, uv, and Node 24 (Node only for local web work).

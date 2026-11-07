@@ -5,7 +5,8 @@ from linecopilot.mcp_server.server import build_server
 
 
 def main() -> None:
-    build_server(get_settings().database_url).run("stdio")
+    s = get_settings()
+    build_server(s.database_url, s.agent_database_url, s.mcp_user).run("stdio")
 
 
 if __name__ == "__main__":

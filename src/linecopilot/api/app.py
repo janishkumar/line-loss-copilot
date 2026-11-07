@@ -114,14 +114,9 @@ def create_app(
 
     Conn = Annotated[psycopg.Connection, Depends(get_conn)]
     origins = {o.strip() for o in settings.web_origins.split(",") if o.strip()}
-    app.include_router(
-        make_router(
-            url,
-            agent_db_url or settings.agent_database_url,
-            ActionService(load_policy(settings.policy_path)),
-            origins,
-        )
-    )
+    agent_url = agent_db_url or settings.agent_database_url
+    action_service = ActionService(load_policy(settings.policy_path))
+    app.include_router(make_router(url, agent_url, action_service, origins))
     chat_slots = threading.BoundedSemaphore(CHAT_MAX_CONCURRENT)
 
     @app.exception_handler(RequestValidationError)
@@ -249,7 +244,12 @@ def create_app(
                 else None
             )
             return run_chat(
-                conn, client, [m.model_dump() for m in body.messages], action_ctx=action_ctx
+                conn,
+                client,
+                [m.model_dump() for m in body.messages],
+                action_ctx=action_ctx,
+                agent_conn_factory=lambda: psycopg.connect(agent_url, autocommit=True),
+                action_service=action_service,
             )
         except OllamaUnreachable as e:
             return JSONResponse(

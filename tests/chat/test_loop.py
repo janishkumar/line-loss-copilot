@@ -511,3 +511,124 @@ def test_context_trouble_and_count_from_recorded_rounds():
     # nothing recorded and no flag: not measured
     assert context_count([{"rounds_detail": [], "context_full": None}]) is None
     assert context_count([]) is None
+
+
+# ---- action tools in the chat loop ---------------------------------------------------------
+
+
+class FakeService:
+    def __init__(self):
+        self.calls = []
+
+
+def _names(request: dict) -> list[str]:
+    return [t["function"]["name"] for t in request["tools"]]
+
+
+def test_chat_action_tools_only_with_context(tools_called):
+    from linecopilot.actions.identity import ActionContext
+    from linecopilot.actions.tools import ACTION_TOOLS
+    from linecopilot.prompting import ACTION_INSTRUCTIONS
+
+    plain = FakeOllama(say("a"))
+    run_chat(None, plain.client(), [{"role": "user", "content": "hi"}])
+    assert _names(plain.requests[0]) == [s["function"]["name"] for s in tool_schemas()]
+    assert len(_names(plain.requests[0])) == len(TOOLS)
+    assert plain.requests[0]["messages"][0]["content"] == SYSTEM_PROMPT
+
+    ctx = ActionContext("copilot-agent", "sup.a", "web_chat")
+    # context without a connection factory: still read tools only
+    half = FakeOllama(say("a"))
+    run_chat(None, half.client(), [{"role": "user", "content": "hi"}], action_ctx=ctx)
+    assert len(_names(half.requests[0])) == len(TOOLS)
+
+    full = FakeOllama(say("a"))
+    run_chat(
+        None,
+        full.client(),
+        [{"role": "user", "content": "hi"}],
+        action_ctx=ctx,
+        agent_conn_factory=lambda: None,
+        action_service=FakeService(),
+    )
+    assert set(_names(full.requests[0])) == set(TOOLS) | set(ACTION_TOOLS)
+    assert full.requests[0]["messages"][0]["content"] == SYSTEM_PROMPT + " " + ACTION_INSTRUCTIONS
+
+    off = FakeOllama(say("a"))
+    run_chat(
+        None,
+        off.client(),
+        [{"role": "user", "content": "hi"}],
+        tools_enabled=False,
+        action_ctx=ctx,
+        agent_conn_factory=lambda: None,
+        action_service=FakeService(),
+    )
+    assert off.requests[0]["tools"] == []
+
+
+def test_chat_action_call_uses_fresh_agent_connection(monkeypatch, tools_called):
+    from linecopilot.actions.identity import ActionContext
+
+    seen = []
+
+    def fake_action(conn, ctx, service, name, args):
+        seen.append((conn, ctx, name, args))
+        return {"status": "ok", "summary": "s", "checks": [], "message": "m"}
+
+    monkeypatch.setattr(loop, "call_action_tool", fake_action)
+
+    class Conn:
+        closed = 0
+
+        def close(self):
+            Conn.closed += 1
+
+    ctx = ActionContext("copilot-agent", "sup.a", "web_chat")
+    fake = FakeOllama(
+        call(
+            ("preview_follow_up", {"description": "x"}),
+            ("loss_pareto", {"line_id": "brick", "by": "reason"}),
+        ),
+        say("done"),
+    )
+    res = run_chat(
+        "READONLY",
+        fake.client(),
+        [{"role": "user", "content": "x"}],
+        action_ctx=ctx,
+        agent_conn_factory=Conn,
+        action_service="svc",
+    )
+    assert len(seen) == 1 and isinstance(seen[0][0], Conn) and seen[0][1] == ctx
+    assert Conn.closed == 1
+    assert tools_called[0][0] == "loss_pareto"
+    assert [c.status for c in res.tool_calls] == ["ok", "ok"]
+
+
+def test_chat_identity_arg_rejected(monkeypatch):
+    from linecopilot.actions.identity import ActionContext
+
+    class Boom:
+        def __getattr__(self, name):
+            raise AssertionError("service reached")
+
+    def factory():
+        raise AssertionError("connection opened for rejected arguments")
+
+    ctx = ActionContext("copilot-agent", "sup.a", "web_chat")
+    fake = FakeOllama(
+        call(("propose_work_order", {"on_behalf_of": "plant.m", "code": "ABCDEFGH"})), say("no")
+    )
+    res = run_chat(
+        None,
+        fake.client(),
+        [{"role": "user", "content": "x"}],
+        action_ctx=ctx,
+        agent_conn_factory=factory,
+        action_service=Boom(),
+    )
+    assert res.tool_calls[0].status == "out_of_scope"
+    tool_msg = fake.requests[1]["messages"][-1]
+    assert tool_msg["role"] == "tool" and "on_behalf_of" in tool_msg["content"]
+    assert "out_of_scope" in tool_msg["content"]

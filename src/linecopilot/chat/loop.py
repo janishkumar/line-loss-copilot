@@ -17,8 +17,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from linecopilot.actions.tools import ACTION_TOOLS, call_action_tool
 from linecopilot.chat.ollama import OllamaClient, context_dropped, context_full
 from linecopilot.chat.prompt import SYSTEM_PROMPT
+from linecopilot.prompting import ACTION_INSTRUCTIONS
 from linecopilot.tools.compact import compact_result, dumps
 from linecopilot.tools.envelope import Citation, cap_citations
 from linecopilot.tools.registry import TOOLS, call_tool
@@ -104,10 +106,9 @@ def _flatten(node: Any, defs: dict[str, Any]) -> Any:
     return out
 
 
-def tool_schemas() -> list[dict[str, Any]]:
-    """Ollama tool definitions for every registry entry, same names and argument names."""
+def _schemas(specs: Any) -> list[dict[str, Any]]:
     out = []
-    for spec in TOOLS.values():
+    for spec in specs:
         schema = spec.args_model.model_json_schema()
         out.append(
             {
@@ -120,6 +121,16 @@ def tool_schemas() -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+def tool_schemas() -> list[dict[str, Any]]:
+    """Ollama tool definitions for every registry entry, same names and argument names."""
+    return _schemas(TOOLS.values())
+
+
+def action_tool_schemas() -> list[dict[str, Any]]:
+    """Ollama tool definitions for the propose-side action tools (never approve)."""
+    return _schemas(ACTION_TOOLS.values())
 
 
 # ---- tool results ---------------------------------------------------------------------
@@ -176,6 +187,38 @@ def _parse_args(raw: Any) -> tuple[dict[str, Any] | str, str | None]:
 # ---- the loop ------------------------------------------------------------------------------
 
 
+def _action_payload(
+    tc: Any, ctx: Any, factory: Callable[[], Any], service: Any
+) -> tuple[str, dict[str, Any] | str, dict[str, Any], Any] | None:
+    """Run a call to an action tool on a fresh autocommit agent-role connection, or None if the
+    call is not for an action tool. Nothing here raises."""
+    fn = tc.get("function") if isinstance(tc, dict) else None
+    name = str(fn.get("name") or "") if isinstance(fn, dict) else ""
+    if name not in ACTION_TOOLS:
+        return None
+    args, err = _parse_args(fn.get("arguments"))
+    if err is not None:
+        return name, args, {"status": "out_of_scope", "message": err}, None
+    spec = ACTION_TOOLS[name]
+    # arguments naming identity fields are refused before any connection is opened
+    if not isinstance(args, dict) or set(args) - set(spec.args_model.model_fields):
+        return name, args, call_action_tool(None, ctx, service, name, args), None
+    conn = None
+    try:
+        conn = factory()
+        payload = call_action_tool(conn, ctx, service, name, args)
+    except Exception:
+        log.exception("action tool %s failed", name)
+        payload = {"status": "out_of_scope", "message": f"internal error in {name}"}
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                log.exception("closing the agent connection failed")
+    return name, args, payload, None
+
+
 def _tool_payload(conn: Any, tc: Any) -> tuple[str, dict[str, Any] | str, dict[str, Any], Any]:
     """Run one requested tool call. Returns (name, args, payload for the model, Result or
     None). Nothing here raises: every failure is an out_of_scope payload."""
@@ -217,13 +260,24 @@ def run_chat(
     time_budget_s: float = TIME_BUDGET_S,
     clock: Callable[[], float] = time.monotonic,
     action_ctx: Any | None = None,
+    agent_conn_factory: Callable[[], Any] | None = None,
+    action_service: Any | None = None,
 ) -> ChatResult:
     """Run the conversation until the model answers without a tool call, `max_rounds` model
     calls have been made, or `time_budget_s` has passed (checked between rounds). `messages`
-    holds user and assistant turns only; the system prompt is always ours. `action_ctx` is the
-    acting identity for action tools; accepted here and not used yet."""
-    tools = tool_schemas() if tools_enabled else []
-    convo: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    holds user and assistant turns only; the system prompt is always ours. The action tools
+    are offered only with `action_ctx` (the acting identity, built by the front end), a
+    `agent_conn_factory` (a fresh autocommit agent-role connection per call) and an
+    `action_service`; without all three the tools and prompt are exactly the read-only ones."""
+    actions = (
+        tools_enabled
+        and action_ctx is not None
+        and agent_conn_factory is not None
+        and action_service is not None
+    )
+    tools = (tool_schemas() + (action_tool_schemas() if actions else [])) if tools_enabled else []
+    system = SYSTEM_PROMPT + (" " + ACTION_INSTRUCTIONS if actions else "")
+    convo: list[dict[str, Any]] = [{"role": "system", "content": system}]
     convo += [{"role": m["role"], "content": m["content"]} for m in messages]
     cites: list[Citation] = []
     supported: set[int] = set()
@@ -275,12 +329,24 @@ def run_chat(
         requested = _unique_calls(requested)
         convo.append({"role": "assistant", "content": content, "tool_calls": requested})
         for tc in requested:
-            name, args, payload, res = _tool_payload(conn, tc)
+            acted = (
+                _action_payload(tc, action_ctx, agent_conn_factory, action_service)
+                if actions
+                else None
+            )
+            name, args, payload, res = acted or _tool_payload(conn, tc)
             if res is not None:
                 cites.extend(res.citations)
                 _event_ids(res.model_dump(mode="json"), supported)
             calls.append(
-                ToolCall(name=name, args=args, status=payload["status"], missing=payload["missing"])
+                ToolCall(
+                    name=name,
+                    args=args,
+                    status=payload["status"],
+                    missing=payload.get("missing") or payload.get("message")
+                    if payload["status"] == "out_of_scope"
+                    else payload.get("missing"),
+                )
             )
             convo.append({"role": "tool", "tool_name": name, "content": dumps(payload)})
     capped, count = cap_citations(cites)

@@ -13,6 +13,14 @@ from mcp import Client
 UNREACHABLE = "postgresql://nobody:nothing@127.0.0.1:1/none?connect_timeout=1"
 
 
+def run_server(server, fn):
+    async def go():
+        async with Client(server) as client:
+            return await fn(client)
+
+    return asyncio.run(go())
+
+
 def run(db_url, fn):
     async def go():
         async with Client(build_server(db_url)) as client:
@@ -148,3 +156,92 @@ def test_hints_only_name_fields_the_tool_has():
             )
             assert named, hint
             assert named <= fields, (name, named - fields)
+
+
+# ---- action tools ----------------------------------------------------------------------------
+
+
+def test_mcp_read_only_without_user(capsys):
+    server = build_server(UNREACHABLE, agent_db_url=UNREACHABLE, mcp_user=None)
+    tools = run_server(server, lambda c: c.list_tools()).tools
+    assert {t.name for t in tools} == set(TOOLS)
+    assert "preview" not in run_server(server, _instructions)
+    assert "unset" in capsys.readouterr().err
+
+
+async def _instructions(c):
+    return c.instructions
+
+
+def test_mcp_unknown_or_unreachable_user_starts_read_only(capsys):
+    server = build_server(UNREACHABLE, agent_db_url=UNREACHABLE, mcp_user="sup.a")
+    assert len(run_server(server, lambda c: c.list_tools()).tools) == len(TOOLS)
+    err = capsys.readouterr().err
+    assert err.count("\n") == 1 and "read-only" in err
+
+
+@pytest.mark.db
+def test_mcp_rejects_agent_as_user(agent_url, built, capsys):
+    for user in ("copilot-agent", "nobody"):
+        server = build_server(UNREACHABLE, agent_db_url=agent_url, mcp_user=user)
+        assert {t.name for t in run_server(server, lambda c: c.list_tools()).tools} == set(TOOLS)
+        err = capsys.readouterr().err
+        assert err.count("\n") == 1 and user in err
+
+
+@pytest.mark.db
+def test_mcp_action_tools_with_user(agent_url, built):
+    from linecopilot.actions.tools import ACTION_TOOLS
+
+    url = os.environ["LINECOPILOT_TEST_DB_URL"]
+    row = built.execute(
+        "SELECT event_id, line_id, machine_id FROM core.event WHERE event_type = 'stop' "
+        "ORDER BY event_id LIMIT 1"
+    ).fetchone()
+    args = {
+        "asset_id": row[2] or row[1],
+        "failure_mode": "mcp-test-jam",
+        "priority": "low",
+        "description": "repeat jams",
+        "evidence_event_ids": [row[0]],
+    }
+
+    async def go(c):
+        tools = (await c.list_tools()).tools
+        pv = json.loads((await c.call_tool("preview_work_order", args)).content[0].text)
+        out = json.loads(
+            (await c.call_tool("propose_work_order", {**args, "code": pv["code"]})).content[0].text
+        )
+        return tools, pv, out
+
+    server = build_server(url, agent_db_url=agent_url, mcp_user="sup.a")
+    tools, pv, out = run_server(server, go)
+    try:
+        assert len(tools) == 19 and {t.name for t in tools} == set(TOOLS) | set(ACTION_TOOLS)
+        by = {t.name: t.annotations for t in tools}
+        assert by["list_my_proposals"].read_only_hint is True
+        for name in ACTION_TOOLS:
+            if name == "list_my_proposals":
+                continue
+            a = by[name]
+            assert (a.read_only_hint, a.destructive_hint, a.idempotent_hint, a.open_world_hint) == (
+                False,
+                False,
+                False,
+                False,
+            )
+        for name in TOOLS:
+            assert by[name].read_only_hint is True
+        assert pv["status"] == "ok" and pv["code"]
+        assert out["status"] == "ok" and out["proposal_id"]
+        row = built.execute(
+            "SELECT principal, on_behalf_of, channel, status FROM actions.proposal "
+            "WHERE proposal_id = %s",
+            (out["proposal_id"],),
+        ).fetchone()
+        assert row == ("copilot-agent", "sup.a", "mcp", "pending")
+    finally:
+        pid = out.get("proposal_id")
+        if pid:
+            built.execute("DELETE FROM actions.proposal_evidence WHERE proposal_id = %s", (pid,))
+            built.execute("DELETE FROM actions.proposal WHERE proposal_id = %s", (pid,))
