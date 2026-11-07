@@ -30,6 +30,13 @@ const repeats = {
 };
 
 describe("Losses", () => {
+  it("links a repeat chain to a prefilled work order draft", async () => {
+    mockFetch({ "/losses/pareto": pareto, "/losses/breakdown": breakdown, "/losses/repeats": repeats });
+    render(<MemoryRouter><Losses /></MemoryRouter>);
+    const link = await screen.findByRole("link", { name: "Draft work order" });
+    expect(link).toHaveAttribute("href", "/actions/new?asset=brick&events=1%2C2");
+  });
+
   it("renders pareto, breakdown and repeat rows with citation links", async () => {
     mockFetch({ "/losses/pareto": pareto, "/losses/breakdown": breakdown, "/losses/repeats": repeats });
     render(<MemoryRouter><Losses /></MemoryRouter>);

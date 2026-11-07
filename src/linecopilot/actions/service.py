@@ -652,9 +652,12 @@ class ActionService:
         ).fetchall()
         keys = [e["event_key"] for e in evidence]
         notes = cur.execute(
-            "SELECT e.event_key, n.event_id, n.original_text AS text, 'core.note' AS source "
-            "FROM core.note n JOIN core.event e USING (event_id) WHERE e.event_key = ANY(%s) "
-            "UNION ALL SELECT event_key, NULL, text, 'demo.injected_note' "
+            "SELECT e.event_key, n.event_id, n.original_text AS text, 'core.note' AS source, "
+            "t.translated_text AS translation, t.model_name AS translation_model "
+            "FROM core.note n JOIN core.event e USING (event_id) "
+            "LEFT JOIN core.note_translation t ON t.note_id = n.note_id "
+            "WHERE e.event_key = ANY(%s) "
+            "UNION ALL SELECT event_key, NULL, text, 'demo.injected_note', NULL, NULL "
             "FROM demo.injected_note WHERE event_key = ANY(%s) ORDER BY event_key, source",
             (keys, keys),
         ).fetchall()

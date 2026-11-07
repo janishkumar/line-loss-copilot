@@ -391,6 +391,7 @@ def test_injected_note_warns_only(service, agent, built, events, cleanup):
         assert detail["status"] == "pending"
         assert any(w["name"] == "instruction_like_text" for w in detail["warnings"])
         assert any(n["source"] == "demo.injected_note" for n in detail["notes"])
+        assert all({"translation", "translation_model"} <= n.keys() for n in detail["notes"])
         assert detail["evidence"][0]["present"] is True
     finally:
         built.execute("DELETE FROM demo.injected_note WHERE event_key = %s", (ev[1],))

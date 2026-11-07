@@ -56,3 +56,30 @@ td .badge { white-space: nowrap; }
 .chat .trace code { font-size: 0.8rem; word-break: break-all; }
 .chat-form { display: flex; gap: 0.5rem; align-items: flex-end; }
 .chat-form textarea { flex: 1; font: inherit; padding: 0.4rem 0.5rem; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; min-height: 3.2rem; }
+
+/* Stage 3: approvals, actions, audit */
+.top { flex-wrap: wrap; }
+.switcher { margin-left: auto; display: flex; gap: 0.6rem; align-items: center; font-size: 0.85rem; flex-wrap: wrap; }
+.checks { list-style: none; padding: 0; margin: 0.4rem 0 1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.checks li { border-left: 4px solid var(--line); background: var(--panel); padding: 0.3rem 0.7rem; border-radius: 4px; }
+.checks li.pass { border-left-color: #2e8b57; }
+.checks li.warn { border-left-color: #c79200; background: var(--warn-bg); color: var(--warn-fg); }
+.checks li.block { border-left-color: #c0392b; background: var(--block-bg); color: var(--block-fg); }
+.checks .level { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; }
+:root { --block-bg: #fde4e1; --block-fg: #6b1a12; }
+@media (prefers-color-scheme: dark) { :root { --block-bg: #3b1a17; --block-fg: #f5b5ad; } }
+.block-text { color: var(--block-fg); background: var(--block-bg); padding: 0 0.3rem; border-radius: 3px; }
+.notice.ok { background: var(--panel); color: var(--fg); border: 1px solid var(--line); }
+blockquote { margin: 0.5rem 0; padding: 0.3rem 0.8rem; border-left: 3px solid currentColor; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.85rem; }
+.args { display: grid; gap: 0.2rem; margin: 0; }
+.args div { display: grid; grid-template-columns: 11rem 1fr; gap: 0.5rem; }
+.args dt { color: var(--muted); }
+.args dd { margin: 0; white-space: pre-wrap; }
+.notes { padding-left: 1.1rem; }
+.notes li { margin-bottom: 0.6rem; }
+.note-text { white-space: pre-wrap; }
+.action-form { display: flex; flex-direction: column; gap: 0.7rem; max-width: 36rem; }
+.action-form label { display: flex; flex-direction: column; font-size: 0.85rem; color: var(--muted); gap: 0.2rem; }
+.action-form textarea { font: inherit; padding: 0.4rem 0.5rem; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; }
+.action-form button { align-self: flex-start; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }

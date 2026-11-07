@@ -32,3 +32,29 @@ export function mockFetch(routes: Record<string, unknown>) {
   vi.stubGlobal("fetch", fn);
   return fn;
 }
+
+export type ApiReply = [number, unknown];
+
+/** Stubs fetch for the approvals pages: `routes` maps "METHOD /path-substring" to a reply (or a
+ * function of the parsed body). Returns the mock so tests can inspect calls. */
+export function mockApi(routes: Record<string, ApiReply | ((body: unknown) => ApiReply)>) {
+  const fn = vi.fn(async (url: string, init?: RequestInit) => {
+    const method = init?.method ?? "GET";
+    const key = Object.keys(routes).find((k) => {
+      const [m, ...rest] = k.split(" ");
+      return m === method && String(url).includes(rest.join(" "));
+    });
+    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    const hit = key ? routes[key] : undefined;
+    const [status, data] = typeof hit === "function" ? hit(body) : (hit ?? [404, { detail: "no route" }]);
+    return { ok: status < 300, status, statusText: "", json: async () => data };
+  });
+  vi.stubGlobal("fetch", fn);
+  return fn;
+}
+
+export const demoUsers = [
+  { user_id: "sup.a", display_name: "Supervisor A", role: "shift_supervisor", source: "synthetic" },
+  { user_id: "sup.b", display_name: "Supervisor B", role: "shift_supervisor", source: "synthetic" },
+  { user_id: "pm.a", display_name: "Plant manager A", role: "plant_manager", source: "synthetic" },
+];

@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: demo-stage3 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -63,6 +63,18 @@ demo-stage1: up wait-db data load validate-oee
 demo-stage2: demo-stage1 train-risk
 	@echo "Web app: http://localhost:8080  API: http://localhost:8000/api/health"
 	@echo "Chat needs Ollama on the host; MCP server: make mcp"
+
+# Stage 2, then one clearly labelled synthetic injected note on a real repeat-failure stop.
+demo-stage3: demo-stage2
+	uv run python scripts/demo_injected_note.py
+	@echo "Open http://localhost:8080 , pick a demo user (top right), then Approvals."
+	@echo "Claude with propose tools: set LINECOPILOT_MCP_USER=sup.a in the MCP server env, for example"
+	@echo "  claude mcp add linecopilot --env PYTHONPATH=src --env LINECOPILOT_MCP_USER=sup.a -- uv run --directory /path/to/line-loss-copilot python -m linecopilot.mcp_server"
+	@echo "Then ask: draft a work order for the repeat stops on the machine named in the line above."
+	@echo "Remove the demo note with: make demo-note-remove"
+
+demo-note-remove:
+	uv run python scripts/demo_injected_note.py --remove
 
 # Machine-translate operator notes with a local Ollama model; appends to the dbt seed.
 translate-notes:

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -175,7 +176,7 @@ export default function Losses() {
             <table>
               <thead>
                 <tr><th>Machine</th><th>{r.data.key}</th><th className="num">Failures</th><th>From</th><th>To</th>
-                  <th className="num">Lost</th><th>Source</th></tr>
+                  <th className="num">Lost</th><th>Source</th><th /></tr>
               </thead>
               <tbody>
                 {r.data.chains.map((c, i) => (
@@ -187,6 +188,16 @@ export default function Losses() {
                     <td>{day(c.last_end)}</td>
                     <td className="num">{duration(c.lost_s)}</td>
                     <td><Citations count={c.citation_count} citations={c.citations} /></td>
+                    <td>
+                      <Link
+                        to={`/actions/new?${new URLSearchParams({
+                          asset: c.machine_id ?? c.line_id,
+                          events: [...new Set(c.citations.map((x) => x.event_id).filter((x) => x !== null))].join(","),
+                        })}`}
+                      >
+                        Draft work order
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
