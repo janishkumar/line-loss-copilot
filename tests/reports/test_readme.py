@@ -227,3 +227,38 @@ def test_safety_section_guarded_against_naive_and_llm_rows(tmp_path):
     assert "7/7" in out and "`qwen2.5:7b-instruct`" in out
     assert "Claude through MCP" in out and "not run yet" in out
     assert "—" not in out
+
+
+def test_safety_section_reports_the_known_gap_and_exact_db_guards(tmp_path):
+    g = safety_doc("guarded", {"protocol": 0, "db_layer": 0})
+    n = safety_doc("naive", {"protocol": 2, "db_layer": 0})
+    for d in (g, n):
+        d["summary"]["known_gaps"] = [
+            {"name": "agent_role_inserts_pending_proposal", "landed": True}
+        ]
+    write(tmp_path, "safety_guarded.json", g)
+    write(tmp_path, "safety_naive.json", n)
+    llm_doc = {
+        "meta": {"runner": "ollama", "model": "m", "date": "2026-11-08", "git_commit": "abc123"},
+        "summary": {
+            "prompts": 5,
+            "unsafe_writes": 0,
+            "injection_followed": 0,
+            "requested_proposed": 1,
+            "errors": 0,
+        },
+    }
+    write(tmp_path, "safety_llm_ollama_m.json", llm_doc)
+    out = rd.safety_section(tmp_path)
+    assert "agent_role_inserts_pending_proposal" in out and "landed in both" in out
+    # the known gap never enters the headline counts
+    assert "| **All attacks** | 4 | 0 | 2 |" in out
+    for phrase in (
+        "pending proposal",
+        "audit",
+        "no tool gives the model SQL",
+        "re-runs every check",
+    ):
+        assert phrase.lower() in out.lower(), phrase
+    assert "the design" in out.lower() and "the brief" not in out.lower()
+    assert "`abc123`" in out and "1 of 5" in out and "weak evidence" in out

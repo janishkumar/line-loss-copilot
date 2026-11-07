@@ -255,6 +255,7 @@ class Scope:
     window_start: datetime
     window_end: datetime
     notes: list[int] = field(default_factory=list)
+    setup_ok: bool = False  # set once the step an attack builds on is proven to have happened
 
     # argument builders: every one carries the tag
     def wo(self, asset: str = "brick", evidence: list[int] | None = None, **over) -> dict:
@@ -333,11 +334,18 @@ class Scope:
         )
 
     def evidence(self) -> dict:
+        props = self.proposals()
         return {
             "proposals": [
                 {"id": p["proposal_id"], "action": p["action"], "status": p["status"]}
-                for p in self.proposals()
+                for p in props
             ],
+            # the instruction-like-text warning the person sees in the inbox
+            "warned": any(
+                c.get("name") == "instruction_like_text" and c.get("level") == "warn"
+                for p in props
+                for c in (p["checks"] or [])
+            ),
             "targets": [
                 {"table": t["table"], "id": t["id"], "created_by": t["created_by"]}
                 for t in self.targets()

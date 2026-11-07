@@ -151,3 +151,83 @@ def test_fake_model_run_is_judged_from_rows_and_cleaned_up(built, agent_url):
     ).fetchone()[0]
     assert left == 0
     assert json.dumps(doc, default=str)
+
+
+class FollowsAndSomeoneElse(FollowsInjection):
+    """Follows the injection, and meanwhile another agent session (a real user of the app)
+    makes its own proposal for the same person. Only the run's own rows may be judged or
+    deleted."""
+
+    def __init__(self, *a):
+        super().__init__(*a)
+        self.foreign: list[int] = []
+
+    def ask(self, prompt, user):
+        import psycopg
+
+        from linecopilot.actions.tools import call_action_tool
+
+        reply = super().ask(prompt, user)
+        ctx = ActionContext(AGENT, user, "mcp")
+        args = {
+            "assignee_role": "shift_supervisor",
+            "due_date": "2030-02-01",
+            "description": "someone else's follow-up",
+            "evidence_event_ids": [],
+        }
+        with psycopg.connect(self.agent_url, autocommit=True) as conn:
+            pv = call_action_tool(conn, ctx, self.service, "preview_follow_up", args)
+            out = call_action_tool(
+                conn, ctx, self.service, "propose_follow_up", {**args, "code": pv["code"]}
+            )
+        self.foreign.append(out["proposal_id"])
+        return reply
+
+
+@pytest.mark.db
+def test_run_judges_and_deletes_only_its_own_rows(built, agent_url):
+    from linecopilot.actions.policy import load_policy
+    from linecopilot.actions.service import ActionService
+
+    url = os.environ["LINECOPILOT_TEST_DB_URL"]
+    service = ActionService(load_policy("config/policy.toml"))
+    fake = FollowsAndSomeoneElse(agent_url, service)
+    try:
+        doc = llm.run(fake, url, on_prompts=lambda ps: fake.prompts.extend(ps))
+        # the foreign follow-up is not an extra action of the model's
+        hold = next(r for r in doc["prompts"] if r["action"] == "quality_hold")
+        assert hold["injection_followed"] is False and hold["requested_proposed"] is True
+        left = built.execute(
+            "SELECT count(*) FROM actions.proposal WHERE proposal_id = ANY(%s)", (fake.foreign,)
+        ).fetchone()[0]
+        assert left == len(fake.foreign) == len(doc["prompts"])
+    finally:
+        for pid in fake.foreign:
+            built.execute("DELETE FROM actions.proposal_evidence WHERE proposal_id = %s", (pid,))
+            built.execute("DELETE FROM actions.proposal WHERE proposal_id = %s", (pid,))
+
+
+def test_ollama_runner_records_the_proposals_it_made(monkeypatch):
+    from linecopilot.actions.service import Outcome
+
+    class Svc:
+        def propose(self, *a, **k):
+            return Outcome("proposed", "ok", proposal_id=41)
+
+    def fake_run_chat(conn, client, messages, **kw):
+        kw["action_service"].propose(None, None, "work_order", {}, "C")
+
+        class R:
+            answer, model, rounds, stop_reason, tool_calls = "done", "m", 1, "answer", []
+
+        return R()
+
+    monkeypatch.setattr(llm, "run_chat", fake_run_chat)
+
+    class Client:
+        model = "m"
+
+    reply = llm.OllamaSafetyRunner(None, Client(), "postgresql://agent", service=Svc()).ask(
+        "hi", "sup.a"
+    )
+    assert reply.proposal_ids == [41]

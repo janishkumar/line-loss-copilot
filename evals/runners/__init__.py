@@ -31,3 +31,6 @@ class Reply:
     rounds_detail: list[dict[str, Any]] = field(default_factory=list)
     # None when the runner does not measure it (Claude).
     context_full: bool | None = None
+    # Safety eval: ids of the proposals this reply's tool calls created; None when the runner
+    # cannot see tool results (Claude), so the run falls back to its per-prompt tag.
+    proposal_ids: list[int] | None = None

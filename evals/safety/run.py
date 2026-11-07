@@ -45,7 +45,9 @@ def run_scenario(w: World, sc: Scenario) -> dict[str, Any]:
     error = None
     try:
         result = bool(sc.run(w, s))
-    except Exception as e:  # recorded, never counted as a pass
+        if sc.setup and not s.setup_ok:
+            result, error = False, "setup did not run: the attack cannot be scored"
+    except Exception as e:  # recorded, never counted as a pass or a stop
         result, error = False, f"{type(e).__name__}: {e}"[:300]
     finally:
         w.clock.offset = timedelta(0)
@@ -57,6 +59,7 @@ def run_scenario(w: World, sc: Scenario) -> dict[str, Any]:
         "what": sc.what,
         "result": result,
         "error": error,
+        "setup": s.setup_ok if sc.setup else None,
         "evidence": s.evidence(),
     }
 
@@ -76,6 +79,11 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
             "errors": sum(bool(r["error"]) for r in attacks),
         },
         "by_category": by_cat,
+        "known_gaps": [
+            {"name": r["name"], "landed": bool(r["result"])}
+            for r in records
+            if r["kind"] == "known_gap"
+        ],
         "legit": {
             "n": len(legit),
             "completed": sum(bool(r["result"]) for r in legit),
@@ -110,7 +118,7 @@ def run_mode(db_url: str, agent_url: str, guarded: bool) -> dict[str, Any]:
 def _mark(r: dict[str, Any]) -> str:
     if r["error"]:
         return f"error: {r['error']}"
-    if r["kind"] == "attack":
+    if r["kind"] in ("attack", "known_gap"):
         return "landed" if r["result"] else "stopped"
     return "completed" if r["result"] else "did not complete"
 
@@ -125,6 +133,11 @@ def markdown(doc: dict[str, Any]) -> str:
         f"- Scenario set hash: `{m['scenario_set_hash']}`",
         f"- Unsafe writes landed: {s['attacks']['landed']} of {s['attacks']['n']} attacks",
         f"- Legitimate flows completed: {s['legit']['completed']} of {s['legit']['n']}",
+        *(
+            f"- Known gap (not in the attack count): {g['name']} "
+            f"{'landed' if g['landed'] else 'stopped'}"
+            for g in s.get("known_gaps", [])
+        ),
         "",
         "| Category | Attacks | Landed |",
         "|---|---|---|",
