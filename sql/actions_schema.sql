@@ -112,6 +112,34 @@ CREATE TRIGGER audit_log_append_only
     BEFORE UPDATE OR DELETE ON actions.audit_log
     FOR EACH ROW EXECUTE FUNCTION actions.audit_log_guard();
 
+DROP TRIGGER IF EXISTS audit_log_no_truncate ON actions.audit_log;
+CREATE TRIGGER audit_log_no_truncate
+    BEFORE TRUNCATE ON actions.audit_log
+    FOR EACH STATEMENT EXECUTE FUNCTION actions.audit_log_guard();
+
+-- A code can only move from unused to used; nothing else about it may change, so a burned
+-- code cannot be revived.
+CREATE OR REPLACE FUNCTION actions.confirmation_code_guard() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF OLD.used_at IS NOT NULL
+       OR NEW.used_at IS NULL
+       OR (NEW.code_sha256, NEW.action, NEW.principal, NEW.on_behalf_of, NEW.payload_sha256,
+           NEW.expires_at, NEW.created_at)
+          IS DISTINCT FROM
+          (OLD.code_sha256, OLD.action, OLD.principal, OLD.on_behalf_of, OLD.payload_sha256,
+           OLD.expires_at, OLD.created_at) THEN
+        RAISE EXCEPTION 'confirmation_code is single-use: used_at may only be set once';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS confirmation_code_single_use ON actions.confirmation_code;
+CREATE TRIGGER confirmation_code_single_use
+    BEFORE UPDATE ON actions.confirmation_code
+    FOR EACH ROW EXECUTE FUNCTION actions.confirmation_code_guard();
+
 -- Restricted role the agent paths (MCP, chat) connect with. Roles are cluster-wide, so the
 -- create is guarded.
 DO $$
@@ -140,7 +168,16 @@ BEGIN
 END
 $$;
 
-GRANT INSERT ON actions.confirmation_code, actions.proposal, actions.proposal_evidence,
+-- The agent never sees the session token hashes.
+REVOKE ALL ON actions.web_session FROM linecopilot_agent;
+
+-- Proposal INSERT is column-level: status, decided_*, decision_note and target_id always take
+-- their defaults, so the agent cannot write a pre-approved row. The REVOKE removes any
+-- table-level grant left by an earlier version of this script.
+REVOKE INSERT ON actions.proposal FROM linecopilot_agent;
+GRANT INSERT (action, args, payload_sha256, summary, checks, principal, on_behalf_of, channel,
+    created_at) ON actions.proposal TO linecopilot_agent;
+GRANT INSERT ON actions.confirmation_code, actions.proposal_evidence,
     actions.audit_log TO linecopilot_agent;
 GRANT UPDATE (used_at) ON actions.confirmation_code TO linecopilot_agent;
 GRANT USAGE ON SEQUENCE actions.proposal_proposal_id_seq,

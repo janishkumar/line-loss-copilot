@@ -68,3 +68,9 @@ def test_action_context_is_frozen():
     assert ctx.principal == "copilot-agent"
     with pytest.raises(AttributeError):
         ctx.principal = "sup.a"  # type: ignore[misc]
+
+
+def test_policy_rejects_non_integer_priority(tmp_path):
+    text = REPO_POLICY.read_text().replace("min_stop_s = 1800", "min_stop_s = 1800.5")
+    with pytest.raises(ValueError, match="integers"):
+        load_policy(_write(tmp_path, text))

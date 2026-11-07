@@ -71,7 +71,11 @@ def load_policy(path: str | Path) -> Policy:
         _only(floor, {"min_stop_s", "min_events"}, f"priority.{name}")
         if set(floor) != {"min_stop_s", "min_events"}:
             raise ValueError(f"priority.{name} needs min_stop_s and min_events")
-        priority[name] = (int(floor["min_stop_s"]), int(floor["min_events"]))
+        if not all(
+            isinstance(v, int) and not isinstance(v, bool) and v > 0 for v in floor.values()
+        ):
+            raise ValueError(f"priority.{name} values must be positive integers")
+        priority[name] = (floor["min_stop_s"], floor["min_events"])
 
     ev = data["evidence"]
     _only(ev, {"max_events"}, "[evidence]")
