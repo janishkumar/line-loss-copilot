@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import psycopg
 
@@ -22,14 +22,16 @@ def _minutes(t: datetime, start: datetime, up: bool) -> int:
 def load_problem(conn: psycopg.Connection, supply_result=None, start: datetime = HORIZON_START):
     """`supply_result` is `detect(load_supply(conn))`, computed here when omitted."""
     s = load_supply(conn)
-    shortfalls, projection = supply_result if supply_result is not None else detect(s)
-    ready = material_ready(shortfalls, projection)
+    _, projection = supply_result if supply_result is not None else detect(s)
+    ready = material_ready(projection, s.kinds, start + timedelta(minutes=20160))
     family = dict(conn.execute("SELECT product_id, family FROM synthetic.product").fetchall())
     caps: dict[str, set[str]] = defaultdict(set)
     for m, fam in conn.execute("SELECT machine_id, family FROM synthetic.machine_capability"):
         caps[m].add(fam)
     machines = tuple(
-        Machine(m, float(r), float(a), frozenset(caps.get(m, ())))
+        Machine(
+            m, float(r), float(a), frozenset(caps.get(m, ())) if r > 0 and a > 0 else frozenset()
+        )
         for m, r, a in conn.execute(
             "SELECT machine_id, rate_per_hour, availability FROM synthetic.machine_rate "
             "ORDER BY machine_id"
@@ -51,6 +53,9 @@ def load_problem(conn: psycopg.Connection, supply_result=None, start: datetime =
     jobs, blocked = [], []
     for o in s.orders:
         fam = family.get(o.product_id)
+        if o.quantity <= 0:
+            blocked.append((o.order_id, "non-positive quantity"))
+            continue
         if fam is None or fam not in able:
             blocked.append((o.order_id, "no eligible machine"))
             continue

@@ -214,27 +214,48 @@ def naive_rule(
 
 
 def material_ready(
-    shortfalls: Iterable[Shortfall], projection: Mapping[str, Sequence[ProjectedPoint]]
+    projection: Mapping[str, Sequence[ProjectedPoint]],
+    kinds: Mapping[str, str],
+    horizon_end: datetime | None = None,
 ) -> dict[str, tuple[datetime | None, str | None]]:
-    """When each short order's materials are covered, from the projected stock.
+    """When each order's raw materials are physically available, from the projected stock.
 
-    For a shortfall, the order's own allocation drove projected stock below zero at its need
-    time; the order is ready at the first later point where projected stock is back at or above
-    zero (a receipt, since allocations only lower it). Per order the latest of its shortfalls
-    wins. Returns order_id -> (ready_at, None), or (None, material_id) when a material is never
-    covered by a receipt. Orders with no shortfall are absent (ready from the start)."""
+    Per raw material, orders claim stock in need-date order (the order of the allocation points,
+    which is the order `net` allocated them). An order is ready for a material at the earliest
+    time t where on hand plus receipts due at or before t covers the cumulative claims up to and
+    including this order; receipts due after `horizon_end` do not count. The order's ready time
+    is the latest over its materials. Returns order_id -> (ready_at, None), or (None, material)
+    when some material is never covered. Orders covered by on hand are absent (ready from the
+    start). Sub-assembly allocations are not materials here: only raw materials are waited on."""
     out: dict[str, tuple[datetime | None, str | None]] = {}
-    for sf in sorted(shortfalls, key=lambda s: (s.order_id, s.material_id)):
-        pts = projection.get(sf.material_id, [])
-        mark = f"allocation:{sf.order_id}"
-        idx = next((i for i, p in enumerate(pts) if p.reason == mark), None)
-        ready = None
-        if idx is not None:
-            ready = next((p.at for p in pts[idx + 1 :] if p.projected >= -EPS), None)
-        cur = out.get(sf.order_id)
-        if ready is None:
-            if cur is None or cur[0] is not None:
-                out[sf.order_id] = (None, sf.material_id)
-        elif cur is None or (cur[0] is not None and ready > cur[0]):
-            out[sf.order_id] = (ready, None)
+    for material in sorted(projection):
+        if kinds.get(material, "raw") == "subassembly":
+            continue
+        pts = projection[material]
+        opening = pts[0].projected
+        receipts = [
+            (p.at, p.delta)
+            for p in pts[1:]
+            if p.delta > 0 and (horizon_end is None or p.at <= horizon_end)
+        ]
+        cum = 0.0
+        for p in pts[1:]:
+            if not p.reason.startswith("allocation:"):
+                continue
+            oid = p.reason.split(":", 1)[1]
+            cum += -p.delta
+            if cum <= opening + EPS:
+                continue
+            got, at = opening, None
+            for t, q in receipts:
+                got += q
+                if got >= cum - EPS:
+                    at = t
+                    break
+            cur = out.get(oid)
+            if at is None:
+                if cur is None or cur[0] is not None:
+                    out[oid] = (None, material)
+            elif cur is None or (cur[0] is not None and at > cur[0]):
+                out[oid] = (at, None)
     return out

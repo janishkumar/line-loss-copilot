@@ -12,6 +12,7 @@ from linecopilot.plan.model import (
     objective,
     process_minutes,
     setup_minutes,
+    split_unschedulable,
 )
 
 
@@ -37,10 +38,12 @@ def _list_schedule(problem: Problem, order: list[Job], name: str) -> Plan:
 
 
 def fifo(problem: Problem) -> Plan:
+    problem = split_unschedulable(problem)
     return _list_schedule(
         problem, sorted(problem.jobs, key=lambda j: (j.release, j.order_id)), "fifo"
     )
 
 
 def edd(problem: Problem) -> Plan:
+    problem = split_unschedulable(problem)
     return _list_schedule(problem, sorted(problem.jobs, key=lambda j: (j.due, j.order_id)), "edd")

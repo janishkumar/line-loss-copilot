@@ -125,3 +125,37 @@ def test_deterministic():
     a = cpsat.solve(p, time_limit_s=5)
     b = cpsat.solve(p, time_limit_s=5)
     assert a.assignments == b.assignments and a.objective == b.objective
+
+
+def test_records_which_limit_stopped_the_solver():
+    p = three_by_two()
+    plan = cpsat.solve(p, time_limit_s=5)
+    assert plan.stop_reason == "optimal" and plan.solver_status == "OPTIMAL"
+    tiny = cpsat.solve(p, time_limit_s=5, max_deterministic_time=0.0)
+    assert tiny.stop_reason in ("deterministic_time", "optimal")
+    assert tiny.solver_status in ("OPTIMAL", "FEASIBLE") or tiny.status == "fallback_edd"
+
+
+def test_fallback_keeps_solver_status(monkeypatch):
+    class Dead(cp_model.CpSolver):
+        def Solve(self, *a, **k):
+            return cp_model.UNKNOWN
+
+    monkeypatch.setattr(cpsat.cp_model, "CpSolver", Dead)
+    plan = cpsat.solve(three_by_two(), time_limit_s=1)
+    assert plan.solver_status == "UNKNOWN"
+
+
+def test_job_without_machine_is_blocked_everywhere_not_dropped_or_crashing():
+    ms = (Machine("M1", 60, 1.0, frozenset({"A"})),)
+    p = Problem((Job("o1", "p", "A", 60, 0, 99), Job("o2", "q", "Z", 60, 0, 99)), ms, co)
+    for plan in (dispatch.fifo(p), dispatch.edd(p), cpsat.solve(p, time_limit_s=2)):
+        assert [a.order_id for a in plan.assignments] == ["o1"]
+        assert plan.blocked == [("o2", "no eligible machine")]
+        assert plan.kpis["blocked_orders"] == 1
+
+
+def test_overrun_past_horizon_is_visible_in_kpis():
+    ms = (Machine("M1", 60, 1.0, frozenset({"A"})),)
+    p = Problem((Job("o1", "p", "A", 600, 0, 99999),), ms, co, horizon=100)
+    assert dispatch.fifo(p).kpis["makespan_over_horizon"] == 500

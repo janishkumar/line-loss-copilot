@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 
 @dataclass(frozen=True)
@@ -61,6 +61,8 @@ class Plan:
     objective: float | None = None
     bound: float | None = None
     kpis: dict = field(default_factory=dict)
+    solver_status: str | None = None  # CP-SAT's own status, kept on fallback too
+    stop_reason: str | None = None  # optimal, deterministic_time, wall_clock or other
 
 
 def process_minutes(job: Job, machine: Machine) -> int:
@@ -85,6 +87,10 @@ def kpis(problem: Problem, assignments: list[Assignment]) -> dict:
         "total_tardiness_min": sum(a.end - due[a.order_id] for a in late),
         "changeover_min": sum(a.setup_before for a in assignments),
         "makespan": max((a.end for a in assignments), default=0),
+        "makespan_over_horizon": max(
+            0, max((a.end for a in assignments), default=0) - problem.horizon
+        ),
+        "orders_after_horizon": sum(1 for a in assignments if a.end > problem.horizon),
         "scheduled_orders": len(assignments),
         "blocked_orders": len(problem.blocked),
     }
@@ -92,3 +98,15 @@ def kpis(problem: Problem, assignments: list[Assignment]) -> dict:
 
 def objective(k: dict) -> float:
     return k["total_tardiness_min"] + 0.1 * k["changeover_min"]
+
+
+def split_unschedulable(problem: Problem) -> Problem:
+    """Move jobs with no eligible machine to `blocked`, so every algorithm treats them alike."""
+    keep = [j for j in problem.jobs if eligible(problem, j)]
+    if len(keep) == len(problem.jobs):
+        return problem
+    kept = {j.order_id for j in keep}
+    extra = tuple(
+        (j.order_id, "no eligible machine") for j in problem.jobs if j.order_id not in kept
+    )
+    return replace(problem, jobs=tuple(keep), blocked=problem.blocked + extra)

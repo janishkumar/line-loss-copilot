@@ -240,31 +240,50 @@ def test_bom_cycle_raises_a_clear_error():
         naive_rule([order("O1", 10)], bom, {})
 
 
-def test_material_ready_is_first_receipt_after_the_short_allocation():
-    from datetime import datetime, timedelta
+def _ready(orders, stock, receipts, bom=None, kinds=None, best=100.0, horizon_days=14):
+    from datetime import UTC, datetime, timedelta
 
-    from linecopilot.supply.mrp import (
-        Order,
-        Receipt,
-        SupplyInput,
-        detect,
-        material_ready,
-    )
+    from linecopilot.supply.mrp import SupplyInput, detect, material_ready
 
     t0 = datetime(2026, 1, 5, tzinfo=UTC)
+    d = lambda x: t0 + timedelta(days=x)  # noqa: E731
+    from linecopilot.supply.mrp import Order, Receipt
+
     s = SupplyInput(
-        orders=[
-            Order("o1", "p", 100, t0, t0 + timedelta(days=2)),
-            Order("o2", "p", 100, t0, t0 + timedelta(days=3)),
-            Order("o3", "q", 10, t0, t0 + timedelta(days=3)),
-        ],
-        bom={"p": [("m", 1.0)], "q": [("z", 1.0)]},
-        kinds={"m": "raw", "z": "raw"},
-        stock={"m": 100.0, "z": 0.0},
-        receipts=[Receipt("m", 100.0, t0 + timedelta(days=4))],
-        best_rate={"p": 100.0, "q": 100.0},
+        orders=[Order(o, "p", q, t0, d(due)) for o, q, due in orders],
+        bom=bom or {"p": [("m", 1.0)]},
+        kinds=kinds or {"m": "raw"},
+        stock=stock,
+        receipts=[Receipt("m", q, d(day)) for q, day in receipts],
+        best_rate={"p": best},
     )
-    ready = material_ready(*detect(s))
-    assert "o1" not in ready
-    assert ready["o2"] == (t0 + timedelta(days=4), None)
-    assert ready["o3"] == (None, "z")
+    _, proj = detect(s)
+    got = material_ready(proj, s.kinds, d(horizon_days))
+    return {k: (v[0] and (v[0] - t0).total_seconds() / 86400, v[1]) for k, v in got.items()}
+
+
+def test_ready_is_cumulative_coverage_not_projection_sign():
+    # o2 is covered by the day-4 receipt even though o4 (later) is not: o4 is blocked.
+    got = _ready([("o2", 100, 3), ("o4", 100, 3.5)], {"m": 0.0}, [(100, 4)])
+    assert got == {"o2": (4.0, None), "o4": (None, "m")}
+
+
+def test_order_without_shortfall_still_waits_for_its_receipt():
+    # due day 10, receipt day 5: not short at its need date, but not ready before day 5.
+    assert _ready([("o1", 100, 10)], {"m": 0.0}, [(100, 5)]) == {"o1": (5.0, None)}
+
+
+def test_on_hand_covers_means_ready_from_start_and_receipts_after_horizon_do_not_count():
+    assert _ready([("o1", 100, 10)], {"m": 100.0}, []) == {}
+    assert _ready([("o1", 100, 10)], {"m": 0.0}, [(100, 15)]) == {"o1": (None, "m")}
+
+
+def test_receipt_exactly_at_need_counts_and_subassembly_is_not_a_material():
+    got = _ready(
+        [("o1", 100, 3)],
+        {"m": 0.0, "sa": 100.0},
+        [(100, 3)],
+        bom={"p": [("sa", 1.0)], "sa": [("m", 1.0)]},
+        kinds={"m": "raw", "sa": "subassembly"},
+    )
+    assert got == {}  # sub-assembly stock covers everything; the raw material is never needed

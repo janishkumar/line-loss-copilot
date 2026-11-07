@@ -28,10 +28,11 @@ def test_problem_matches_tables_and_blocks_are_reported(loaded):
     assert len(p.jobs) + len(p.blocked) == len(data.customer_order)
     assert {m.machine_id for m in p.machines} == {r["machine_id"] for r in data.machine_rate}
     assert all(j.due >= 0 and j.ready >= 0 for j in p.jobs)
-    # shortfalls with a covering receipt delay readiness, never beyond a receipt time
+    # a material-blocked order was short at its need date; ready times never pass the horizon
     short = {f.order_id for f in detect(load_supply(conn))[0]}
-    delayed = {j.order_id for j in p.jobs if j.ready > 0}
-    assert delayed <= short
+    material_blocked = {o for o, why in p.blocked if why.startswith("material ")}
+    assert material_blocked <= short
+    assert all(j.ready <= 20160 for j in p.jobs)
     same = load_problem(conn, detect(load_supply(conn)))
     assert same.jobs == p.jobs and same.blocked == p.blocked
 
