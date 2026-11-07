@@ -115,4 +115,13 @@ describe("ApprovalDetail", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("approval blocked");
     expect(screen.getByRole("alert")).toHaveTextContent("approver is the proposer");
   });
+
+  it("keeps Reject disabled until the note gives a reason", async () => {
+    mockApi({ "GET /api/proposals/7": [200, detail()], "GET /api/audit": [200, []] });
+    show(demoUsers[1]);
+    const reject = await screen.findByRole("button", { name: "Reject" });
+    expect(reject).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Note/), { target: { value: "duplicate of #3" } });
+    expect(reject).toBeEnabled();
+  });
 });

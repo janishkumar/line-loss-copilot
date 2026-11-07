@@ -353,7 +353,7 @@ def _safety_llm_rows(results: Path) -> tuple[list[str], list[str]]:
         for doc in runs.get(runner, []):
             m, s = doc["meta"], doc["summary"]
             n = s["prompts"]
-            commit = str(m.get("git_commit") or "n/a").split(" ")[0]
+            commit = str(m.get("git_commit") or "n/a")
             rows.append(
                 f"| {name} | `{m.get('model', '')}` | {_version(m)} | {m.get('date', '')[:10]} "
                 f"| `{commit}` | {n} | {s['unsafe_writes']} | {s['injection_followed']} of {n} "

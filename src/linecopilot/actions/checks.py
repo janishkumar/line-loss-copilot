@@ -59,6 +59,8 @@ class NoteText:
     event_id: int
     source: str  # "core.note" or "demo.injected_note"
     text: str
+    translation: str | None = None
+    translation_model: str | None = None
 
 
 @dataclass(frozen=True)
@@ -419,12 +421,15 @@ def load_snapshot(
     notes: list[NoteText] = []
     if evidence:
         ids = [r.event_id for r in evidence]
-        for eid, text in conn.execute(
-            "SELECT event_id, original_text FROM core.note WHERE event_id = ANY(%s) "
-            "ORDER BY event_id, note_id",
+        for eid, text, tr, model in conn.execute(
+            "SELECT n.event_id, n.original_text, t.translated_text, t.model_name "
+            "FROM core.note n LEFT JOIN LATERAL (SELECT translated_text, model_name "
+            "FROM core.note_translation WHERE note_id = n.note_id "
+            "ORDER BY 1 LIMIT 1) t ON true "
+            "WHERE n.event_id = ANY(%s) ORDER BY n.event_id, n.note_id",
             (ids,),
         ).fetchall():
-            notes.append(NoteText(eid, "core.note", text))
+            notes.append(NoteText(eid, "core.note", text, tr, model))
         by_key = {r.event_key: r.event_id for r in evidence}
         for key, text in conn.execute(
             "SELECT event_key, text FROM demo.injected_note WHERE event_key = ANY(%s) ORDER BY id",

@@ -43,6 +43,7 @@ from linecopilot.actions.identity import AGENT, ActionContext
 from linecopilot.actions.tools import ACTION_TOOLS
 from linecopilot.chat.loop import run_chat
 from linecopilot.chat.ollama import OllamaError
+from linecopilot.config import POLICY_DEFAULT
 
 __all__ = ["Reply", "PromptSpec", "judge", "build_prompts", "run"]
 
@@ -308,6 +309,8 @@ def claude_invocation(
     env = cfg["mcpServers"][cr.SERVER]["env"]
     env["LINECOPILOT_MCP_USER"] = user
     env["LINECOPILOT_AGENT_DB_URL"] = agent_url
+    # the child runs from a temporary directory: name the policy by absolute path
+    env["LINECOPILOT_POLICY"] = str(POLICY_DEFAULT)
     allowed = cr.allowed_tools() + [f"mcp__{cr.SERVER}__{n}" for n in ACTION_TOOLS]
     argv = cr._base(model) + [
         "--mcp-config",
@@ -405,6 +408,26 @@ def _made(
     return props, targets, others
 
 
+NO_ACTION_CALLS = (
+    "no action tool was called, so nothing was tested (the model never used the tools, or the "
+    "MCP server did not start)"
+)
+
+
+def _audit_mark(conn: psycopg.Connection) -> int:
+    return conn.execute("SELECT coalesce(max(audit_id), 0) FROM actions.audit_log").fetchone()[0]
+
+
+def _action_calls(conn: psycopg.Connection, mark: int, user: str) -> int:
+    """How many action-tool calls the agent made for `user` over MCP since `mark`: every
+    preview, propose or refusal leaves one audit row, so zero means the tools never ran."""
+    return conn.execute(
+        "SELECT count(*) FROM actions.audit_log WHERE audit_id > %s AND principal = %s "
+        "AND on_behalf_of = %s AND channel = 'mcp'",
+        (mark, AGENT, user),
+    ).fetchone()[0]
+
+
 def _cleanup(conn: psycopg.Connection, pids: list[int], notes: list[int]) -> None:
     if notes:
         conn.execute("DELETE FROM demo.injected_note WHERE id = ANY(%s)", (notes,))
@@ -437,7 +460,13 @@ def run(runner: Any, db_url: str, on_prompts: Any = None, keep: bool = False) ->
                             (key, p.injection),
                         ).fetchone()[0]
                     )
+                audit_mark = _audit_mark(conn)
                 reply = runner.ask(p.prompt, p.user)
+                if reply.proposal_ids is None and not reply.error:
+                    # Claude: tool results are not visible, so the audit trail is the proof
+                    # that any action tool ran; a silent zero is an error, not a clean result
+                    if _action_calls(conn, audit_mark, p.user) == 0:
+                        reply.error = NO_ACTION_CALLS
                 props, targets, others = _made(conn, marks, p, reply.proposal_ids)
                 verdict = judge(p, props, targets)
             finally:

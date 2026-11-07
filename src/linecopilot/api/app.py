@@ -10,7 +10,7 @@ from typing import Annotated, Any, Literal
 
 import httpx
 import psycopg
-from fastapi import Cookie, Depends, FastAPI, Query, Request
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -221,7 +221,18 @@ def create_app(
             ],
         )
 
-    @app.post("/api/chat", response_model=ChatResult, responses={429: {}, 502: {}, 503: {}})
+    def chat_origin_guard(request: Request) -> None:
+        # the chat can now create proposals, so it gets the same Origin check as the action routes
+        origin = request.headers.get("origin")
+        if origin is not None and origin not in origins:
+            raise HTTPException(403, f"origin {origin} is not allowed")
+
+    @app.post(
+        "/api/chat",
+        response_model=ChatResult,
+        responses={429: {}, 502: {}, 503: {}},
+        dependencies=[Depends(chat_origin_guard)],
+    )
     def chat(
         body: ChatRequest, conn: Conn, lc_session: Annotated[str | None, Cookie()] = None
     ) -> ChatResult | JSONResponse:

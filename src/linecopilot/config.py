@@ -4,6 +4,8 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+POLICY_DEFAULT = Path(__file__).resolve().parents[2] / "config" / "policy.toml"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -25,9 +27,9 @@ class Settings(BaseSettings):
         validation_alias="LINECOPILOT_AGENT_DB_URL",
     )
     mcp_user: str | None = Field(default=None, validation_alias="LINECOPILOT_MCP_USER")
-    policy_path: Path = Field(
-        default=Path("config/policy.toml"), validation_alias="LINECOPILOT_POLICY"
-    )
+    # anchored to the repo root, not the working directory, so an MCP client started anywhere
+    # finds it; LINECOPILOT_POLICY overrides
+    policy_path: Path = Field(default=POLICY_DEFAULT, validation_alias="LINECOPILOT_POLICY")
     # Origins allowed to send state-changing action requests (comma separated).
     web_origins: str = Field(
         default="http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173",

@@ -232,6 +232,23 @@ def test_cross_origin_refused(client, event, cleanup):
     )
 
 
+def test_reject_needs_a_reason(client, event, cleanup):
+    pid, _, _ = form_propose(client, cleanup, event, "sup.a")
+    login(client, "sup.b")
+    assert client.post(f"/api/proposals/{pid}/reject").status_code == 422
+    assert client.post(f"/api/proposals/{pid}/reject", json={"note": "  "}).status_code == 422
+    assert client.get(f"/api/proposals/{pid}").json()["status"] == "pending"
+    assert (
+        client.post(f"/api/proposals/{pid}/reject", json={"note": "duplicate"}).status_code == 200
+    )
+
+
+def test_chat_refuses_a_foreign_origin(client):
+    body = {"messages": [{"role": "user", "content": "hi"}]}
+    r = client.post("/api/chat", json=body, headers={"Origin": "http://evil.test"})
+    assert r.status_code == 403
+
+
 def test_chat_gets_action_context_only_with_session(client, monkeypatch, cleanup):
     seen = []
 

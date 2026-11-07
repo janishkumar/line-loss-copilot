@@ -23,6 +23,16 @@ const REPEAT_KEYS: Record<string, string[]> = {
   piade: ["reason", "alarm"],
 };
 
+type Chain = { machine_id: string | null; line_id: string; citations: { event_id: number | null }[] };
+
+// The draft link names the events only when the chain's citations carry some.
+export function newActionLink(c: Chain): string {
+  const params = new URLSearchParams({ asset: c.machine_id ?? c.line_id });
+  const ids = [...new Set(c.citations.map((x) => x.event_id).filter((x) => x !== null))];
+  if (ids.length > 0) params.set("events", ids.join(","));
+  return `/actions/new?${params}`;
+}
+
 export default function Losses() {
   const [sel, setSel] = useState<Selection>({ lineId: "brick", start: "", end: "" });
   const [by, setBy] = useState("reason");
@@ -190,10 +200,7 @@ export default function Losses() {
                     <td><Citations count={c.citation_count} citations={c.citations} /></td>
                     <td>
                       <Link
-                        to={`/actions/new?${new URLSearchParams({
-                          asset: c.machine_id ?? c.line_id,
-                          events: [...new Set(c.citations.map((x) => x.event_id).filter((x) => x !== null))].join(","),
-                        })}`}
+                        to={newActionLink(c)}
                       >
                         Draft work order
                       </Link>

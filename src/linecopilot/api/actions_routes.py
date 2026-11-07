@@ -200,7 +200,9 @@ def make_router(
     def reject(
         proposal_id: int, conn: Conn, user: User, body: DecisionBody | None = None
     ) -> JSONResponse:
-        note = body.note if body else ""
+        note = (body.note if body else "").strip()
+        if not note:
+            raise HTTPException(422, "a rejection needs a reason in the note")
         return _outcome_response(service.reject(conn, user, proposal_id, note))
 
     # --- approved actions and their status changes -----------------------------------------

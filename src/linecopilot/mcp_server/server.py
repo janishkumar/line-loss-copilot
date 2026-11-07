@@ -147,8 +147,15 @@ def build_server(
     tools = [_make_tool(spec, db_url) for spec in registry.TOOLS.values()]
     instructions = INSTRUCTIONS
     ctx = resolve_context(agent_db_url, mcp_user)
-    if ctx is not None and agent_db_url is not None:
-        svc = service or ActionService(load_policy(get_settings().policy_path))
+    svc = service
+    if ctx is not None and svc is None:
+        try:
+            svc = ActionService(load_policy(get_settings().policy_path))
+        except Exception as e:
+            # a policy that will not load takes the action tools down, never the read tools
+            _log(f"policy did not load ({type(e).__name__}: {e})")
+            ctx = None
+    if ctx is not None and svc is not None and agent_db_url is not None:
         tools += [_make_action_tool(s, agent_db_url, ctx, svc) for s in ACTION_TOOLS.values()]
         instructions = f"{INSTRUCTIONS} {ACTION_INSTRUCTIONS}"
     return MCPServer(SERVER_NAME, instructions=instructions, tools=tools)

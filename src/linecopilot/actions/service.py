@@ -63,6 +63,7 @@ class Preview:
     code: str | None
     evidence: list[dict]
     blocked: bool
+    notes: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -120,6 +121,33 @@ def _summary(conn: psycopg.Connection, ctx: ActionContext, canon: dict, snap: Sn
             f"{n} linked event{'' if n == 1 else 's'}"
         )
     return f"{head}. Proposed by {ctx.principal} for {who} via {ctx.channel}."
+
+
+NOTE_CAP = 600
+NOTES_MAX = 10
+
+
+def _cap(text: str | None) -> str | None:
+    if text is None or len(text) <= NOTE_CAP:
+        return text
+    return text[:NOTE_CAP] + "..."
+
+
+def _note_dicts(snap: Snapshot) -> list[dict]:
+    """The notes linked to the evidence, as quoted data: the same text a person sees in the
+    inbox. Demo notes are flagged synthetic; a translation carries its model's name."""
+    return [
+        {
+            "event_id": n.event_id,
+            "source": n.source,
+            "synthetic": n.source == "demo.injected_note",
+            "text": _cap(n.text),
+            "translation": _cap(n.translation),
+            "translation_model": n.translation_model if n.translation else None,
+            "truncated": len(n.text) > NOTE_CAP,
+        }
+        for n in snap.notes[:NOTES_MAX]
+    ]
 
 
 def _evidence_dicts(snap: Snapshot) -> list[dict]:
@@ -231,7 +259,16 @@ class ActionService:
                 payload_sha256=digest,
                 checks=results,
             )
-        return Preview(action, canon, summary, results, code, _evidence_dicts(snap), is_blocked)
+        return Preview(
+            action,
+            canon,
+            summary,
+            results,
+            code,
+            _evidence_dicts(snap),
+            is_blocked,
+            _note_dicts(snap),
+        )
 
     def propose(
         self,
@@ -655,7 +692,8 @@ class ActionService:
             "SELECT e.event_key, n.event_id, n.original_text AS text, 'core.note' AS source, "
             "t.translated_text AS translation, t.model_name AS translation_model "
             "FROM core.note n JOIN core.event e USING (event_id) "
-            "LEFT JOIN core.note_translation t ON t.note_id = n.note_id "
+            "LEFT JOIN LATERAL (SELECT translated_text, model_name FROM core.note_translation "
+            "WHERE note_id = n.note_id ORDER BY 1 LIMIT 1) t ON true "
             "WHERE e.event_key = ANY(%s) "
             "UNION ALL SELECT event_key, NULL, text, 'demo.injected_note', NULL, NULL "
             "FROM demo.injected_note WHERE event_key = ANY(%s) ORDER BY event_key, source",

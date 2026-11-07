@@ -118,7 +118,8 @@ persistence and hour_of_week are the baselines. Per-machine results, the observe
 **Decision it supports:** when the copilot finds a repeat failure, who may turn that finding into a work order, a quality hold or a follow-up, and how a plant can trust that nothing was written because a model, or a line of text inside an operator note, said so. The AI proposes. A person with the right role, who is not the proposer, approves.
 
 ```
-preview      read-only; runs every check; shows what would be created; issues a one-time code
+preview      creates nothing (it records a code and an audit row); runs every check; shows what
+   |         would be created and the linked notes' text; issues a one-time code
    |         bound to these exact arguments, this user and this action (15 minutes, single use)
 propose      the code must match the arguments actually sent; checks run again; one PENDING
    |         proposal is stored and nothing else is written
@@ -149,7 +150,7 @@ A follow-up can also be completed by a person whose role is its assignee role. P
 
 `make demo-stage3` runs stage 2, then plants one clearly labelled synthetic note (source `synthetic`, badged "Synthetic demo note") on a real repeat-failure stop, and prints how to connect Claude. Then:
 
-1. Open http://localhost:8080 and pick "Operator A" or a supervisor in the demo user box (top right). These are synthetic demo users, not a login.
+1. Open http://localhost:8080 and pick "Operator A" or a supervisor in the demo user box (top right). These are synthetic demo users, not a login: the switcher accepts any of them from any local process.
 2. Open Losses, find a repeat failure chain and click "Draft work order", or use Actions, New action. Preview shows each check; Propose sends it to the inbox.
 3. In Approvals, open the proposal. As the proposer the Approve button is disabled with the reason. Switch to another supervisor and approve; the work order appears under Actions and every step is in Audit.
 
@@ -161,7 +162,9 @@ Add the MCP server with a demo user named in its environment (replace `/path/to/
 claude mcp add linecopilot --env PYTHONPATH=src --env LINECOPILOT_MCP_USER=sup.a -- uv run --directory /path/to/line-loss-copilot python -m linecopilot.mcp_server
 ```
 
-Ask: "Draft a work order for the repeat stops on machine s_3, using the stops you find." The preview names a warning from the planted note; the proposal lands in the inbox for Supervisor A as `on_behalf_of`, so Supervisor B approves it in the app. If the agent tries to approve its own proposal there is no tool to do it with, and the web route refuses its principal.
+Ask: "Draft a work order for the repeat stops on the machine `make demo-stage3` named, using the stops you find." The preview quotes the planted note as labelled data and raises a warning for it; the proposal lands in the inbox for Supervisor A as `on_behalf_of`, so Supervisor B approves it in the app. If the agent tries to approve its own proposal there is no tool to do it with, and the web route refuses its principal.
+
+**Where the guarantee stops.** The approval guarantee covers the copilot's own tools: the MCP server and the web chat. The demo user switcher is not authentication, so any local process can sign in as any demo person over HTTP and approve what another identity proposed. An agent with a shell or web tool on the same machine is outside the guarantee. So run Claude for the demo, and for the Claude eval, with its built-in tools off: Claude Code with `claude --tools ""` (the eval runner also passes `--strict-mcp-config` and denies Bash, WebFetch and the file tools); Claude Desktop has no shell by default. A real deployment would need real sign-in, which this project does not build.
 
 The database role the agent uses (`linecopilot_agent`) is column-limited: it can add a pending proposal, a code and audit rows, and read, but not write the work order, hold or follow-up tables or any decision column. Its password in `docker-compose.yml`, `config.py` and `sql/actions_schema.sql` is a dev-only default for the local demo; change it for anything else.
 
@@ -288,7 +291,7 @@ claude mcp add linecopilot --env PYTHONPATH=src -- uv run --directory /path/to/l
 
 The tools then appear as `mcp__linecopilot__<tool>`, for example `mcp__linecopilot__get_oee`.
 
-Optional: set `LINECOPILOT_MCP_USER` to a demo user id (for example `sup.a`) in the `env` block to also get the propose tools (`preview_*`, `propose_*`, `list_my_proposals`), which act on behalf of that user through the restricted agent database role (`LINECOPILOT_AGENT_DB_URL`). They only create pending proposals; a different person approves them in the web app, and there is no approve tool. With the variable unset, or naming the agent or an unknown user, the server stays read-only and prints one line to stderr saying why.
+Optional: set `LINECOPILOT_MCP_USER` to a demo user id (for example `sup.a`) in the `env` block to also get the propose tools (`preview_*`, `propose_*`, `list_my_proposals`), which act on behalf of that user through the restricted agent database role (`LINECOPILOT_AGENT_DB_URL`). They only create pending proposals; a different person approves them in the web app, and there is no approve tool (see "Where the guarantee stops" above: run Claude with its built-in tools off). The policy file is found from the repo root, so the server starts from any working directory; if it cannot be loaded the server starts read-only and says why on stderr. With the variable unset, or naming the agent or an unknown user, the server stays read-only and prints one line to stderr saying why.
 
 ## Run it
 

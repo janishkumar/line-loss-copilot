@@ -70,6 +70,7 @@ demo-stage3: demo-stage2
 	@echo "Open http://localhost:8080 , pick a demo user (top right), then Approvals."
 	@echo "Claude with propose tools: set LINECOPILOT_MCP_USER=sup.a in the MCP server env, for example"
 	@echo "  claude mcp add linecopilot --env PYTHONPATH=src --env LINECOPILOT_MCP_USER=sup.a -- uv run --directory /path/to/line-loss-copilot python -m linecopilot.mcp_server"
+	@echo "Run Claude with its built-in tools off (claude --tools \"\"): the demo user switcher is not a login."
 	@echo "Then ask: draft a work order for the repeat stops on the machine named in the line above."
 	@echo "Remove the demo note with: make demo-note-remove"
 

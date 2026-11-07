@@ -131,9 +131,9 @@ export default function ApprovalDetail() {
       {p.status === "pending" ? (
         <>
           <div className="controls">
-            <label>Note (optional)<input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} /></label>
+            <label>Note (required to reject)<input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} /></label>
             <button type="button" disabled={!!reason || busy} onClick={() => decide(approveProposal)}>Approve</button>
-            <button type="button" disabled={!!reason || busy} onClick={() => decide(rejectProposal)}>Reject</button>
+            <button type="button" disabled={!!reason || busy || !note.trim()} onClick={() => decide(rejectProposal)}>Reject</button>
           </div>
           {reason && <p className="muted">{reason} The server enforces this too.</p>}
         </>

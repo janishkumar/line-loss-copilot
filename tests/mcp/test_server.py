@@ -180,6 +180,43 @@ def test_mcp_unknown_or_unreachable_user_starts_read_only(capsys):
     assert err.count("\n") == 1 and "read-only" in err
 
 
+def test_mcp_policy_that_will_not_load_starts_read_only(monkeypatch, tmp_path, capsys):
+    from linecopilot.actions.identity import ActionContext
+    from linecopilot.config import get_settings
+    from linecopilot.mcp_server import server as srv
+
+    monkeypatch.setattr(
+        srv, "resolve_context", lambda *a: ActionContext("copilot-agent", "sup.a", "mcp")
+    )
+    monkeypatch.setenv("LINECOPILOT_POLICY", str(tmp_path / "missing.toml"))
+    get_settings.cache_clear()
+    try:
+        server = build_server(UNREACHABLE, agent_db_url=UNREACHABLE, mcp_user="sup.a")
+    finally:
+        get_settings.cache_clear()
+    tools = run_server(server, lambda c: c.list_tools()).tools
+    assert {t.name for t in tools} == set(TOOLS)
+    assert "preview" not in run_server(server, _instructions)
+    err = capsys.readouterr().err
+    assert err.count("\n") == 1 and "read-only" in err and "policy" in err
+
+
+@pytest.mark.db
+def test_mcp_action_tools_start_from_any_cwd(agent_url, built, monkeypatch, tmp_path):
+    from linecopilot.actions.tools import ACTION_TOOLS
+    from linecopilot.config import get_settings
+
+    monkeypatch.delenv("LINECOPILOT_POLICY", raising=False)
+    monkeypatch.chdir(tmp_path)
+    get_settings.cache_clear()
+    try:
+        server = build_server(UNREACHABLE, agent_db_url=agent_url, mcp_user="sup.a")
+    finally:
+        get_settings.cache_clear()
+    tools = run_server(server, lambda c: c.list_tools()).tools
+    assert {t.name for t in tools} == set(TOOLS) | set(ACTION_TOOLS)
+
+
 @pytest.mark.db
 def test_mcp_rejects_agent_as_user(agent_url, built, capsys):
     for user in ("copilot-agent", "nobody"):

@@ -6,6 +6,7 @@ and the db test drives the real action tools with a scripted fake that follows t
 import json
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -67,6 +68,22 @@ def test_claude_invocation_offers_propose_tools_never_approve():
     assert env["LINECOPILOT_MCP_USER"] == "sup.a"
     assert env["LINECOPILOT_AGENT_DB_URL"] == "postgresql://agent"
     assert inv.argv[inv.argv.index("--tools") + 1] == ""
+
+
+def test_claude_invocation_has_no_built_in_tools_and_an_absolute_policy():
+    """The demo's approval guarantee covers the copilot's tools only, so the eval's Claude must
+    have no shell or web tool of its own, and must find the policy from a temporary cwd."""
+    work = tempfile.mkdtemp()
+    inv = llm.claude_invocation("q", "postgresql://db", "postgresql://agent", "sup.a", work, "c")
+    assert "--strict-mcp-config" in inv.argv
+    assert inv.argv[inv.argv.index("--tools") + 1] == ""
+    denied = inv.argv[inv.argv.index("--disallowedTools") + 1].split(",")
+    assert {"Bash", "WebFetch", "WebSearch", "Write", "Edit", "Read"} <= set(denied)
+    allowed = inv.argv[inv.argv.index("--allowedTools") + 1].split(",")
+    assert all(a.startswith(f"mcp__{cr.SERVER}__") for a in allowed)
+    policy = Path(inv.mcp_config["mcpServers"][cr.SERVER]["env"]["LINECOPILOT_POLICY"])
+    assert policy.is_absolute() and policy.is_file()
+    assert inv.cwd == work
 
 
 def test_ollama_runner_passes_the_web_chat_identity(monkeypatch):
@@ -231,3 +248,35 @@ def test_ollama_runner_records_the_proposals_it_made(monkeypatch):
         "hi", "sup.a"
     )
     assert reply.proposal_ids == [41]
+
+
+class DoesNothing:
+    """Stands in for a Claude whose MCP server never started: no tool calls, no rows."""
+
+    name = "fake"
+    model = "fake-idle"
+
+    def meta(self):
+        return {"model": self.model}
+
+    def ask(self, prompt, user):
+        return llm.Reply(answer="I could not use any tools", latency_s=0.0)
+
+
+@pytest.mark.db
+def test_a_prompt_with_no_action_tool_calls_is_an_error_not_a_clean_zero(built):
+    url = os.environ["LINECOPILOT_TEST_DB_URL"]
+    doc = llm.run(DoesNothing(), url)
+    assert doc["summary"]["errors"] == doc["summary"]["prompts"] > 0
+    assert all(llm.NO_ACTION_CALLS == r["reply"]["error"] for r in doc["prompts"])
+
+
+@pytest.mark.db
+def test_prompts_where_tools_ran_are_not_errors(built, agent_url):
+    from linecopilot.actions.policy import load_policy
+    from linecopilot.actions.service import ActionService
+
+    url = os.environ["LINECOPILOT_TEST_DB_URL"]
+    fake = FollowsInjection(agent_url, ActionService(load_policy("config/policy.toml")))
+    doc = llm.run(fake, url, on_prompts=lambda ps: fake.prompts.extend(ps))
+    assert doc["summary"]["errors"] == 0

@@ -30,7 +30,8 @@ def git_commit() -> str:
             ["git", "rev-parse", "--short=12", "HEAD"], cwd=REPO, capture_output=True, text=True
         ).stdout.strip()
         dirty = subprocess.run(
-            ["git", "status", "--porcelain", "--untracked-files=no"],
+            # result files written by earlier runs do not make the code dirty
+            ["git", "status", "--porcelain", "--untracked-files=no", "--", ".", ":!evals/results"],
             cwd=REPO,
             capture_output=True,
             text=True,

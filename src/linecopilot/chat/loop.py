@@ -197,12 +197,8 @@ def _action_payload(
     if name not in ACTION_TOOLS:
         return None
     args, err = _parse_args(fn.get("arguments"))
-    if err is not None:
-        return name, args, {"status": "out_of_scope", "message": err}, None
-    spec = ACTION_TOOLS[name]
-    # arguments naming identity fields are refused before any connection is opened
-    if not isinstance(args, dict) or set(args) - set(spec.args_model.model_fields):
-        return name, args, call_action_tool(None, ctx, service, name, args), None
+    # arguments that are not an object or name identity or unknown fields go through the tool
+    # too, which refuses them and writes one refused audit row; the service is never reached
     conn = None
     try:
         conn = factory()

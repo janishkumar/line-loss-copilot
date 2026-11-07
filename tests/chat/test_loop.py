@@ -605,15 +605,27 @@ def test_chat_action_call_uses_fresh_agent_connection(monkeypatch, tools_called)
     assert [c.status for c in res.tool_calls] == ["ok", "ok"]
 
 
-def test_chat_identity_arg_rejected(monkeypatch):
+def test_chat_identity_arg_rejected_and_audited(monkeypatch):
     from linecopilot.actions.identity import ActionContext
 
     class Boom:
         def __getattr__(self, name):
             raise AssertionError("service reached")
 
-    def factory():
-        raise AssertionError("connection opened for rejected arguments")
+    written = []
+
+    class Conn:
+        closed = 0
+
+        def execute(self, sql, params=()):
+            written.append(params)
+            return self
+
+        def fetchone(self):
+            return (1,)
+
+        def close(self):
+            Conn.closed += 1
 
     ctx = ActionContext("copilot-agent", "sup.a", "web_chat")
     fake = FakeOllama(
@@ -624,10 +636,14 @@ def test_chat_identity_arg_rejected(monkeypatch):
         fake.client(),
         [{"role": "user", "content": "x"}],
         action_ctx=ctx,
-        agent_conn_factory=factory,
+        agent_conn_factory=Conn,
         action_service=Boom(),
     )
     assert res.tool_calls[0].status == "out_of_scope"
     tool_msg = fake.requests[1]["messages"][-1]
     assert tool_msg["role"] == "tool" and "on_behalf_of" in tool_msg["content"]
     assert "out_of_scope" in tool_msg["content"]
+    # one refused audit row from the web_chat context, and the connection was closed
+    assert len(written) == 1 and Conn.closed == 1
+    assert written[0][:6] == ("proposed", "work_order", None, "copilot-agent", "sup.a", "web_chat")
+    assert written[0][7] == "refused"

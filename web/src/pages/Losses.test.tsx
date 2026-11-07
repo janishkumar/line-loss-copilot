@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import Losses from "./Losses";
+import Losses, { newActionLink } from "./Losses";
 import { cite, env, mockFetch } from "./testkit";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -28,6 +28,15 @@ const repeats = {
       last_end: "2025-09-02T00:00:00Z", lost_s: 5400, episode_ids: [1, 2, 3],
       citations: [cite(1), cite(2)], citation_count: 3 }] },
 };
+
+describe("newActionLink", () => {
+  it("leaves out events when the citations carry no event ids", () => {
+    expect(newActionLink({ machine_id: "s_1", line_id: "s_1", citations: [] })).toBe("/actions/new?asset=s_1");
+    expect(newActionLink({ machine_id: null, line_id: "brick", citations: [{ event_id: null }] })).toBe(
+      "/actions/new?asset=brick",
+    );
+  });
+});
 
 describe("Losses", () => {
   it("links a repeat chain to a prefilled work order draft", async () => {
