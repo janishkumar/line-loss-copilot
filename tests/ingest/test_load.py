@@ -1,10 +1,12 @@
+import hashlib
+import json
 import shutil
 from pathlib import Path
 
 import psycopg
 import pytest
 
-from linecopilot.ingest.load import load_all
+from linecopilot.ingest.load import ChecksumMismatch, load_all
 
 pytestmark = pytest.mark.db
 
@@ -100,3 +102,28 @@ def test_lineage_points_to_file_line(conn, data_dir):
     ).fetchone()
     fields = (data_dir / "raw/piade/raw_data.csv").read_text().splitlines()[3].split(",")
     assert piade == (fields[4], fields[5], fields[1])
+
+
+def test_sha256_is_of_loaded_file(conn, data_dir):
+    load_all(conn, data_dir)
+    for dest in LAYOUT:
+        filename = dest.split("/")[1]
+        want = hashlib.sha256((data_dir / "raw" / dest).read_bytes()).hexdigest()
+        got = conn.execute("SELECT sha256 FROM raw.load WHERE filename = %s", (filename,))
+        assert got.fetchone()[0] == want
+
+
+def test_manifest_mismatch_raises_and_loads_nothing(conn, data_dir):
+    (data_dir / "checksums.json").write_text(
+        json.dumps({"files": [{"filename": "raw_data.csv", "sha256": "0" * 64}]})
+    )
+    with pytest.raises(ChecksumMismatch):
+        load_all(conn, data_dir)
+    assert count(conn, "piade_raw") == 0
+
+
+def test_rows_visible_from_second_connection(conn, data_dir, db_url):
+    load_all(conn, data_dir)
+    with psycopg.connect(db_url) as other:
+        assert other.execute("SELECT count(*) FROM raw.piade_raw").fetchone()[0] == 32
+        assert other.execute("SELECT count(*) FROM raw.load").fetchone()[0] == 5
