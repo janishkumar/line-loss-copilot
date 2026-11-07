@@ -42,8 +42,10 @@ ASSUME_RELIABILITY = (
     "included in OEE' are excluded from both."
 )
 ASSUME_RUN_PIADE = (
-    "PIADE run_s is the seconds in state 'running' of the machine's intervals starting in "
-    "the window (production and performance-loss intervals)."
+    "PIADE run_s is the seconds of the machine's running intervals (production and "
+    "performance-loss) starting in the window, with overlapping intervals clipped to the "
+    "previous interval's end as in the OEE marts (mart.piade_interval_counts); each is "
+    "bucketed by its clipped start."
 )
 ASSUME_RUN_BRICK = (
     "Brick run_s is, summed over the shifts starting in the window, the published planned "
@@ -85,9 +87,10 @@ def run_seconds(conn: psycopg.Connection, scope: Scope, month: bool) -> dict[str
         key = "to_char(start_ts AT TIME ZONE 'UTC', 'YYYY-MM')" if month else "'all'"
         recs = rows(
             conn,
-            f"""SELECT {key} AS period, sum(duration_s) AS run_s FROM core.event
-                WHERE machine_id = %(m)s AND event_type = 'state_interval'
-                  AND state = 'running' AND start_ts >= %(s)s AND start_ts < %(e)s
+            f"""SELECT {key} AS period, sum(duration_s) AS run_s
+                FROM mart.piade_interval_counts
+                WHERE machine_id = %(m)s AND is_run
+                  AND start_ts >= %(s)s AND start_ts < %(e)s
                 GROUP BY 1""",
             p,
         )
@@ -141,7 +144,7 @@ def reliability_rows(
                 failure_s=fs,
                 run_s=run,
                 mttr_s=fs / n if n else None,
-                mtbf_s=run / n if n else None,
+                mtbf_s=run / n if n and run > 0 else None,
             )
         )
     return out, fails
@@ -170,6 +173,11 @@ def reliability(conn: psycopg.Connection, args: ReliabilityArgs) -> Result[Relia
     cites, n_raw = episode_citations(conn, [(k, _by_size(es)) for k, es in fails.items()])
     for r in rws:
         r.citations, r.citation_count = cites.get(r.period, ([], 0))
+    if any(r.failure_count > 0 and r.run_s == 0 for r in rws):
+        assumptions.append(
+            "Periods with failures but no run time have null mtbf_s: run_s is 0, so a time "
+            "between failures cannot be stated."
+        )
     if any(r.failure_count == 0 for r in rws):
         assumptions.append(
             "Periods with no failures have null mttr_s and mtbf_s: with nothing to divide "
@@ -232,11 +240,14 @@ class CompareData(BaseModel):
 
 
 ASSUME_COMPARE = (
-    "OEE components are those of get_oee, summed over every shift starting in each period "
-    "(ratios from sums); stop_s and stop_count are the stops counting in OEE that start in "
-    "the period, so brick stop_s can exceed the union of stop time behind availability. "
-    "Deltas are period B minus period A; reason_changes covers the top reasons of either "
-    "period. Citations are the top reasons' stop events, A then B."
+    "OEE components are those of get_oee, summed over the shifts that start in each period "
+    "(ratios from sums). Stop figures (stop_s, stop_count, failures, MTTR, top reasons) use "
+    "the stops that start in each period, so the two can cover slightly different time at "
+    "the edges; brick stop_s can exceed the union of stop time behind availability. "
+    "reliability_run_s is bucketed by interval start (PIADE) or shift (brick), so it can "
+    "differ from the OEE run_s, which is split across shifts. Deltas are period B minus "
+    "period A; reason_changes covers the top reasons of either period. Citations are the "
+    "top reasons' stop events, A then B."
 )
 
 

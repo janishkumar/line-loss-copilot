@@ -108,6 +108,13 @@ def get_events(conn: psycopg.Connection, args: GetEventsArgs) -> Result[EventsDa
                 f"{scope.first_ts.isoformat()} to {scope.last_ts.isoformat()}"
             ),
         )
+    if args.offset >= total:
+        return Result(
+            status="insufficient_evidence",
+            window=scope.window(),
+            assumptions=assumptions,
+            missing=f"offset past end ({total} events)",
+        )
     recs = rows(
         conn,
         f"""SELECT event_id, event_key, source_system, line_id, machine_id, event_type, state,
@@ -121,8 +128,6 @@ def get_events(conn: psycopg.Connection, args: GetEventsArgs) -> Result[EventsDa
     events = [EventRow(**{**r, **{k: f(r[k]) for k in NUMERIC}}) for r in recs]
     cites: list[Citation] = citations_from_events(recs)
     top, n_raw = cap_citations(cites)
-    if args.offset >= total:
-        assumptions.append(f"offset {args.offset} is past the {total} matching events.")
     return Result(
         status="ok",
         data=EventsData(

@@ -20,14 +20,15 @@ pytestmark = pytest.mark.db
 
 def test_mttr_mtbf_hand_computed(built):
     # s_2 fixture: stops A_101 600 s, A_101 300 s + A_005 300 s (4 s apart, one episode),
-    # A_101 300 s = 3 episodes, 1500 s; running intervals total 6300 s.
+    # A_101 300 s = 3 episodes, 1500 s; running intervals total 6300 s raw, 6299 s after
+    # the 1 s overlap at 14:56 is clipped.
     r = reliability(built, ReliabilityArgs(machine_id="s_2"))
     assert r.status == "ok", r.missing
     (row,) = r.data.rows
     assert row.period == "all"
     assert (row.failure_count, row.stop_count) == (3, 3)
-    assert row.failure_s == 1500 and row.run_s == 6300
-    assert row.mttr_s == 500 and row.mtbf_s == 2100
+    assert row.failure_s == 1500 and row.run_s == 6299
+    assert row.mttr_s == 500 and row.mtbf_s == pytest.approx(6299 / 3)
     assert 0 < len(r.citations) <= CITATION_CAP and row.citation_count == r.citation_count
     assert any("MTBF" in a for a in r.assumptions)
 
@@ -220,3 +221,32 @@ def test_events_limit_bounds_and_registry(built):
         {"line_id": "brick", "a_start": "2025-09-01", "a_end": "2025-10-01"},
     )
     assert r.status == "out_of_scope" and "b_start" in r.missing
+
+
+def test_piade_run_s_uses_clipped_intervals(built):
+    # s_1: the 16:04:58 interval starts 2 s before the previous one ends, so 2 s are clipped.
+    (raw,) = built.execute(
+        "SELECT sum(duration_s) FROM core.event WHERE machine_id = 's_1' AND state = 'running'"
+    ).fetchone()
+    assert raw == 6600
+    r = reliability(built, ReliabilityArgs(machine_id="s_1"))
+    (row,) = r.data.rows
+    assert row.run_s == 6598
+    assert any("clipped" in a for a in r.assumptions)
+
+
+def test_mtbf_null_when_no_run_time(built, monkeypatch):
+    import linecopilot.tools.reliability as rel
+
+    monkeypatch.setattr(rel, "run_seconds", lambda *a, **k: {"all": 0.0})
+    r = reliability(built, ReliabilityArgs(machine_id="s_2"))
+    (row,) = r.data.rows
+    assert row.failure_count == 3 and row.mttr_s == 500 and row.mtbf_s is None
+    assert any("no run time" in a for a in r.assumptions)
+
+
+def test_get_events_offset_past_end(built):
+    r = get_events(built, GetEventsArgs(machine_id="s_2", state="stopped", offset=4))
+    assert r.status == "insufficient_evidence" and r.missing == "offset past end (4 events)"
+    ok = get_events(built, GetEventsArgs(machine_id="s_2", state="stopped", offset=3))
+    assert ok.status == "ok" and len(ok.data.events) == 1
