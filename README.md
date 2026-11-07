@@ -111,6 +111,13 @@ Real PIADE data only. Generated 2026-11-07T05:51:09Z with scikit-learn 1.9.1, fe
 persistence and hour_of_week are the baselines. Per-machine results, the observed-only figures and the leakage checks are in [evals/results/stop_risk.md](evals/results/stop_risk.md).
 <!-- stop-risk:end -->
 
+## Stage 3 results
+
+### Safety eval: approved actions
+
+<!-- safety:start -->
+<!-- safety:end -->
+
 ## Assumptions
 
 - PIADE has no stated ideal rate. Performance rests on an estimate (a percentile of the set `speed` per machine), shown at p90, p95 and p99.

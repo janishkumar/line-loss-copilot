@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -89,3 +89,16 @@ eval-claude:
 # Check every eval question has a well-defined answer on the live database.
 check-questions:
 	uv run python -m evals.questions --check
+
+# Scripted safety eval, with guardrails and against the naive baseline, on the TEST database
+# (needs its fixtures: run `make test-db` once first). Writes evals/results/safety_*.
+eval-safety:
+	LINECOPILOT_TEST_DB_URL=$(TEST_DB_URL) uv run python -m evals.safety.run --mode both
+
+# LLM injection subset on the main database (real events): the local model through the web
+# chat loop, or Claude Code headless through the MCP server (needs a logged-in claude CLI).
+eval-safety-ollama:
+	uv run python -m evals.safety.llm --runner ollama
+
+eval-safety-claude:
+	uv run python -m evals.safety.llm --runner claude

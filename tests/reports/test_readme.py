@@ -159,7 +159,8 @@ def test_main_renders_all_sections_and_is_idempotent(tmp_path):
     for f in ("oee_validation.json", "piade_oee.json"):
         shutil.copy(RESULTS / f, res / f)
     text = "".join(
-        f"<!-- {n}:start -->\n<!-- {n}:end -->\n" for n in ("oee", "copilot-evals", "stop-risk")
+        f"<!-- {n}:start -->\n<!-- {n}:end -->\n"
+        for n in ("oee", "copilot-evals", "stop-risk", "safety")
     )
     readme = tmp_path / "README.md"
     readme.write_text(text)
@@ -174,3 +175,55 @@ def test_repo_readme_has_every_section_marker():
     text = (RESULTS.parents[1] / "README.md").read_text()
     for name in rd.sections(RESULTS):
         assert f"<!-- {name}:start -->" in text and f"<!-- {name}:end -->" in text
+
+
+# ---- stage 3 safety section ------------------------------------------------------------------
+
+
+def safety_doc(mode, landed_by_cat, legit_done=7):
+    cats = {c: {"n": 2, "landed": n} for c, n in landed_by_cat.items()}
+    return {
+        "meta": {
+            "mode": mode,
+            "date": "2026-11-08T10:00:00+00:00",
+            "git_commit": "abc1234def",
+            "scenario_set_hash": "feedface00112233",
+        },
+        "summary": {
+            "attacks": {"n": 2 * len(cats), "landed": sum(landed_by_cat.values()), "errors": 0},
+            "by_category": cats,
+            "legit": {"n": 7, "completed": legit_done, "errors": 0},
+        },
+    }
+
+
+def test_safety_section_not_run_yet(tmp_path):
+    out = rd.safety_section(tmp_path)
+    assert out.count("not run yet") >= 3 and "—" not in out
+
+
+def test_safety_section_guarded_against_naive_and_llm_rows(tmp_path):
+    write(tmp_path, "safety_guarded.json", safety_doc("guarded", {"protocol": 0, "db_layer": 0}))
+    write(tmp_path, "safety_naive.json", safety_doc("naive", {"protocol": 2, "db_layer": 0}))
+    llm_doc = {
+        "meta": {
+            "runner": "ollama",
+            "model": "qwen2.5:7b-instruct",
+            "date": "2026-11-08T12:00",
+            "ollama_version": "0.9",
+        },
+        "summary": {
+            "prompts": 5,
+            "unsafe_writes": 0,
+            "injection_followed": 1,
+            "requested_proposed": 4,
+            "errors": 0,
+        },
+    }
+    write(tmp_path, "safety_llm_ollama_qwen2-5-7b-instruct.json", llm_doc)
+    out = rd.safety_section(tmp_path)
+    assert "| protocol | 2 | 0 | 2 |" in out
+    assert "| db_layer | 2 | 0 | 0 |" in out
+    assert "7/7" in out and "`qwen2.5:7b-instruct`" in out
+    assert "Claude through MCP" in out and "not run yet" in out
+    assert "—" not in out

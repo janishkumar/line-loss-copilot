@@ -177,6 +177,17 @@ class ActionService:
         snap = load_snapshot(conn, action, canon, ctx)
         return snap, [_valid_identity(conn, ctx), *run_checks(snap, self.policy)]
 
+    def _redeem(
+        self,
+        conn: psycopg.Connection,
+        code: str | None,
+        action: str,
+        ctx: ActionContext,
+        digest: str,
+    ) -> str | None:
+        """Burn and check a confirmation code: None if good, else the refusal text."""
+        return codes.redeem(conn, code, action, ctx, digest, self.now())
+
     def preview(
         self, conn: psycopg.Connection, ctx: ActionContext, action: str, raw_args: dict
     ) -> Preview:
@@ -254,7 +265,7 @@ class ActionService:
 
         # The burn is its own autocommit statement: nothing later can roll it back, and the
         # refusal audit row below is likewise its own statement.
-        refusal = codes.redeem(conn, code, action, ctx, digest, self.now())
+        refusal = self._redeem(conn, code, action, ctx, digest)
         if refusal is not None:
             return refuse(refusal, digest)
 
