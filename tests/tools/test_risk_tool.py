@@ -177,3 +177,33 @@ def test_dataset_from_fixture_database(built):
     assert s2.loc[at(16), "ep_count_1h"] == 2 and s2.loc[at(16), "stopped_s_1h"] == 900
     assert s2.loc[at(13), "y_stop"] == 0 and s2.loc[at(15), "y_stop"] == 1
     assert (df.max_source_ts < df.t).all()
+
+
+def test_non_piade_machine_out_of_scope(scored):
+    scored.execute(
+        "INSERT INTO core.machine (machine_id, line_id, source_system) "
+        "VALUES ('kiln_1', 'brick', 'brick')"
+    )
+    try:
+        r = stop_risk(scored, StopRiskArgs(machine_id="kiln_1", at=at(15)))
+        assert r.status == "out_of_scope" and "PIADE machines only" in r.missing
+    finally:
+        scored.execute("DELETE FROM core.machine WHERE machine_id = 'kiln_1'")
+
+
+def test_at_defaults_to_latest_scored_hour(scored):
+    r = stop_risk(scored, StopRiskArgs(machine_id="s_2"))
+    assert r.status == "ok" and r.data.rows[0].t == at(16) and r.window.end == at(16)
+    assert any("latest scored hour" in a for a in r.assumptions)
+    # All machines: the latest hour over every machine (s_3, day 2), each machine's latest.
+    r = stop_risk(scored, StopRiskArgs())
+    assert r.window.end == at(8, day=2)
+    assert [(x.machine_id, x.t) for x in r.data.rows] == [("s_2", at(16)), ("s_3", at(8, day=2))]
+    r = stop_risk(scored, StopRiskArgs(machine_id="s_3", target="any"))
+    assert r.status == "insufficient_evidence"
+    client = TestClient(create_app(os.environ["LINECOPILOT_TEST_DB_URL"]))
+    body = client.get("/api/risk", params={"machine_id": "s_2"})
+    assert body.status_code == 200, body.text
+    assert body.json()["status"] == "ok" and body.json()["data"]["rows"][0]["score"] == 0.05
+    body = client.get("/api/risk")
+    assert body.status_code == 200 and len(body.json()["data"]["rows"]) == 2

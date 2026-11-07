@@ -235,6 +235,13 @@ Points to read with it:
   machine-night, on 2020-10-25 (s_1) and 2021-10-31 (s_1, s_3): the European daylight-saving
   end dates. The in-day timing (21:00 to 23:00 UTC) does not match a plain transition, so
   the cause is unexplained. The overlapping time is counted once.
+- **27 intervals are fully covered and clipped to zero length** (2 machines, the same two
+  nights; 10 running, 7 idle, 6 off, 4 stopped, 7,412 logged seconds). Whether an interval
+  is cut, and by how much, depends on the end of an earlier-starting interval, which can lie
+  after the covered interval's own end. The stop-risk features read the clipped intervals
+  and drop zero-length ones, so on those two nights a feature at hour t can depend on an end
+  timestamp at or after t. It touches 27 of 429,394 rows on two nights and is accepted, not
+  fixed.
 
 ### Assumptions behind the PIADE figures
 

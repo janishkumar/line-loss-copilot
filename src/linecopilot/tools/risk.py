@@ -45,9 +45,10 @@ class StopRiskArgs(BaseModel):
     machine_id: str | None = Field(
         default=None, description="PIADE machine s_1..s_5; omit for every machine"
     )
-    at: datetime = Field(
+    at: datetime | None = Field(
+        default=None,
         description="use the score of the latest prediction hour at or before this time; "
-        "no zone means UTC"
+        "no zone means UTC; omit for the latest scored hour",
     )
     target: Target = Field(
         default="long",
@@ -120,16 +121,38 @@ def _coverage(cov: list[dict[str, Any]]) -> str:
 def stop_risk(conn: psycopg.Connection, args: StopRiskArgs) -> Result[RiskData]:
     at = utc(args.at)
     win = Window(end=at, machine_id=args.machine_id)
-    if args.machine_id is not None and not machine_rows(conn, args.machine_id):
-        return Result(
-            status="out_of_scope", window=win, missing=f"unknown machine_id {args.machine_id!r}"
-        )
+    if args.machine_id is not None:
+        found = machine_rows(conn, args.machine_id)
+        if not found:
+            return Result(
+                status="out_of_scope",
+                window=win,
+                missing=f"unknown machine_id {args.machine_id!r}",
+            )
+        if found[0]["source_system"] != "piade":
+            return Result(
+                status="out_of_scope",
+                window=win,
+                missing=f"stop risk is modelled for PIADE machines only, not "
+                f"{args.machine_id!r} ({found[0]['source_system']})",
+            )
     (exists,) = conn.execute("SELECT to_regclass('ml.stop_risk_score') IS NOT NULL").fetchone()
     if not exists:
         return Result(status="insufficient_evidence", window=win, missing=NOT_TRAINED)
     p = {"target": args.target, "at": at, "m": args.machine_id}
-    latest = rows(conn, LATEST_SQL, p)
     cov = rows(conn, COVERAGE_SQL, p)
+    defaulted = at is None
+    if defaulted:
+        if not cov:
+            return Result(
+                status="insufficient_evidence",
+                window=win,
+                missing=f"no {args.target} stop-risk score for "
+                f"{args.machine_id or 'any machine'}; {_coverage(cov)}",
+            )
+        at = max(c["last_t"] for c in cov)
+        p["at"] = at
+    latest = rows(conn, LATEST_SQL, p)
     if not latest:
         what = args.machine_id or "any machine"
         return Result(
@@ -179,6 +202,10 @@ def stop_risk(conn: psycopg.Connection, args: StopRiskArgs) -> Result[RiskData]:
             )
         )
     assumptions = list(ASSUMPTIONS)
+    if defaulted:
+        assumptions.append(
+            f"No `at` was given, so `at` is the latest scored hour, {at.isoformat()}."
+        )
     stale = [x.machine_id for x in out if not x.covers_at]
     if stale:
         assumptions.append(

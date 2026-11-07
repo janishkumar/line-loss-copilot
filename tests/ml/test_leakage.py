@@ -10,6 +10,9 @@ from linecopilot.ml.train import check_split_gap, shuffled_label_pr_auc
 
 
 def test_max_source_ts_before_t():
+    """Structural check only: max_source_ts is computed by the same strict `< t` lookups
+    the features use, so it cannot catch a feature that reads past t some other way. The
+    real guard is test_features_unchanged_when_the_future_is_removed."""
     df = build_features(IV, EP, prediction_times(IV), ALARMS)
     assert len(df) == 5
     assert (df.max_source_ts.notna()).all()

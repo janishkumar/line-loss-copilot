@@ -30,7 +30,12 @@ def test_fit_target_selects_on_validation_and_scores_every_row():
         assert set(m[model]) == {"validation", "test"}
         for split in ("validation", "test"):
             row = m[model][split]
-            assert 0 <= row["pr_auc"] <= 1 and row["alerts"] > 0
+            assert 0 <= row["pr_auc"] <= 1 and row["alerts_top3"] > row["alerts_top1"] > 0
+            assert row["recall_top1"] < row["recall_top3"]
+    # Unobserved rows are negatives in the headline and dropped in the observed-only view.
+    assert res.rows["train"] == res.rows_observed["train"] + 5
+    assert res.base_rates["train"] <= res.base_rates_observed["train"]
+    assert set(res.metrics_observed) == set(m)
     # The models see the signal; the baselines (which do not use f1) do not.
     assert m[res.selected]["test"]["pr_auc"] > m["persistence"]["test"]["pr_auc"] + 0.2
     assert set(res.per_machine_test) == set(m)
@@ -83,11 +88,14 @@ def test_metric_rows_and_markdown():
             "min_test_t": "2021-10-01",
             "max_train_t": "2021-06-30",
         },
+        "unobserved_label_rows": 0,
         "runtime_s": 1.0,
     }
     json.dumps(results)
     md = render_markdown(results)
     assert "| long | persistence | test |" in md and "600" in md
+    assert "Precision top 1" in md and "observed only" in md
+    assert ("any", "logistic", "test", "pr_auc_observed") in keys
 
 
 def test_duration_quantiles():

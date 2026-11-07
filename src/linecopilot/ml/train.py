@@ -4,9 +4,12 @@ For each target (long: a stop of LONG_STOP_S or more starts in the next hour; an
 starts), fit a logistic regression on standardised features and a histogram gradient
 boosting model on the training split, pick each one's hyper-parameters on validation
 PR-AUC, and compare both with two baselines (persistence, hour-of-week rate). The model
-with the better validation PR-AUC is served; the test split is scored once. Rows whose next
-hour has nothing logged have no observed label and are left out of fitting and metrics
-(they still get a score)."""
+with the better validation PR-AUC is served.
+
+Rows whose next hour has nothing logged have no observed label. They are left out of
+fitting and hyper-parameter selection, but kept as negatives in the headline metrics: live,
+nobody knows at t whether the next hour will be logged, so an alert for such an hour counts
+as a false alarm. Metrics on observed rows only are reported beside them."""
 
 from __future__ import annotations
 
@@ -67,6 +70,8 @@ BASELINES = ("persistence", "hour_of_week")
 EVAL_SPLITS = ("validation", "test")
 QUANTILES = (0.5, 0.75, 0.9, 0.95, 0.99)
 N_PERM = 5
+# Alert volumes reported: TOP_K (3, the default) and 1 hour per machine per shift.
+ALERT_KS = (TOP_K, 1)
 
 
 def make_lr(c: float) -> Pipeline:
@@ -125,7 +130,7 @@ def shuffled_label_pr_auc(
     or below the base rate.) The mean over n_perm permutations is reported. A label leaking
     into a feature is not caught by this alone; dataset.known_at and the max_source_ts
     check cover that."""
-    tr, te = _observed(df, "train"), _observed(df, "test")
+    tr, te = _observed(df, "train"), df[df.split == "test"]
     rng = np.random.default_rng(seed)
     vals = []
     for _ in range(n_perm):
@@ -171,13 +176,16 @@ class TargetResult:
     hyperparameters: dict[str, Any]
     search: list[dict[str, Any]]
     base_rates: dict[str, float]
+    base_rates_observed: dict[str, float]
     metrics: dict[str, dict[str, dict[str, float]]]
+    metrics_observed: dict[str, dict[str, dict[str, float]]]
     per_machine_test: dict[str, dict[str, float]]
     per_machine_base_rates: dict[str, dict[str, float]]
     train_pr_auc: dict[str, float]
     shuffled_label_pr_auc: float
     alert_thresholds: dict[str, float]
     rows: dict[str, int]
+    rows_observed: dict[str, int]
     positives: dict[str, int]
     scores: pd.DataFrame = field(repr=False)
     models: dict[str, Any] = field(repr=False)
@@ -205,13 +213,11 @@ def _clean(x: Any) -> Any:
 def _evaluate(df: pd.DataFrame, score: np.ndarray, y: str) -> dict[str, float]:
     d = df[["machine_id", "t", "shift", y]].copy()
     d["score"] = score
-    p, r, n = top_k_precision_recall(d, "score", y, TOP_K)
-    return {
-        "pr_auc": pr_auc(d[y], d.score),
-        "precision_top3": p,
-        "recall_top3": r,
-        "alerts": float(n),
-    }
+    out = {"pr_auc": pr_auc(d[y], d.score)}
+    for k in ALERT_KS:
+        p, r, n = top_k_precision_recall(d, "score", y, k)
+        out |= {f"precision_top{k}": p, f"recall_top{k}": r, f"alerts_top{k}": float(n)}
+    return out
 
 
 def _per_machine(df: pd.DataFrame, score: np.ndarray, y: str) -> dict[str, float]:
@@ -223,8 +229,11 @@ def fit_target(df: pd.DataFrame, features: list[str], target: str) -> TargetResu
     """Fit, select and evaluate both models and both baselines for one target."""
     y = TARGETS[target]
     check_split_gap(df)
-    tr, va, te = (_observed(df, s) for s in ("train", "validation", "test"))
-    splits = {"train": tr, "validation": va, "test": te}
+    tr, va = _observed(df, "train"), _observed(df, "validation")
+    # Fitting and selection use observed rows; metrics use every row of the split.
+    splits = {s: df[df.split == s] for s in ("train", "validation", "test")}
+    observed = {s: _observed(df, s) for s in splits}
+    te = splits["test"]
 
     search: list[dict[str, Any]] = []
     best: dict[str, tuple[float, Any, dict[str, Any]]] = {}
@@ -248,13 +257,20 @@ def fit_target(df: pd.DataFrame, features: list[str], target: str) -> TargetResu
         return hour_of_week_scores(tr, part, y).to_numpy()
 
     names = [*MODELS, *BASELINES]
-    metrics = {n: {s: _evaluate(splits[s], scores_for(n, splits[s]), y) for s in EVAL_SPLITS}
-               for n in names}  # fmt: skip
+
+    def evaluate(parts: dict[str, pd.DataFrame]) -> dict[str, dict[str, dict[str, float]]]:
+        return {
+            n: {s: _evaluate(parts[s], scores_for(n, parts[s]), y) for s in EVAL_SPLITS}
+            for n in names
+        }
+
+    metrics, metrics_observed = evaluate(splits), evaluate(observed)
     per_machine = {n: _per_machine(te, scores_for(n, te), y) for n in names}
 
     # Alert threshold per machine: the validation score above which the same share of
     # hours is alerted as under the top-3-per-shift rule.
-    v = va[["machine_id", "t", "shift"]].assign(score=scores_for(selected, va))
+    vall = splits["validation"]
+    v = vall[["machine_id", "t", "shift"]].assign(score=scores_for(selected, vall))
     v["alert"] = alert_mask(v, "score", TOP_K)
     thresholds = {
         m: float(g.score.quantile(1 - g.alert.mean())) for m, g in v.groupby("machine_id")
@@ -280,7 +296,9 @@ def fit_target(df: pd.DataFrame, features: list[str], target: str) -> TargetResu
         hyperparameters={n: best[n][2] for n in MODELS},
         search=search,
         base_rates={s: float(p[y].mean()) for s, p in splits.items()},
+        base_rates_observed={s: float(p[y].mean()) for s, p in observed.items()},
         metrics=metrics,
+        metrics_observed=metrics_observed,
         per_machine_test=per_machine,
         per_machine_base_rates={
             s: {m: float(g[y].mean()) for m, g in p.groupby("machine_id", sort=True)}
@@ -290,6 +308,7 @@ def fit_target(df: pd.DataFrame, features: list[str], target: str) -> TargetResu
         shuffled_label_pr_auc=float(shuffled_label_pr_auc(df, features, y)),
         alert_thresholds=thresholds,
         rows={s: len(p) for s, p in splits.items()},
+        rows_observed={s: len(p) for s, p in observed.items()},
         positives={s: int(p[y].sum()) for s, p in splits.items()},
         scores=scores,
         models=models,
@@ -319,10 +338,13 @@ def metric_rows(results: dict[str, TargetResult]) -> list[dict[str, Any]]:
             add(t, "data", split, "positives", r.positives[split])
             for m, v in r.per_machine_base_rates[split].items():
                 add(t, "data", split, "base_rate", v, m)
-        for model, by_split in r.metrics.items():
-            for split, ms in by_split.items():
-                for metric, v in ms.items():
-                    add(t, model, split, metric, v)
+            add(t, "data", split, "base_rate_observed", r.base_rates_observed[split])
+            add(t, "data", split, "rows_observed", r.rows_observed[split])
+        for suffix, mets in (("", r.metrics), ("_observed", r.metrics_observed)):
+            for model, by_split in mets.items():
+                for split, ms in by_split.items():
+                    for metric, v in ms.items():
+                        add(t, model, split, metric + suffix, v)
         for model, by_m in r.per_machine_test.items():
             for m, v in by_m.items():
                 add(t, model, "test", "pr_auc", v, m)
@@ -359,20 +381,33 @@ def render_markdown(res: dict[str, Any]) -> str:
         "",
         f"Long stop: a stop episode of {res['long_stop_s']} s or more. PR-AUC is average "
         "precision; compare it with the base rate (the share of hours with the event), not "
-        f"with 0. Alert volume: top {TOP_K} hours per machine per 8 h shift.",
+        f"with 0. Default alert volume: top {TOP_K} hours per machine per 8 h shift; top 1 "
+        "is shown for sensitivity.",
         "",
-        "| Target | Model | Split | PR-AUC | Base rate | Precision at top 3 | Recall at top 3 |",
-        "|---|---|---|---|---|---|---|",
+        f"Headline metrics use every prediction hour. {res['unobserved_label_rows']} hours "
+        "have nothing logged in the following hour, so their label is not observed; live, "
+        "nobody knows at t whether the next hour will be logged, so they count as negatives "
+        "here (an alert on one is a false alarm). They are left out of fitting and model "
+        "selection, and the observed-only columns drop them. Fitting, the hyper-parameter "
+        "search and model selection on validation are unchanged from the first run; the "
+        "test split was scored a second time only because this row set changed.",
+        "",
+        "| Target | Model | Split | PR-AUC | Base rate | Precision top 3 | Recall top 3 "
+        "| Precision top 1 | Recall top 1 | PR-AUC, observed only | Base rate, observed only |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for t, r in res["targets"].items():
         for model, by_split in r["metrics"].items():
             for split in EVAL_SPLITS:
                 m = by_split[split]
+                mo = r["metrics_observed"][model][split]
                 name = f"{model} (served)" if model == r["selected"] else model
                 L.append(
                     f"| {t} | {name} | {split} | {_f(m['pr_auc'])} | "
                     f"{_f(r['base_rates'][split])} | {_f(m['precision_top3'])} | "
-                    f"{_f(m['recall_top3'])} |"
+                    f"{_f(m['recall_top3'])} | {_f(m['precision_top1'])} | "
+                    f"{_f(m['recall_top1'])} | {_f(mo['pr_auc'])} | "
+                    f"{_f(r['base_rates_observed'][split])} |"
                 )
     L += ["", "Per machine, test PR-AUC (base rate in brackets):", ""]
     for t, r in res["targets"].items():
@@ -389,11 +424,12 @@ def render_markdown(res: dict[str, Any]) -> str:
             L.append(f"| {model} | " + " | ".join(cells) + " |")
         L.append("")
     L += [
-        "Leakage checks: every row's latest source timestamp is before t "
-        f"({res['leakage_checks']['rows_checked']} rows); features rebuilt from only the data "
-        f"known at t match the full build on {res['leakage_checks']['truncation_rows_checked']} "
-        "sampled rows (largest difference "
-        f"{res['leakage_checks']['truncation_max_abs_diff']:.2g}); the first test hour is "
+        "Leakage checks. The real guard: features rebuilt from only the data known at t "
+        f"match the full build on {res['leakage_checks']['truncation_rows_checked']} sampled "
+        "rows (largest difference "
+        f"{res['leakage_checks']['truncation_max_abs_diff']:.2g}). A structural check: every "
+        "row's latest source timestamp read is before t "
+        f"({res['leakage_checks']['rows_checked']} rows). The first test hour is "
         f"{res['leakage_checks']['min_test_t']}, the last train hour "
         f"{res['leakage_checks']['max_train_t']}. Shuffled-label test PR-AUC (mean of "
         f"{N_PERM} gradient boosting models fitted on permuted training labels) next to the "
