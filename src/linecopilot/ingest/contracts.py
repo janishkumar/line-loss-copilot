@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -23,3 +24,5 @@ class ParsedFile:
     rejected: list[Rejected] = field(default_factory=list)
     trimmed_columns: int = 0
     trimmed_rows: int = 0
+    # Optional bulk form of `rows` (a pandas DataFrame indexed by source_row) for large files.
+    frame: Any = None
