@@ -117,3 +117,104 @@ replacement.
 
 Reproduce: `make dbt`, then query `mart.brick_shift_oee` joined to
 `core.brick_shift_published` on `shift_id`.
+
+## PIADE: counter alignment and the unit of `speed`
+
+`pi` and `po` are running counters, so a per-interval count is a difference of consecutive
+readings. The file does not say which interval that difference belongs to.
+`scripts/probe_piade_counts.py` compares two alignments on `raw_data.csv`, with the same
+reset and glitch rule as the mart (negative delta = reset; delta above
+3 × max production speed × row hours = glitch; both dropped):
+
+- start: `x[i+1] - x[i]` belongs to row i
+- end: `x[i] - x[i-1]` belongs to row i
+
+Share of valid `po` counts that land on run rows (production, performance_loss):
+
+| Machine | Start alignment | End alignment | Glitches, start | Glitches, end |
+|---|---|---|---|---|
+| s_1 | 68.7% | 96.5% | 19,139 | 233 |
+| s_2 | 74.2% | 93.9% | 8,241 | 4 |
+| s_3 | 78.7% | 97.4% | 5,146 | 77 |
+| s_4 | 89.4% | 95.0% | 10,550 | 14 |
+| s_5 | 74.0% | 98.1% | 13,049 | 114 |
+
+`pi` gives the same picture (end: 94.1% to 98.1%). End alignment puts at least 80% of counts
+in run states on every machine, so it is used and count-based performance stays the headline.
+Start alignment also trips the glitch rule thousands of times, because it hands a run's
+counts to the short stop row that follows it. Under end alignment, under 0.4% of counts
+span a gap of more than 60 s between rows; they are attributed to the later row like any
+other delta.
+
+**Speed unit.** Valid `po` counts on run rows per run hour, divided by the
+elapsed-weighted mean `speed` on run rows:
+
+| Machine | `po` per run hour | Weighted mean speed | Ratio |
+|---|---|---|---|
+| s_1 | 3,564 | 4,011 | 0.89 |
+| s_2 | 4,530 | 6,180 | 0.73 |
+| s_3 | 3,485 | 3,986 | 0.87 |
+| s_4 | 3,463 | 5,551 | 0.62 |
+| s_5 | 4,986 | 5,982 | 0.83 |
+
+Ratios of 0.6 to 0.9 fit packages per hour (packages per minute would give ratios near 60).
+`speed` is read as packages per hour.
+
+`speed` takes a few discrete values per machine (s_1 runs at 4,500 on 35,113 of its
+production rows), so it reads as a set speed rather than a measured one, and the
+p90/p95/p99 ideal rates often coincide. s_1 has 4,422 production rows with speed 0, s_4 667
+and s_5 215; they are left out of the percentiles.
+
+## PIADE: OEE per machine
+
+Built by `mart.piade_interval_counts`, `mart.piade_shift_oee` and `mart.piade_machine_oee`;
+the table below is printed by `scripts/piade_oee_summary.py`. Window: each machine's full
+coverage, first to last interval (s_1 2020-01-01 to 2021-12-31, s_2 2020-06-15 to
+2021-12-31, s_3 2020-10-07 to 2022-01-02, s_4 2020-01-01 to 2022-01-02, s_5 2020-01-12 to
+2022-01-02, UTC). Time-weighted: seconds and counts are summed, then the ratios computed.
+
+| Machine | Planned h | A | P count (p95) | P count (p90) | P count (p99) | P time | Q | OEE (p95) | OEE (p90) | OEE (p99) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| s_1 | 11,906 | 0.777 | 0.786 | 0.795 | 0.769 | 0.833 | 0.998 | 0.609 | 0.616 | 0.596 |
+| s_2 | 4,163 | 0.413 | 0.702 | 0.702 | 0.702 | 0.789 | 0.993 | 0.288 | 0.288 | 0.288 |
+| s_3 | 6,760 | 0.492 | 0.777 | 0.777 | 0.728 | 0.908 | 0.998 | 0.381 | 0.381 | 0.358 |
+| s_4 | 6,132 | 0.691 | 0.563 | 0.563 | 0.534 | 0.637 | 0.996 | 0.387 | 0.387 | 0.368 |
+| s_5 | 8,635 | 0.655 | 0.769 | 0.769 | 0.769 | 0.815 | 0.997 | 0.502 | 0.502 | 0.502 |
+
+Ideal rates (packages per hour, p90 / p95 / p99): s_1 4,500 / 4,550 / 4,650; s_2 6,500 for
+all three; s_3 4,500 / 4,500 / 4,800; s_4 6,176 / 6,176 / 6,500; s_5 6,500 for all three.
+
+Counter handling and caps over the same window:
+
+| Machine | Shifts | pi resets | pi glitches (on run rows) | Shifts with counts excluded | Run time excluded | P capped (p95) | Q capped |
+|---|---|---|---|---|---|---|---|
+| s_1 | 1,821 | 1 | 234 (62) | 62 | 3.7% | 2 | 262 |
+| s_2 | 1,167 | 3 | 4 (1) | 1 | 0.04% | 0 | 3 |
+| s_3 | 1,059 | 1 | 77 (21) | 21 | 2.5% | 6 | 9 |
+| s_4 | 1,079 | 79 | 15 (7) | 8 | 0.95% | 0 | 212 |
+| s_5 | 1,405 | 1 | 116 (47) | 48 | 4.3% | 2 | 26 |
+
+Points to read with it:
+
+- **Count-based performance sits below time-based on every machine**, and is rarely capped
+  (at most 6 shifts per machine at p95). Nothing suggests counts running above the ideal
+  rate; the main caveat is that the ideal rate is a set speed, not a demonstrated one.
+- **Availability counts idle time as planned.** Idle is 45% of planned time on s_2 and 44%
+  on s_3, which is what drives their low availability. If idle means "no order", those two
+  machines' availability is understated; the data does not say.
+- **Quality is close to 1** (0.993 to 0.998). Within a shift, output can exceed input when
+  packages counted in late in one shift come out in the next; 512 of 6,531 shifts have
+  output above input, by a median of 0.07%. Shift quality is capped at 1 and the capped
+  shifts are counted. Over a machine's full window output stays below input.
+- **Glitches mostly sit on stop rows.** Of 446 `pi` glitches, 138 fall on run rows; those
+  shifts get null quality and null count-based performance (`quality_reason = 'pi_glitch'`),
+  and their run time is left out of the count-based ratios. s_2's 3.4e8 jump is one of them.
+- **s_4 has 79 `pi` resets**, 36 shifts with a reset on a run row. A reset drops that row's
+  count; on s_4, 78 of the 79 `pi` resets fall on the same row as a `po` reset, so input
+  and output lose the same row. Quality stays computed for those shifts.
+- **Shift calendar is assumed** (3 × 8 h UTC from 06:00). s_4's first interval starts
+  2020-01-01 00:05 UTC, inside the shift that began 2019-12-31 22:00, so its monthly rollup
+  has a December 2019 row.
+
+Reproduce: `make dbt`, then `PYTHONPATH=src uv run python scripts/probe_piade_counts.py` and
+`PYTHONPATH=src uv run python scripts/piade_oee_summary.py`.

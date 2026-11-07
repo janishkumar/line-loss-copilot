@@ -23,3 +23,61 @@ models:
         data_tests: [not_null]
       - name: stop_s_sum
         data_tests: [not_null]
+  - name: piade_ideal_rate
+    description: >
+      Estimated ideal rate per PIADE machine (packages per hour): p90, p95, p99 of speed over
+      production rows with speed > 0. p95 is the headline. max_speed is the glitch-rule cap.
+    columns:
+      - name: machine_id
+        data_tests: [unique, not_null]
+      - name: p95
+        data_tests: [not_null]
+      - name: max_speed
+        data_tests: [not_null]
+  - name: piade_interval_counts
+    description: >
+      PIADE counter deltas per state interval, end-aligned (x[i] - x[i-1] on row i). Resets
+      (negative) and glitches (above 3 x max_speed x row hours) are null with a flag.
+    columns:
+      - name: event_id
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments: {to: ref('event'), field: event_id}
+      - name: pi_flag
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [ok, reset, glitch, none]}
+      - name: po_flag
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [ok, reset, glitch, none]}
+  - name: piade_shift_oee
+    description: >
+      PIADE OEE per machine and assumed 8 h UTC shift. Intervals crossing a shift boundary are
+      split by time share (seconds and counts). Count-based performance uses the p95 ideal
+      rate (p90, p99 alongside), capped at 1 with n_capped. performance_time is the time-based
+      cross-check.
+    columns:
+      - name: shift_id
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments: {to: ref('shift'), field: shift_id}
+      - name: quality_reason
+        data_tests:
+          - accepted_values:
+              arguments: {values: [pi_glitch, po_glitch, no_input]}
+  - name: piade_machine_oee
+    description: >
+      PIADE OEE per machine and UTC month, time-weighted (sums of seconds and counts, ratios
+      recomputed). Count-based ratios use shifts with complete counts only (run_s_counted).
+    columns:
+      - name: machine_id
+        data_tests: [not_null]
+      - name: month
+        data_tests: [not_null]

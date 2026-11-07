@@ -30,7 +30,11 @@ piade_cov as (
     select
         machine_id,
         floor((extract(epoch from min(start_ts)) - 21600) / 28800) as first_slot,
-        floor((extract(epoch from max(start_ts)) - 21600) / 28800) as last_slot
+        -- Last slot covers the end of the last interval, so a split never lands outside it.
+        greatest(
+            floor((extract(epoch from max(start_ts)) - 21600) / 28800),
+            ceil((extract(epoch from max(end_ts)) - 21600) / 28800) - 1
+        ) as last_slot
     from {{ ref('stg_piade_raw') }}
     group by 1
 ),

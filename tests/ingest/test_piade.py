@@ -25,9 +25,9 @@ def row(**over):
 
 def test_fixture_parses_clean():
     parsed = parse_piade_raw(FIX)
-    assert len(parsed.rows) == 32
+    assert len(parsed.rows) == 36
     assert parsed.rejected == []
-    assert parsed.source_rows == list(range(1, 33))
+    assert parsed.source_rows == list(range(1, 37))
     assert set(parsed.rows[0]) == {
         "machine_id", "alarm", "state", "start_utc", "end_utc",
         "elapsed_ms", "pi", "po", "speed",
@@ -40,7 +40,7 @@ def test_a000_becomes_none():
     assert by_state["production"]["alarm"] is None
     assert by_state["idle"]["alarm"] is None
     downtime = [r for r in parsed.rows if r["state"] == "downtime"]
-    assert [r["alarm"] for r in downtime] == ["A_012", "A_047", "A_012", "A_101"]
+    assert [r["alarm"] for r in downtime] == ["A_012", "A_047", "A_012", "A_101", "A_012"]
 
 
 def test_elapsed_is_ms():
@@ -181,6 +181,14 @@ def test_quality_report_counts():
             "max_gap_s": 3600.0,
             "overlaps_over_1s": 0,
             "counter_resets_pi": 1,  # the glitch jump back down
+            "counter_resets_po": 0,
+        },
+        "s_3": {
+            "rows": 4,
+            "gaps_over_60s": 0,
+            "max_gap_s": 0.0,
+            "overlaps_over_1s": 0,
+            "counter_resets_pi": 0,
             "counter_resets_po": 0,
         },
     }
