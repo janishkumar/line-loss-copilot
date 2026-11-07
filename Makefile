@@ -25,7 +25,7 @@ test-db:
 	LINECOPILOT_TEST_DB_URL=$(TEST_DB_URL) uv run pytest -m db
 
 data:
-	@echo "not implemented yet (download datasets)"
+	uv run python -m linecopilot.ingest.download
 
 load:
 	@echo "not implemented yet (load raw tables)"
