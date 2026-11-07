@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -36,7 +36,11 @@ data:
 load:
 	uv run python -m linecopilot.ingest.load
 
-dbt:
+# The enrich and ml schemas live outside dbt; applying them first is idempotent.
+schemas:
+	uv run python -m linecopilot.schemas
+
+dbt: schemas
 	uv run dbt build --project-dir dbt --profiles-dir dbt
 
 validate-oee:
@@ -52,6 +56,11 @@ web:
 # Stack up, download and load the real data, build marts, write the validation report.
 demo-stage1: up wait-db data load validate-oee
 	@echo "Web app: http://localhost:8080  API: http://localhost:8000/api/health"
+
+# Stage 1, then the stop-risk models, so every page has data (dbt runs inside validate-oee).
+demo-stage2: demo-stage1 train-risk
+	@echo "Web app: http://localhost:8080  API: http://localhost:8000/api/health"
+	@echo "Chat needs Ollama on the host; MCP server: make mcp"
 
 # Machine-translate operator notes with a local Ollama model; appends to the dbt seed.
 translate-notes:
