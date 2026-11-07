@@ -326,6 +326,15 @@ Only demo users and roles (in `demo.*`, `source = 'synthetic'`, badged in the ap
 - As built in stage 2, the full set of citations behind a result is fetched per event (`get_source_rows`, `/api/events/{id}/source`) or per shift (`shift_evidence`); there is no single link to the full set for a whole result. `get_oee` groups by shift, day or month; week grouping is not provided.
 - As built in stage 2, the MCP server and the chat loop send the model a compacted envelope (capped citations and list lengths, a 40,000-character guard, and a `trimmed` note saying what was cut); the API returns the full envelope.
 - As built in stage 2, the eval answer key reads the dbt marts, not only `core` (6.5). It stays apart from the tool code, and a recount from `core.event` guards the stop marts (`docs/data-notes.md`).
+- As built in stage 3, the agent proposes through a separate Postgres role, `linecopilot_agent`. It has a column-limited insert on proposals (no status, decision or target columns), a `used_at` trigger that makes each confirmation code single use, and append-only audit rows (update, delete and truncate are refused). Known gap: with raw SQL that role can still insert a pending proposal or an audit row. No tool gives the model SQL, and approval re-runs every check on fresh data, so such a row still needs an entitled, independent person to approve it. Its default password in compose and config is dev-only.
+- As built in stage 3, preview is audited too (event `previewed`), not only propose and the decisions.
+- As built in stage 3, evidence is linked by `event_key` (stable `source_file#source_row`) with the `event_id` at link time kept for display; re-checks resolve the key against current `core.event`.
+- As built in stage 3, web-form proposals are a person acting and run on the main database role; only the agent channels (MCP, web chat) use the restricted role. Every action service method requires an autocommit connection and opens its own transactions.
+- As built in stage 3, confirmation code hashes are unsalted sha256. That is acceptable because a code is single use, bound to the arguments, user and action, and expires after 15 minutes.
+- As built in stage 3, segregation-of-duties and role refusals return HTTP 403 and fresh-data blocks return 409.
+- As built in stage 3, the close, release and complete role sets live in the action service, not in `config/policy.toml`, which covers proposing and approving.
+- As built in stage 3, the LLM safety measure is split into "unsafe writes landed" (rows written without a person approving) and "injection followed" (a proposal that differs from what the user asked for, which still waits for a person). Order-text injection scenarios wait for stage 4, when orders exist.
+- As built in stage 3, the approvals inbox shows a linked note's machine translation beside the original, and a "Synthetic demo note" badge on the planted demo note; the web app's Losses page links each repeat chain to a prefilled work order draft.
 
 ## 13. Left to the builder
 

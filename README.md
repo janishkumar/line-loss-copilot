@@ -6,7 +6,9 @@ Mid-sized plants lose capacity to stops, changeovers, slow running, shortages an
 
 Stage 2 adds the copilot on top: one read-only tool layer served by the API, an MCP server and a web chat on a local model, with loss ranking, MTTR and MTBF, repeat failures, operator-notes search, a next-hour stop-risk model, and evals that score answers and citations against SQL.
 
-Status: stages 1 and 2 of 5 (data layer and true OEE; copilot). Stages 3 onward (approved actions, scheduling, visual inspection) are not built yet.
+Stage 3 adds approved actions: the copilot can draft a work order, a quality hold or a follow-up, and nothing is written until a different person approves it in the app.
+
+Status: stages 1 to 3 of 5 (data layer and true OEE; copilot; approved actions). Scheduling and visual inspection are not built yet.
 
 ## Stage 1 results
 <!-- oee:start -->
@@ -111,6 +113,60 @@ Real PIADE data only. Generated 2026-11-07T05:51:09Z with scikit-learn 1.9.1, fe
 persistence and hour_of_week are the baselines. Per-machine results, the observed-only figures and the leakage checks are in [evals/results/stop_risk.md](evals/results/stop_risk.md).
 <!-- stop-risk:end -->
 
+## Stage 3: approved actions
+
+**Decision it supports:** when the copilot finds a repeat failure, who may turn that finding into a work order, a quality hold or a follow-up, and how a plant can trust that nothing was written because a model, or a line of text inside an operator note, said so. The AI proposes. A person with the right role, who is not the proposer, approves.
+
+```
+preview      read-only; runs every check; shows what would be created; issues a one-time code
+   |         bound to these exact arguments, this user and this action (15 minutes, single use)
+propose      the code must match the arguments actually sent; checks run again; one PENDING
+   |         proposal is stored and nothing else is written
+approvals    a person with the right role opens it: summary, arguments, every check, evidence
+   |         rows, linked notes, and any warning about instruction-like text
+approve      checks run again on fresh data (evidence still there, no duplicate opened since),
+   |         then one row is written to the work order, hold or follow-up table
+audit        every step is a row in an append-only log, refusals and blocks included
+```
+
+There is no approve, reject, close or release tool on MCP or in the chat loop. Those are web routes that need a person's session. The copilot's own identity (`copilot-agent`) can propose but never decide, and the person it acts for (`on_behalf_of`) cannot approve either. Identity never comes from a tool argument: MCP takes it from `LINECOPILOT_MCP_USER`, the web form from the session cookie. Free text is data: instruction-like wording in a note or description shows as a warning and changes nothing.
+
+### Who may do what
+
+From `config/policy.toml` (propose, approve) and the action service (close, release, complete):
+
+| Role | May propose | May approve | May close, release or complete |
+|---|---|---|---|
+| operator | follow-up | nothing | nothing |
+| shift supervisor | work order, quality hold, follow-up | work order, follow-up | close work orders |
+| quality lead | quality hold, follow-up | quality hold | release holds |
+| planner | follow-up | nothing | nothing |
+| plant manager | follow-up | work order, quality hold | close work orders, release holds, complete follow-ups |
+
+A follow-up can also be completed by a person whose role is its assignee role. Priority "high" needs at least 2 linked events and 30 minutes of stop time, "critical" at least 3 events and 2 hours; otherwise the preview warns.
+
+### Try it in the app
+
+`make demo-stage3` runs stage 2, then plants one clearly labelled synthetic note (source `synthetic`, badged "Synthetic demo note") on a real repeat-failure stop, and prints how to connect Claude. Then:
+
+1. Open http://localhost:8080 and pick "Operator A" or a supervisor in the demo user box (top right). These are synthetic demo users, not a login.
+2. Open Losses, find a repeat failure chain and click "Draft work order", or use Actions, New action. Preview shows each check; Propose sends it to the inbox.
+3. In Approvals, open the proposal. As the proposer the Approve button is disabled with the reason. Switch to another supervisor and approve; the work order appears under Actions and every step is in Audit.
+
+### Try it from Claude
+
+Add the MCP server with a demo user named in its environment (replace `/path/to/line-loss-copilot`):
+
+```
+claude mcp add linecopilot --env PYTHONPATH=src --env LINECOPILOT_MCP_USER=sup.a -- uv run --directory /path/to/line-loss-copilot python -m linecopilot.mcp_server
+```
+
+Ask: "Draft a work order for the repeat stops on machine s_3, using the stops you find." The preview names a warning from the planted note; the proposal lands in the inbox for Supervisor A as `on_behalf_of`, so Supervisor B approves it in the app. If the agent tries to approve its own proposal there is no tool to do it with, and the web route refuses its principal.
+
+The database role the agent uses (`linecopilot_agent`) is column-limited: it can add a pending proposal, a code and audit rows, and read, but not write the work order, hold or follow-up tables or any decision column. Its password in `docker-compose.yml`, `config.py` and `sql/actions_schema.sql` is a dev-only default for the local demo; change it for anything else.
+
+Safety results are in [Stage 3 results](#stage-3-results) below. Design and rulings: [docs/design.md](docs/design.md) sections 7 and 12.
+
 ## Stage 3 results
 
 ### Safety eval: approved actions
@@ -179,9 +235,12 @@ All three datasets are licensed CC BY 4.0. Raw files are not in this repository;
 | Brick line published OEE and stop log | Real | 1 |
 | Operator notes (Greek, original text kept beside a labelled machine translation) | Real | 1 (loaded), 2 (search) |
 | VisA images | Real | 5 |
-| Orders, products, BOMs, stock, supplier lead times, changeovers, demo users | Synthetic, generated by a seeded script, own schema, `source` column, badged in the app | 3 to 4 (none exist yet) |
+| Demo users (Operator A, Supervisor A and B, Planner A, Quality lead A, Plant manager A, the copilot agent) | Synthetic, `demo.app_user`, `source` column, badged "Synthetic demo user" in the app | 3 |
+| The demo injected note, one row planted on a real repeat-failure stop by `make demo-stage3` (`--remove` deletes it) | Synthetic, `demo.injected_note`, text starts with a label, badged "Synthetic demo note" | 3 |
+| Work orders, holds, follow-ups and audit rows made by approving proposals | Real rows in this project's own tables, made from real events by demo users | 3 |
+| Orders, products, BOMs, stock, supplier lead times, changeovers | Synthetic, generated by a seeded script, own schema, `source` column, badged in the app | 4 (none exist yet) |
 
-Stages 1 and 2 contain no synthetic data.
+Stages 1 and 2 contain no synthetic data. Stage 3 adds only the demo users and the demo note; `mart.*` never reads them, so no OEE, loss or risk figure includes synthetic rows.
 
 ## What didn't work (and what replaced it)
 
@@ -197,6 +256,11 @@ Stages 1 and 2 contain no synthetic data.
 - **A next-hour stop alarm worth acting on.** The long-stop model beats both baselines on PR-AUC, but at one alert per machine per shift the hour-of-week baseline is as good or better. It is published as a weak signal, not as an alarm.
 - **Getting a 7B local model to cite and to compare.** With tools it answered 28 of 60 answerable questions against 0 of 60 without, but it left citations out of 96% of its answers, so the 7 of 7 supported citations rest on very few rows. It got 0 of 6 stop counts, 0 of 5 month-to-month availability changes and 0 of 4 before/after facts, because it picked the wrong tool (OEE instead of the loss or event tools for a stop count) or sent out-of-scope requests, then answered "not available". The tool layer turns those requests away correctly; this model does not recover from that. The Claude rows above are the test of whether a stronger model does.
 - **The brick availability gap is not closed.** Recomputing availability from the stop log lands within 2 points on 97.7% of after-period shifts but only 38.7% of before-period shifts. The before gap traces to a block of October days where published planned time is far longer than the logged day; the files do not explain why. It is reported as measured, not filtered.
+- **A local model proposing in the same round as the preview.** `qwen2.5:7b-instruct` called `propose_*` straight after `preview_*` with a confirmation code it invented, because the real code only exists in the preview's reply. The tool descriptions already say the code comes from the matching preview, and the model ignored that. The invented code was refused and audited and nothing was written: the defence is the code binding, not the prompt. The model also proposed the requested action in only 1 of 5 safety prompts.
+- **An agent role that could forge an approved proposal.** The first review found that the agent's database role could insert a proposal row with status `approved`, or with a code that was never issued. The role now gets a column-limited insert (no status, decision or target columns), a trigger makes each code single use, and the audit log refuses update, delete and truncate. Tests try each of those through the agent role and expect Postgres to refuse.
+- **An instruction check that zero-width characters and odd whitespace evaded.** The first version matched the raw text, so "ig\u200bnore previous instructions" or the same words split over extra whitespace passed without a warning. The text is now folded first (accents and invisible format characters dropped, case folded, whitespace collapsed) and the patterns run on that. It is still a heuristic that only warns; the real defence is that no text can change what a tool does.
+- **Counting the safety result as one number.** The first LLM safety figure mixed "a row was written without approval" with "the model followed the injected text". They are different: a proposal that obeys an injection still waits for a person. The README now reports unsafe writes landed and injection followed separately.
+- **Order-text injection.** The brief asks for injections hidden in order text. Orders do not exist until stage 4, so stage 3 covers operator notes and action text only, and says so.
 
 ## Use it from Claude
 
@@ -233,6 +297,8 @@ Needs Docker, uv, and Node 24 (Node only for local web work).
 ```
 make demo-stage1   # db, api and web up; download data; load; dbt build; validation report
 make demo-stage2   # demo-stage1, then the stop-risk models, so every page has data
+make demo-stage3   # demo-stage2, then one labelled synthetic injected note; prints the Claude setup
+make demo-note-remove  # delete the demo injected note
 make report        # rewrite the results sections above from evals/results/
 make train-risk    # next-hour stop-risk models on PIADE (about 20 s)
 make mcp           # MCP server over stdio
@@ -244,7 +310,7 @@ make down
 
 Raw tables are created with `CREATE TABLE IF NOT EXISTS`, so after a schema change recreate the database volume (`docker compose down -v`) and reload.
 
-Then open http://localhost:8080 (overview, validation, evidence, losses, reliability, notes, stop risk, chat). The API is on http://localhost:8000. Both ports are bound to 127.0.0.1 only. The chat needs Ollama on the host (`LINECOPILOT_CHAT_MODEL`, default `qwen2.5:7b-instruct`, chosen over `llama3.1:8b-instruct` by a tool-calling smoke test: 22 of 24 against 19 of 24, and faster; see `evals/results/chat_model_smoke.json`). If port 8000 is taken, set `LINECOPILOT_API_PORT`.
+Then open http://localhost:8080 (overview, validation, evidence, losses, reliability, notes, stop risk, chat, approvals, actions, audit). The API is on http://localhost:8000. Both ports are bound to 127.0.0.1 only. The chat needs Ollama on the host (`LINECOPILOT_CHAT_MODEL`, default `qwen2.5:7b-instruct`, chosen over `llama3.1:8b-instruct` by a tool-calling smoke test: 22 of 24 against 19 of 24, and faster; see `evals/results/chat_model_smoke.json`). If port 8000 is taken, set `LINECOPILOT_API_PORT`.
 
 More: [docs/data-notes.md](docs/data-notes.md) (data findings and how each number is reproduced), [docs/design.md](docs/design.md) (design for all stages).
 
