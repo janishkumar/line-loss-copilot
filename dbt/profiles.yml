@@ -1,0 +1,13 @@
+# Connection settings come from environment variables (defaults match docker-compose.yml).
+linecopilot:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('LINECOPILOT_DBT_HOST', 'localhost') }}"
+      port: "{{ env_var('LINECOPILOT_DBT_PORT', env_var('LINECOPILOT_DB_PORT', '5434')) | as_number }}"
+      user: "{{ env_var('LINECOPILOT_DBT_USER', 'linecopilot') }}"
+      password: "{{ env_var('LINECOPILOT_DBT_PASSWORD', 'linecopilot') }}"
+      dbname: "{{ env_var('LINECOPILOT_DBT_DBNAME', 'linecopilot') }}"
+      schema: core
+      threads: 4

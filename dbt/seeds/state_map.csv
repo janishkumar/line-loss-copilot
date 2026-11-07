@@ -1,0 +1,7 @@
+source_system,source_state,state,is_planned,is_run
+piade,production,running,true,true
+piade,performance_loss,running,true,true
+piade,downtime,stopped,true,false
+piade,idle,idle,true,false
+piade,scheduled_downtime,off,false,false
+brick,stop,stopped,true,false

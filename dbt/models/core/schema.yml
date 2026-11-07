@@ -1,0 +1,61 @@
+version: 2
+models:
+  - name: event
+    columns:
+      - name: event_id
+        data_tests: [unique, not_null]
+      - name: event_key
+        data_tests: [unique, not_null]
+      - name: source_system
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [piade, brick]}
+      - name: event_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [state_interval, stop, production_count, quality, alarm, note]}
+      - name: state
+        data_tests:
+          - accepted_values:
+              arguments: {values: [running, stopped, idle, "off", unknown]}
+      - name: start_ts
+        data_tests: [not_null]
+      - name: end_ts
+        data_tests: [not_null]
+      - name: raw_table
+        data_tests: [not_null]
+      - name: is_synthetic
+        data_tests:
+          - accepted_values:
+              arguments: {values: [false], quote: false}
+  - name: note
+    columns:
+      - name: note_id
+        data_tests: [unique, not_null]
+      - name: event_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('event'), field: event_id}
+      - name: language
+        data_tests:
+          - accepted_values:
+              arguments: {values: [el, latin]}
+  - name: shift
+    columns:
+      - name: shift_id
+        data_tests: [unique, not_null]
+  - name: line
+    columns:
+      - name: line_id
+        data_tests: [unique, not_null]
+  - name: machine
+    columns:
+      - name: machine_id
+        data_tests: [unique, not_null]
+  - name: brick_shift_published
+    columns:
+      - name: source_row
+        data_tests: [not_null]

@@ -1,0 +1,18 @@
+version: 2
+seeds:
+  - name: state_map
+    config:
+      column_types: {source_system: text, source_state: text, state: text, is_planned: boolean, is_run: boolean}
+    columns:
+      - name: source_state
+        data_tests: [not_null]
+      - name: state
+        data_tests:
+          - accepted_values:
+              arguments: {values: [running, stopped, idle, "off", unknown]}
+  - name: stop_type_map
+    config:
+      column_types: {in_oee: boolean, planned: boolean}
+    columns:
+      - name: stop_type
+        data_tests: [unique, not_null]

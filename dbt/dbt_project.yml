@@ -1,0 +1,23 @@
+name: linecopilot
+version: "0.1.0"
+config-version: 2
+profile: linecopilot
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+clean-targets: ["target", "logs"]
+
+models:
+  linecopilot:
+    +materialized: table
+    staging:
+      +schema: staging
+    core:
+      +schema: core
+
+seeds:
+  linecopilot:
+    +schema: core

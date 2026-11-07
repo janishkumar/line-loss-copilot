@@ -1,0 +1,4 @@
+stop_type,in_oee,planned
+Unplanned,true,false
+Planned - Included in OEE,true,true
+Planned - Not included in OEE,false,true

@@ -31,7 +31,7 @@ load:
 	uv run python -m linecopilot.ingest.load
 
 dbt:
-	@echo "not implemented yet (build core and mart)"
+	uv run dbt build --project-dir dbt --profiles-dir dbt
 
 validate-oee:
 	@echo "not implemented yet (brick OEE validation)"
