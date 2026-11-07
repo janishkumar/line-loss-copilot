@@ -176,6 +176,57 @@ def test_repeat_failures_piade(built):
     assert none.status == "ok" and none.data.chains == []
 
 
+def test_repeat_failures_window_edges(built):
+    # A_101 stops at 12:40, 15:16 and 15:26:10 on s_2. A window that starts at 15:00 or ends
+    # at 13:00 still sees the whole chain, which crosses its edge.
+    for start, end in (
+        (datetime(2020, 1, 1, 15, tzinfo=UTC), datetime(2020, 1, 2, tzinfo=UTC)),
+        (datetime(2020, 1, 1, tzinfo=UTC), datetime(2020, 1, 1, 13, tzinfo=UTC)),
+    ):
+        r = repeat_failures(built, RepeatArgs(machine_id="s_2", start=start, end=end))
+        assert r.status == "ok"
+        (chain,) = r.data.chains
+        assert chain.count == 3 and chain.first_start.hour == 12
+        assert any("past the window" in a for a in r.assumptions)
+    # No failure stop starts inside this window.
+    r = repeat_failures(
+        built,
+        RepeatArgs(
+            machine_id="s_2",
+            start=datetime(2020, 1, 1, 16, tzinfo=UTC),
+            end=datetime(2020, 1, 2, tzinfo=UTC),
+        ),
+    )
+    assert r.status == "insufficient_evidence"
+
+
+def test_empty_window_names_not_in_oee_filter(built):
+    # 2026-02-09 has only a 'Planned - Not included in OEE' stop.
+    win = {"start": "2026-02-09", "end": "2026-02-10"}
+    r = loss_pareto(built, LossParetoArgs(line_id="brick", by="reason", **win))
+    assert r.status == "insufficient_evidence"
+    assert "include_not_in_oee=false" in r.missing
+    r = breakdown(built, BreakdownArgs(line_id="brick", rows="reason", cols="month", **win))
+    assert r.status == "insufficient_evidence" and "include_not_in_oee=false" in r.missing
+    r = loss_pareto(
+        built, LossParetoArgs(line_id="brick", by="reason", include_not_in_oee=True, **win)
+    )
+    assert r.status == "ok" and r.data.total_stop_count == 1
+
+
+def test_breakdown_zero_lost_time_is_insufficient(built, monkeypatch):
+    import linecopilot.tools.losses as losses
+
+    real = losses._episodes
+
+    def zero(*a, **k):
+        return [{**e, "duration_s": 0.0} for e in real(*a, **k)]
+
+    monkeypatch.setattr(losses, "_episodes", zero)
+    r = breakdown(built, BreakdownArgs(line_id="brick", rows="reason", cols="month"))
+    assert r.status == "insufficient_evidence"
+
+
 def test_repeat_failures_brick_detail(built):
     r = repeat_failures(
         built, RepeatArgs(line_id="brick", key="reason_detail", min_repeats=2, within_hours=24)

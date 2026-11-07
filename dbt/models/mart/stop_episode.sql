@@ -94,9 +94,9 @@ unioned as (
     select * from piade
 )
 select
-    row_number() over (
-        order by source_system, machine_id, start_ts, event_ids[1]
-    )::bigint as episode_id,
+    -- The first event of the episode: stable across rebuilds, unique since every stop event
+    -- belongs to exactly one episode.
+    event_ids[1] as episode_id,
     source_system,
     line_id,
     machine_id,

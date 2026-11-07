@@ -90,3 +90,20 @@ def test_loss_tools_registered():
         {"line_id": "brick", "start": "2025-10-10", "end": "2025-10-09"},
     )
     assert r.status == "out_of_scope" and r.missing == "end must be after start"
+
+
+def test_repeat_chain_uses_running_max_end():
+    # A long stop (0h-5h) overlaps a short one (1h-1h10); the next starts at 5h30. Against the
+    # last episode's end (1h10) the gap is 4h20; against the chain's latest end (5h) it is 30m.
+    eps = [ep(1, 0, dur_min=300), ep(2, 1), ep(3, 5.5)]
+    (chain,) = chain_repeats(eps, within_hours=1, min_repeats=3)
+    assert [e["episode_id"] for e in chain] == [1, 2, 3]
+
+
+def test_repeat_chain_keeps_chains_touching_window():
+    eps = [ep(1, 0), ep(2, 2), ep(3, 4), ep(4, 50), ep(5, 52), ep(6, 54)]
+    inside = (T0 + timedelta(hours=3), T0 + timedelta(hours=10))
+    (chain,) = chain_repeats(eps, within_hours=24, min_repeats=3, inside=inside)
+    # The chain starts before the window and is kept whole; the later chain has no
+    # episode starting inside the window and is dropped.
+    assert [e["episode_id"] for e in chain] == [1, 2, 3]

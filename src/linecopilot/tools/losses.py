@@ -158,7 +158,7 @@ class RepeatData(BaseModel):
     chains: list[RepeatChain]
     chain_count: int
     chains_truncated: bool = False
-    failure_count: int
+    failure_count: int = Field(description="failure stops starting in the window")
 
 
 # Helpers ------------------------------------------------------------------------------------
@@ -198,9 +198,16 @@ EPISODES = """SELECT episode_id, source_system, line_id, machine_id, start_ts, e
               ORDER BY start_ts, episode_id"""
 
 
-def _episodes(conn, scope: Scope, include_all: bool, failures: bool = False) -> list[dict]:
-    p = {"line": scope.line_id, "s": scope.start, "e": scope.end, "all": include_all}
-    return rows(conn, EPISODES, {**p, "fail": failures})
+def _episodes(
+    conn,
+    scope: Scope,
+    include_all: bool,
+    failures: bool = False,
+    margin: timedelta = timedelta(0),
+) -> list[dict]:
+    """Episodes starting in the window, widened by `margin` on both sides."""
+    p = {"line": scope.line_id, "s": scope.start - margin, "e": scope.end + margin}
+    return rows(conn, EPISODES, {**p, "all": include_all, "fail": failures})
 
 
 EPISODE_EVENTS = """SELECT g.key, g.ord, e.event_id, e.event_type, e.raw_table, e.source_file,
@@ -256,7 +263,11 @@ def _invalid(scope: Scope, arg: str, given: str, valid: tuple[str, ...]) -> Resu
     )
 
 
-def _no_stops(scope: Scope, what: str, assumptions: list[str]) -> Result:
+def _no_stops(
+    scope: Scope, what: str, assumptions: list[str], include_not_in_oee: bool | None = None
+) -> Result:
+    if scope.source_system == "brick" and include_not_in_oee is False:
+        what = f"{what} with include_not_in_oee=false"
     return Result(
         status="insufficient_evidence",
         window=scope.window(),
@@ -295,7 +306,7 @@ def loss_pareto(conn: psycopg.Connection, args: LossParetoArgs) -> Result[Pareto
     eps = _episodes(conn, scope, args.include_not_in_oee)
     total = _lost(eps)
     if not eps or total <= 0:
-        return _no_stops(scope, "stops with lost time", assumptions)
+        return _no_stops(scope, "stops with lost time", assumptions, args.include_not_in_oee)
     groups: dict[str, list[dict]] = defaultdict(list)
     for e in eps:
         groups[value(e, args.by, src) or BLANK].append(e)
@@ -358,8 +369,8 @@ def breakdown(conn: psycopg.Connection, args: BreakdownArgs) -> Result[Breakdown
         )
     assumptions = _assumptions(scope, args.include_not_in_oee)
     eps = _episodes(conn, scope, args.include_not_in_oee)
-    if not eps:
-        return _no_stops(scope, "stops", assumptions)
+    if not eps or _lost(eps) <= 0:
+        return _no_stops(scope, "stops with lost time", assumptions, args.include_not_in_oee)
 
     def keep(dim: str) -> set[str]:
         groups: dict[str, list[dict]] = defaultdict(list)
@@ -411,11 +422,16 @@ def breakdown(conn: psycopg.Connection, args: BreakdownArgs) -> Result[Breakdown
 
 
 def chain_repeats(
-    eps: list[dict[str, Any]], within_hours: float, min_repeats: int
+    eps: list[dict[str, Any]],
+    within_hours: float,
+    min_repeats: int,
+    inside: tuple[datetime, datetime] | None = None,
 ) -> list[list[dict[str, Any]]]:
     """Chains of episodes with the same `key` on the same machine (or line), each starting
-    at most `within_hours` after the previous one's end. Episodes without a key are skipped.
-    Returns chains of at least `min_repeats`, most lost time first."""
+    at most `within_hours` after the latest end so far in the chain (stops can overlap).
+    Episodes without a key are skipped. Returns chains of at least `min_repeats`, most lost
+    time first; with `inside` = (start, end), only chains with an episode starting in
+    [start, end)."""
     gap = timedelta(hours=within_hours)
     by: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for e in eps:
@@ -424,15 +440,21 @@ def chain_repeats(
     chains: list[list[dict]] = []
     for group in by.values():
         group.sort(key=lambda e: (e["start_ts"], e["episode_id"]))
-        cur = [group[0]]
+        cur, cur_end = [group[0]], group[0]["end_ts"]
         for e in group[1:]:
-            if e["start_ts"] - cur[-1]["end_ts"] <= gap:
+            if e["start_ts"] - cur_end <= gap:
                 cur.append(e)
+                cur_end = max(cur_end, e["end_ts"])
             else:
                 chains.append(cur)
-                cur = [e]
+                cur, cur_end = [e], e["end_ts"]
         chains.append(cur)
-    keep = [c for c in chains if len(c) >= min_repeats]
+    keep = [
+        c
+        for c in chains
+        if len(c) >= min_repeats
+        and (inside is None or any(inside[0] <= e["start_ts"] < inside[1] for e in c))
+    ]
     return sorted(keep, key=lambda c: (-_lost(c), c[0]["start_ts"], c[0]["episode_id"]))
 
 
@@ -444,12 +466,17 @@ def repeat_failures(conn: psycopg.Connection, args: RepeatArgs) -> Result[Repeat
     if args.key not in REPEAT_KEYS[src]:
         return _invalid(scope, "key", args.key, REPEAT_KEYS[src])
     assumptions = _assumptions(scope, None)
-    eps = _episodes(conn, scope, include_all=True, failures=True)
-    if not eps:
+    # Fetch within_hours either side so a chain crossing a window edge is seen whole.
+    margin = timedelta(hours=args.within_hours)
+    eps = _episodes(conn, scope, include_all=True, failures=True, margin=margin)
+    n_inside = sum(scope.start <= e["start_ts"] < scope.end for e in eps)
+    if not n_inside:
         return _no_stops(scope, "failure stops", assumptions)
     for e in eps:
         e["key"] = value(e, args.key, src)
-    chains = chain_repeats(eps, args.within_hours, args.min_repeats)
+    chains = chain_repeats(
+        eps, args.within_hours, args.min_repeats, inside=(scope.start, scope.end)
+    )
     shown = chains[: args.limit]
     cites, n_raw = episode_citations(
         conn, [(str(i), [e["episode_id"] for e in c]) for i, c in enumerate(shown)]
@@ -471,8 +498,14 @@ def repeat_failures(conn: psycopg.Connection, args: RepeatArgs) -> Result[Repeat
     ]
     assumptions.append(
         f"A chain is {args.min_repeats} or more failure stops with the same {args.key} on the "
-        f"same machine, each starting within {args.within_hours:g} h of the previous one's "
-        "end; chains are ranked by lost time. Stops with a blank key are not chained."
+        f"same machine, each starting within {args.within_hours:g} h of the latest end so "
+        "far in the chain; chains are ranked by lost time. Stops with a blank key are not "
+        "chained."
+    )
+    assumptions.append(
+        "A chain is kept when at least one of its stops starts in the window; chains can "
+        f"extend past the window (stops up to {args.within_hours:g} h before its start or "
+        "after its end are followed), and their stops and citations are included in full."
     )
     if len(chains) > len(shown):
         assumptions.append(f"Showing {len(shown)} of {len(chains)} chains; raise limit for more.")
@@ -484,7 +517,7 @@ def repeat_failures(conn: psycopg.Connection, args: RepeatArgs) -> Result[Repeat
         chains=out,
         chain_count=len(chains),
         chains_truncated=len(chains) > len(shown),
-        failure_count=len(eps),
+        failure_count=n_inside,
     )
     return Result(
         status="ok",

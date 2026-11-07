@@ -85,7 +85,8 @@ def test_brick_one_episode_per_stop(built):
         "SELECT count(*) FROM mart.stop_episode WHERE source_system = 'brick' AND NOT in_oee"
     ).fetchone()
     assert not_in == 3
-    (ids,) = built.execute(
-        "SELECT array_agg(episode_id ORDER BY episode_id) FROM mart.stop_episode"
+    # episode_id is the episode's first event_id, so it is stable across rebuilds.
+    (bad,) = built.execute(
+        "SELECT count(*) FROM mart.stop_episode WHERE episode_id <> event_ids[1]"
     ).fetchone()
-    assert ids == list(range(1, len(ids) + 1))
+    assert bad == 0
