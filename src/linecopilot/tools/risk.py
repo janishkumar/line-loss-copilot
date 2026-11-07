@@ -10,7 +10,7 @@ from typing import Any, Literal
 import psycopg
 from pydantic import BaseModel, ConfigDict, Field
 
-from linecopilot.ml.dataset import LONG_STOP_S
+from linecopilot.ml.dataset import LONG_STOP_S, TEST_START, TRAIN_END
 from linecopilot.tools.common import keyed_citations, machine_rows, rows, utc
 from linecopilot.tools.envelope import CITATION_CAP, Citation, Result, Window, cap_citations
 
@@ -25,8 +25,9 @@ NOT_TRAINED = "no stop-risk scores in the database; run `make train-risk`"
 ASSUMPTIONS = [
     "Scores come from the model selected on validation PR-AUC and were computed by "
     "`make train-risk`; the tool only reads them. Features use only data logged before t "
-    "(an interval still open at t counts up to t). Splits: train t < 2021-07-01, "
-    "validation to 2021-10-01, test after; a score in the train split is in-sample.",
+    "(an interval still open at t counts up to t). Splits: train t < "
+    f"{TRAIN_END:%Y-%m-%d}, validation to {TEST_START:%Y-%m-%d}, test after; a score in the "
+    "train split is in-sample.",
     "A score ranks hours; it is a probability only for the gradient boosting model. Read "
     "it against base_rate (the machine's training-split share of hours with the event) and "
     "alert_threshold (the validation score above which as many hours are alerted as under "

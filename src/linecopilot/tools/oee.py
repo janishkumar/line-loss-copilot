@@ -355,6 +355,8 @@ def _piade(conn, scope: Scope, group: str, limit: int) -> tuple[OeeData, dict[st
         recs = rows(conn, PIADE_MONTHS, p)
         for r in recs:
             r["key"] = r["month"].isoformat()
+    total = len(recs)
+    recs = recs[:limit]  # days and months come in time order, as shifts do
     keys = [k for k in PIADE_SHIFT if recs and k in recs[0]]
     out = [
         OeeRow(
@@ -368,7 +370,13 @@ def _piade(conn, scope: Scope, group: str, limit: int) -> tuple[OeeData, dict[st
         )
         for r in recs
     ]
-    data = OeeData(source_system="piade", group=group, rows=out, row_count=len(out))
+    data = OeeData(
+        source_system="piade",
+        group=group,
+        rows=out,
+        row_count=total,
+        rows_truncated=total > len(out),
+    )
     return data, {r["key"]: list(r["shift_ids"]) for r in recs}
 
 

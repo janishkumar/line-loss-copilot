@@ -207,3 +207,10 @@ def test_at_defaults_to_latest_scored_hour(scored):
     assert body.json()["status"] == "ok" and body.json()["data"]["rows"][0]["score"] == 0.05
     body = client.get("/api/risk")
     assert body.status_code == 200 and len(body.json()["data"]["rows"]) == 2
+
+
+def test_split_text_comes_from_the_dataset_constants():
+    from linecopilot.ml.dataset import TEST_START, TRAIN_END
+    from linecopilot.tools.risk import ASSUMPTIONS
+
+    assert f"train t < {TRAIN_END:%Y-%m-%d}, validation to {TEST_START:%Y-%m-%d}" in ASSUMPTIONS[0]

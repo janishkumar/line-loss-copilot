@@ -95,6 +95,7 @@ def test_metric_rows_and_markdown():
     md = render_markdown(results)
     assert "| long | persistence | test |" in md and "600" in md
     assert "Precision top 1" in md and "observed only" in md
+    assert "second time" not in md  # run history lives in docs/data-notes.md, not here
     assert ("any", "logistic", "test", "pr_auc_observed") in keys
 
 

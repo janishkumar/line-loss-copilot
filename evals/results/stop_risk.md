@@ -4,7 +4,7 @@ Generated 2026-11-07T05:51:09Z with scikit-learn 1.9.1, feature list hash e28113
 
 Long stop: a stop episode of 600 s or more. PR-AUC is average precision; compare it with the base rate (the share of hours with the event), not with 0. Default alert volume: top 3 hours per machine per 8 h shift; top 1 is shown for sensitivity.
 
-Headline metrics use every prediction hour. 1263 hours have nothing logged in the following hour, so their label is not observed; live, nobody knows at t whether the next hour will be logged, so they count as negatives here (an alert on one is a false alarm). They are left out of fitting and model selection, and the observed-only columns drop them. Fitting, the hyper-parameter search and model selection on validation are unchanged from the first run; the test split was scored a second time only because this row set changed.
+Headline metrics use every prediction hour. 1263 hours have nothing logged in the following hour, so their label is not observed; live, nobody knows at t whether the next hour will be logged, so they count as negatives here (an alert on one is a false alarm). They are left out of fitting and model selection, and the observed-only columns drop them.
 
 | Target | Model | Split | PR-AUC | Base rate | Precision top 3 | Recall top 3 | Precision top 1 | Recall top 1 | PR-AUC, observed only | Base rate, observed only |
 |---|---|---|---|---|---|---|---|---|---|---|

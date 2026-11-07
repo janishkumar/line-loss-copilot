@@ -49,6 +49,6 @@ def list_assets(conn: psycopg.Connection, args: ListAssetsArgs) -> Result[Assets
         assumptions=[
             "Coverage is from first to last event start/end per asset; machines have "
             "different date ranges and gaps inside a range are not filled.",
-            "No synthetic data is loaded in stage 1.",
+            "Every line and machine listed here is real data; none is synthetic.",
         ],
     )

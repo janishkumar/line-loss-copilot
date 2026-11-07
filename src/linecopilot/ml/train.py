@@ -388,9 +388,7 @@ def render_markdown(res: dict[str, Any]) -> str:
         "have nothing logged in the following hour, so their label is not observed; live, "
         "nobody knows at t whether the next hour will be logged, so they count as negatives "
         "here (an alert on one is a false alarm). They are left out of fitting and model "
-        "selection, and the observed-only columns drop them. Fitting, the hyper-parameter "
-        "search and model selection on validation are unchanged from the first run; the "
-        "test split was scored a second time only because this row set changed.",
+        "selection, and the observed-only columns drop them.",
         "",
         "| Target | Model | Split | PR-AUC | Base rate | Precision top 3 | Recall top 3 "
         "| Precision top 1 | Recall top 1 | PR-AUC, observed only | Base rate, observed only |",
