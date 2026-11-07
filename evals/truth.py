@@ -362,7 +362,7 @@ RATIO_MIN_DELTA = 0.01  # one percentage point
 REL_MIN_DELTA = 0.05
 # A brick day whose published planned time exceeds published production plus published stops
 # by more than this has planned time that neither the production nor the stop columns account
-# for (the October 2025 block in docs/data-notes.md). On live data the excess is 2.9 to 8.2 h
+# for (the October 2025 block in docs/data-notes.md). On live data the excess is 2.9 to 8.1 h
 # on those 13 days and at most 0.03 h on every other day, so any cut-off from about 0.1 h to
 # 2.8 h picks the same 13 days; 1 h sits in that gap.
 PLANNED_GAP_S = 3600

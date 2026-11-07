@@ -36,7 +36,7 @@ PROMPT = (
     "last line 'ANSWER: <one-sentence summary>'."
 )
 CAVEATS = [
-    "In the before period, 13 days in October 2025 have a published planned time 2.9 to 8.2 "
+    "In the before period, 13 days in October 2025 have a published planned time 2.9 to 8.1 "
     "hours larger than published production plus stops (docs/data-notes.md). Availability "
     "recomputed from the stop log is inflated on those days. Each ratio fact (availability, "
     "performance, quality, oee) is therefore also read without the days picked by that rule "

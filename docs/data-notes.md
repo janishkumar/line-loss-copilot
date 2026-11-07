@@ -248,8 +248,9 @@ Points to read with it:
 - Shift calendar is 3 × 8 h in UTC from 06:00. PIADE gives no site timezone, so the design's
   "local" calendar cannot be known; the DST-date overlaps above are unexplained and do not
   identify a timezone.
-- Months are assigned by shift start (UTC), so a shift starting 22:00 on the last day of a
-  month belongs to that month.
+- OEE months are assigned by shift start (UTC), so a shift starting 22:00 on the last day of
+  a month belongs to that month. Stops follow a different, single rule (see "Stop months and
+  weekdays" below).
 - Counters are end-aligned. Counts that land on non-run rows (2 to 6% per machine) are left
   out of input and output, which lowers count-based performance by about that much. A delta
   spanning a gap between rows is credited to the next row (under 0.4% of counts).
@@ -261,3 +262,64 @@ Points to read with it:
 
 Reproduce: `make dbt`, then `PYTHONPATH=src uv run python scripts/probe_piade_counts.py` and
 `PYTHONPATH=src uv run python scripts/piade_oee_summary.py`.
+
+## Stage 2: tools, answer key and stop risk
+
+### Stop months and weekdays
+
+A stop's month and weekday are those of its own start: UTC for PIADE, Europe/Nicosia for
+brick. `reliability`, `breakdown`, `loss_pareto` windows and the eval answer key all use
+this rule. Earlier, `breakdown` used the date of the shift the stop starts in, which put 672
+PIADE episodes (those starting 00:00 to 06:00 UTC on the first of a month, inside the 22:00
+shift of the previous day) in a different month from `reliability`. A test checks that
+`breakdown` (reason by month) totals equal `reliability` (by month) stop counts. OEE months
+still follow the shift start, as above, because OEE is a per-shift figure.
+
+### The answer key shares the marts
+
+The eval answer key (`evals/truth.py`) is written apart from the tool code (a test checks it
+imports nothing from the tools, API or chat), but it reads the same dbt marts as the tools:
+`mart.stop_episode`, `mart.brick_shift_oee`, `mart.piade_shift_oee`, `mart.piade_machine_oee`
+and `mart.piade_interval_counts`. A bug in a mart, such as the 5 s episode join rule or the
+interval clipping, would be shared by the tools and the key, so the answer evals cannot see
+it. The marts are guarded by the dbt tests (for example `stop_episode_covers_stop_seconds`)
+and by a recount: `make check-questions` (and a db test on the fixture) recomputes stop count
+and lost seconds per reason straight from `core.event` for one brick month (2026-02) and one
+PIADE month (s_1, 2021-03) and requires them to match `mart.stop_episode`.
+
+The recount uses its own gaps-and-islands SQL with overlapping seconds counted once. It
+agrees on both check months. On s_3 in October 2021 it finds the same stop counts but 30 s
+and 292 s more lost time for two alarms than the mart: that month holds the 2021-10-31
+overlap night (above), where the mart clips a stopped interval against an earlier running
+or idle interval, which a union of stopped intervals alone does not do.
+
+### Before/after: the October planned-time days
+
+The before/after answer key reads every ratio fact (availability, performance, quality,
+oee) twice: over all shifts, and without the days whose published planned time exceeds
+published production plus published stops by more than 1 h. The rule is in SQL
+(`evals/truth.py`, `PLANNED_GAP`); it picks exactly the 13 October 2025 days (2025-10-14 to
+2025-10-31). On those days the unaccounted time is 2.9 to 8.1 h; on every other day it is at
+most 0.03 h, so any cut-off between about 0.1 h and 2.8 h gives the same 13 days. A 4 h
+cut-off would miss 2025-10-31 (2.9 h).
+
+On live data, before (62 shifts) to after (45 shifts):
+
+| Fact | All shifts | Without the 13 days (49 before shifts) | Scored |
+|---|---|---|---|
+| availability | 0.736 to 0.700 (down) | 0.676 to 0.700 (up) | no, ambiguous |
+| oee | 0.676 to 0.636 (down) | 0.621 to 0.636 (up) | no, ambiguous |
+| quality | 0.985 to 0.968 (down) | 0.984 to 0.968 (down) | yes, down |
+| performance | 0.932 to 0.937 (flat) | 0.934 to 0.937 (flat) | no, flat |
+
+A fact whose readings disagree is ambiguous and not scored; both values stay in the result
+file.
+
+### Stop-risk run history
+
+`evals/results/stop_risk.*` was regenerated once after the first run because the prediction
+row set changed: hours with nothing logged in the following hour were added as negatives
+(their label is not observed). Fitting, the hyper-parameter search and model selection on
+validation were unchanged from the first run; the test split was scored a second time only
+because this row set changed.
+

@@ -323,6 +323,9 @@ Only demo users and roles (in `demo.*`, `source = 'synthetic'`, badged in the ap
 - Agent has its own principal that never approves, plus an `on_behalf_of` human who can't approve their own proposal either (7.2).
 - Claude evals run once per stage sign-off; Ollama does the repeats. No-tools baselines are sandboxed from the answer key (6.5).
 - Stage 5 simulated events live in `synthetic.*` and join the copilot's view, not the marts (10).
+- As built in stage 2, the full set of citations behind a result is fetched per event (`get_source_rows`, `/api/events/{id}/source`) or per shift (`shift_evidence`); there is no single link to the full set for a whole result. `get_oee` groups by shift, day or month; week grouping is not provided.
+- As built in stage 2, the MCP server and the chat loop send the model a compacted envelope (capped citations and list lengths, a 40,000-character guard, and a `trimmed` note saying what was cut); the API returns the full envelope.
+- As built in stage 2, the eval answer key reads the dbt marts, not only `core` (6.5). It stays apart from the tool code, and a recount from `core.event` guards the stop marts (`docs/data-notes.md`).
 
 ## 13. Left to the builder
 
