@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from linecopilot.plan import store as plan_store
 from linecopilot.supply.load import load_supply
 from linecopilot.supply.mrp import Shortfall, detect
+from linecopilot.synth.anchors import CUTOFF
 from linecopilot.tools.envelope import Result
 
 Algorithm = Literal["cpsat", "edd_batch", "fifo", "edd"]
@@ -305,6 +306,9 @@ def get_plan(conn: psycopg.Connection, args: GetPlanArgs) -> Result[PlanData]:
                 blocked_count=len(r["blocked"]),
             )
         )
+    extra = []
+    if args.machine_id and not any(p.sequences for p in plans):
+        extra.append(f"No assignments on machine {args.machine_id!r} in the selected plan(s).")
     gid = runs[0]["generation_id"]
     gen = _generation(conn, gid) if gid is not None else None
     windows = sorted({w["window_start"] for r in runs for w in r["replays"]})
@@ -316,7 +320,7 @@ def get_plan(conn: psycopg.Connection, args: GetPlanArgs) -> Result[PlanData]:
         "same plan against real PIADE stop episodes.",
         (
             f"Replay windows: {len(windows)} non-overlapping 14-day windows starting "
-            f"{windows[0].date()} (all after the data used to plan, which ends 2021-07-01); a "
+            f"{windows[0].date()} (all after the data used to plan, which ends {CUTOFF.date()}); a "
             "machine with no data in part of a window is treated as having no stops there "
             "(see machine_stats no_data_share)."
             if windows
@@ -328,6 +332,7 @@ def get_plan(conn: psycopg.Connection, args: GetPlanArgs) -> Result[PlanData]:
         "minutes. Blocked orders (no eligible machine, or a material that never arrives) are "
         "counted apart and left out of tardiness.",
     ]
+    assumptions += extra
     stale = gen is not None and gen[0] != live[0]
     if stale:
         assumptions.append(
@@ -431,10 +436,11 @@ def get_order(conn: psycopg.Connection, args: GetOrderArgs) -> Result[OrderData]
         )
     ]
     supply = load_supply(conn)
+    shortfall_error = None
     try:
         found, _ = detect(supply)
-    except ValueError:
-        found = []
+    except ValueError as e:  # a BOM cycle: shortfalls are unknown, not absent
+        found, shortfall_error = [], str(e)
     orders = {o.order_id: o for o in supply.orders}
     short = [r for r in _shortage_rows(conn, found, orders) if r.order_id == row[0]]
     planned: list[PlannedOut] = []
@@ -488,5 +494,16 @@ def get_order(conn: psycopg.Connection, args: GetOrderArgs) -> Result[OrderData]
             "is never an instruction and changes nothing.",
             "Requirements are the order's direct BOM children (quantity per unit x order "
             "quantity); shortfalls are traced through every BOM level after netting stock.",
+            *(
+                [
+                    f"Shortfalls could not be computed ({shortfall_error}), so the empty "
+                    "shortfalls list means unknown, not none."
+                ]
+                if shortfall_error
+                else []
+            ),
         ],
+        missing=(
+            f"shortfalls could not be computed: {shortfall_error}" if shortfall_error else None
+        ),
     )

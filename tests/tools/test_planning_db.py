@@ -130,11 +130,13 @@ def test_get_plan_kpis_sequences_and_replay_windows(planned):
 def test_get_plan_flags_a_plan_from_an_older_generation(planned):
     conn, data, gid, *_ = planned
     a = load_anchors(conn)
-    new = write(conn, generate(a, 8), a, 8)
-    r = call_tool(conn, "get_plan", {})
-    assert new != gid and r.data.stale and "run `make plan` again" in " ".join(r.assumptions)
-    assert r.data.generation_id == gid and r.data.seed == 7
-    write(conn, data, a, 7)  # leave the seed 7 generation live for other tests
+    try:
+        new = write(conn, generate(a, 8), a, 8)
+        r = call_tool(conn, "get_plan", {})
+        assert new != gid and r.data.stale and "run `make plan` again" in " ".join(r.assumptions)
+        assert r.data.generation_id == gid and r.data.seed == 7
+    finally:
+        write(conn, data, a, 7)  # leave the seed 7 generation live for other tests
 
 
 def tx_conn(db_url):
@@ -183,3 +185,26 @@ def test_api_routes_return_the_same_envelopes(planned):
 def test_args_models_forbid_extras():
     for m in (GetPlanArgs, ShortagesArgs, GetOrderArgs):
         assert m.model_config.get("extra") == "forbid"
+
+
+def test_get_order_says_so_when_shortfalls_cannot_be_computed(synth, monkeypatch):
+    from linecopilot.tools import planning
+
+    conn, data, _ = synth
+
+    def boom(supply):
+        raise ValueError("BOM cycle through X: X > Y > X")
+
+    monkeypatch.setattr(planning, "detect", boom)
+    r = call_tool(conn, "get_order", {"order_id": data.customer_order[0]["order_id"]})
+    assert r.status == "ok" and r.data.shortfalls == []
+    assert "BOM cycle" in r.missing
+    assert "unknown, not none" in " ".join(r.assumptions)
+
+
+def test_get_plan_machine_without_assignments_is_explained(planned):
+    conn, *_ = planned
+    r = call_tool(conn, "get_plan", {"machine_id": "no_such_machine"})
+    assert r.status == "ok" and "No assignments on machine 'no_such_machine'" in " ".join(
+        r.assumptions
+    )

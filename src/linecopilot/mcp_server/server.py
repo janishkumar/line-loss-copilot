@@ -10,6 +10,7 @@ the server."""
 from __future__ import annotations
 
 import sys
+from collections.abc import Collection
 from typing import Any
 
 import psycopg
@@ -141,10 +142,16 @@ def build_server(
     agent_db_url: str | None = None,
     mcp_user: str | None = None,
     service: ActionService | None = None,
+    only_tools: Collection[str] | None = None,
 ) -> MCPServer:
     """Read tools always; the propose-side action tools only when `mcp_user` names a human demo
-    user, on an agent-role connection from `agent_db_url`."""
-    tools = [_make_tool(spec, db_url) for spec in registry.TOOLS.values()]
+    user, on an agent-role connection from `agent_db_url`. `only_tools` registers just those read
+    tools (the stage 2 eval pins its tool set this way, so the model never sees the others)."""
+    tools = [
+        _make_tool(spec, db_url)
+        for name, spec in registry.TOOLS.items()
+        if only_tools is None or name in only_tools
+    ]
     instructions = INSTRUCTIONS
     ctx = resolve_context(agent_db_url, mcp_user)
     svc = service

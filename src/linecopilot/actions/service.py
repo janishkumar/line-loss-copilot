@@ -141,6 +141,7 @@ def _note_dicts(snap: Snapshot) -> list[dict]:
     out = [
         {
             "event_id": n.event_id,
+            "order_id": None,
             "source": n.source,
             "synthetic": n.source == "demo.injected_note",
             "text": _cap(n.text),

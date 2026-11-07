@@ -43,7 +43,12 @@ def test_baseline_sandbox_configs():
     assert list(servers) == ["linecopilot"]
     srv = servers["linecopilot"]
     assert srv["args"] == ["-m", "linecopilot.mcp_server"]
-    assert srv["env"] == {"LINECOPILOT_DB_URL": url, "PYTHONPATH": str(REPO / "src")}
+    # the server itself registers only the 12 stage 2 tools: the model never sees the others
+    assert srv["env"] == {
+        "LINECOPILOT_DB_URL": url,
+        "PYTHONPATH": str(REPO / "src"),
+        "LINECOPILOT_MCP_TOOLS": ",".join(STAGE2_TOOLS),
+    }
     assert Path(srv["command"]).is_absolute()
     assert "--strict-mcp-config" in t.argv
     assert flag(t.argv, "--tools") == ""

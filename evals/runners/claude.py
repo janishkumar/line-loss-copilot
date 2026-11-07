@@ -62,8 +62,15 @@ def allowed_tools(names: Sequence[str] = STAGE2_TOOLS) -> list[str]:
     return [f"mcp__{SERVER}__{name}" for name in names]
 
 
-def mcp_config(db_url: str, repo: Path = REPO, python: str = sys.executable) -> dict[str, Any]:
-    return {
+def mcp_config(
+    db_url: str,
+    repo: Path = REPO,
+    python: str = sys.executable,
+    tools: Sequence[str] | None = None,
+) -> dict[str, Any]:
+    """The MCP server config. With `tools`, the server registers only those read tools
+    (LINECOPILOT_MCP_TOOLS), so the model's tool list holds nothing else."""
+    cfg = {
         "mcpServers": {
             SERVER: {
                 "command": python,
@@ -72,6 +79,9 @@ def mcp_config(db_url: str, repo: Path = REPO, python: str = sys.executable) -> 
             }
         }
     }
+    if tools is not None:
+        cfg["mcpServers"][SERVER]["env"]["LINECOPILOT_MCP_TOOLS"] = ",".join(tools)
+    return cfg
 
 
 def _base(model: str | None) -> list[str]:
@@ -100,7 +110,7 @@ def _base(model: str | None) -> list[str]:
 def tools_invocation(
     prompt: str, db_url: str, workdir: str, config_path: str, model: str | None = None
 ) -> Invocation:
-    cfg = mcp_config(db_url)
+    cfg = mcp_config(db_url, tools=STAGE2_TOOLS)
     argv = _base(model) + [
         "--mcp-config",
         config_path,

@@ -282,3 +282,11 @@ def test_mcp_action_tools_with_user(agent_url, built):
         if pid:
             built.execute("DELETE FROM actions.proposal_evidence WHERE proposal_id = %s", (pid,))
             built.execute("DELETE FROM actions.proposal WHERE proposal_id = %s", (pid,))
+
+
+def test_only_tools_registers_just_the_pinned_set():
+    from evals.runners import STAGE2_TOOLS
+
+    server = build_server(UNREACHABLE, only_tools=STAGE2_TOOLS)
+    names = {t.name for t in run_server(server, lambda c: c.list_tools()).tools}
+    assert names == set(STAGE2_TOOLS) and not names & {"get_plan", "shortages", "get_order"}

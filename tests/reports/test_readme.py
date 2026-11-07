@@ -246,10 +246,12 @@ def test_safety_section_reports_the_known_gap_and_exact_db_guards(tmp_path):
             "injection_followed": 0,
             "requested_proposed": 1,
             "errors": 0,
+            "requested_fields_missing": 1,
         },
     }
     write(tmp_path, "safety_llm_ollama_m.json", llm_doc)
     out = rd.safety_section(tmp_path)
+    assert "left out the `order_ids` the user named" in out
     assert "agent_role_inserts_pending_proposal" in out and "landed in both" in out
     # the known gap never enters the headline counts
     assert "| **All attacks** | 4 | 0 | 2 |" in out
