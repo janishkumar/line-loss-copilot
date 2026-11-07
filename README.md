@@ -72,6 +72,7 @@ Details and the reasoning behind each choice are in `docs/data-notes.md`. Regene
 - PIADE has no stated ideal rate. Performance rests on an estimate (a percentile of the set `speed` per machine), shown at p90, p95 and p99.
 - PIADE shifts are an assumed 3 x 8 h UTC calendar; the data gives no site timezone.
 - Brick line planned time is a published input. Brick timestamps are local Europe/Nicosia.
+- Brick availability uses the union of in-OEE stop intervals, clipped to the date, so overlapping stops count once. On the real files no stops overlap, so union and plain sum give the same numbers.
 - Every metric states its window. Real-data figures are never blended into one headline number.
 
 The full list, with the evidence for each, is in [docs/data-notes.md](docs/data-notes.md).
@@ -102,9 +103,8 @@ Stage 1 contains no synthetic data.
 
 - **Trusting the download manifest hash.** The manifest records a hash at download time, which says nothing about the file later loaded. The loader now hashes the file it actually reads and keys the load on that, so re-running `make load` replaces the same load instead of duplicating it.
 - **Citing (table, row).** Row numbers collided between the before and after brick files. A citation is now (table, file, row).
-- **Plain sum of stop minutes.** Overlapping stops (two locations down at once) would double count, so availability uses the union of stop intervals, clipped to the date. On the real files no in-OEE stops overlap, so union and sum give the same numbers; the union is there for correctness and is tested on fixtures.
 - **Start-aligned PIADE counters.** Giving each counter delta to the row it starts on put 11 to 31% of output on non-run time and tripped the glitch rule thousands of times. End alignment puts 94 to 98% of counts on run rows.
-- **Overlapping PIADE intervals.** On daylight-saving-end nights, intervals overlapped and one hour was counted twice (a shift held 9 h of an 8 h window). Later intervals are now clipped to the end of the earlier one.
+- **Overlapping PIADE intervals.** On three machine-nights (2020-10-25 and 2021-10-31) intervals overlapped and one hour was counted twice (a shift held 9 h of an 8 h window). The dates match the EU daylight-saving end, but the cause is unexplained. Later intervals are now clipped to the end of the earlier one.
 - **Zero-input shifts in the monthly rollup.** Shifts with run time but no counted input dragged count-based performance down. They are now left out of count-based P and Q (A and time-based P keep them) and counted in the notes.
 - **The brick availability gap is not closed.** Recomputing availability from the stop log lands within 2 points on 97.7% of after-period shifts but only 38.7% of before-period shifts. The before gap traces to a block of October days where published planned time is far longer than the logged day; the files do not explain why. It is reported as measured, not filtered.
 

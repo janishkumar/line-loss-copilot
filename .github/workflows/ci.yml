@@ -34,11 +34,12 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.9.14"
-      - run: uv sync --frozen
+      - run: uv sync --frozen --python 3.12
       - name: ruff
         run: |
           uv run ruff check .
           uv run ruff format --check .
+      # dbt build on the fixtures runs inside the db-marked pytest fixtures, so there is no separate dbt step.
       - name: pytest (offline and database tests, one coverage gate)
         run: uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=80
       - name: pip-audit
