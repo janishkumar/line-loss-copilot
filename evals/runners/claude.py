@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from evals.runners import Reply
+from evals.runners import Reply, build_prompt
 from linecopilot.chat.prompt import SYSTEM_PROMPT
 from linecopilot.tools.registry import TOOLS
 
@@ -155,7 +155,14 @@ def parse_output(stdout: str, model: str | None = None) -> tuple[str, str | None
 
 
 class ClaudeRunner:
-    def __init__(self, db_url: str, tools_enabled: bool, model: str | None = None):
+    def __init__(
+        self,
+        db_url: str,
+        tools_enabled: bool,
+        model: str | None = None,
+        timeout_s: float = TIMEOUT_S,
+    ):
+        self.timeout_s = timeout_s
         self.db_url = db_url
         self.tools_enabled = tools_enabled
         self.model_arg = model
@@ -170,9 +177,10 @@ class ClaudeRunner:
             ).stdout.strip()
         except (OSError, subprocess.SubprocessError):
             v = None
-        return {"model": self.model, "claude_cli_version": v}
+        return {"model": self.model, "claude_cli_version": v, "timeout_s": self.timeout_s}
 
     def invocation(self, prompt: str, workdir: str) -> Invocation:
+        prompt = build_prompt(prompt)
         if not self.tools_enabled:
             return notools_invocation(prompt, workdir, self.model_arg)
         path = str(Path(workdir).parent / f"{Path(workdir).name}-mcp.json")
@@ -202,7 +210,7 @@ class ClaudeRunner:
                 env=child_env(),
                 capture_output=True,
                 text=True,
-                timeout=TIMEOUT_S,
+                timeout=self.timeout_s,
             )
         except (OSError, subprocess.SubprocessError) as e:
             return Reply(answer="", latency_s=time.monotonic() - t0, error=str(e))

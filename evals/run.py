@@ -29,6 +29,7 @@ from evals.truth import NOT_AVAILABLE, before_after_facts, compute
 
 RESULTS = Path(__file__).resolve().parent / "results"
 RUNNERS = ("ollama", "ollama-notools", "claude", "claude-notools")
+DEFAULT_TIMEOUT_S = 600.0  # per model call (Ollama) or per question (Claude)
 
 
 def slug(model: str) -> str:
@@ -82,6 +83,7 @@ def _record(q: Question) -> dict[str, Any]:
         "rounds": None,
         "latency_s": 0.0,
         "error": None,
+        "retries": 0,
     }
 
 
@@ -103,6 +105,7 @@ def evaluate_one(runner: Any, conn: Any, q: Question) -> dict[str, Any]:
             rounds=reply.rounds,
             latency_s=round(reply.latency_s, 2),
             error=reply.error,
+            retries=reply.retries,
             format_ok=answer_line(reply.answer) is not None,
         )
         stage = "scoring"
@@ -194,6 +197,7 @@ def run_before_after(runner: Any, conn: Any) -> dict[str, Any]:
         "latency_s": round(reply.latency_s, 2),
         "tool_calls": reply.tool_calls,
         "error": reply.error,
+        "retries": reply.retries,
         "truth": truth,
         "score": before_after.score_claims(claims, truth),
         "caveats": before_after.CAVEATS,
@@ -276,18 +280,20 @@ def before_after_markdown(doc: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def make_runner(name: str, model: str | None, conn: Any, db_url: str) -> Any:
+def make_runner(
+    name: str, model: str | None, conn: Any, db_url: str, timeout_s: float = DEFAULT_TIMEOUT_S
+) -> Any:
     if name.startswith("ollama"):
         from evals.runners.ollama import OllamaRunner
         from linecopilot.chat.ollama import OllamaClient
         from linecopilot.config import get_settings
 
         st = get_settings()
-        client = OllamaClient(st.ollama_url, model or st.chat_model)
+        client = OllamaClient(st.ollama_url, model or st.chat_model, timeout=timeout_s)
         return OllamaRunner(conn, client, tools_enabled=name == "ollama")
     from evals.runners.claude import ClaudeRunner
 
-    return ClaudeRunner(db_url, tools_enabled=name == "claude", model=model)
+    return ClaudeRunner(db_url, tools_enabled=name == "claude", model=model, timeout_s=timeout_s)
 
 
 def write(doc: dict[str, Any], stem: str, md: str, out_dir: Path) -> Path:
@@ -305,6 +311,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ids", help="comma-separated question ids")
     ap.add_argument("--model", help="model name (default: config chat_model / Claude default)")
     ap.add_argument("--no-before-after", action="store_true")
+    ap.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT_S,
+        help="seconds per Ollama call (one retry on timeout) or per Claude question",
+    )
     args = ap.parse_args(argv)
 
     import psycopg
@@ -317,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
     partial = bool(args.limit or args.ids)
     out_dir = RESULTS / "partial" if partial else RESULTS
     with psycopg.connect(db_url, autocommit=True) as conn:
-        runner = make_runner(args.runner, args.model, conn, db_url)
+        runner = make_runner(args.runner, args.model, conn, db_url, args.timeout)
         meta = {
             "runner": runner.name,
             **runner.meta(),
@@ -336,6 +348,7 @@ def main(argv: list[str] | None = None) -> int:
             if hasattr(runner, "models_seen"):  # Claude: every model in the usage blocks
                 meta["models_seen"] = sorted(runner.models_seen)
             meta["questions_done"] = len(records)
+            meta["retries_total"] = sum(r["retries"] for r in records)
             doc = {
                 "meta": meta,
                 "summary": summarize(records),

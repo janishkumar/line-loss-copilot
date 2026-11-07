@@ -105,7 +105,13 @@ def test_ollama_notools_sends_empty_tools():
     assert runner.name == "ollama-notools"
     assert bodies[0]["tools"] == []
     assert reply.answer.endswith("NOT_AVAILABLE") and reply.tool_calls == []
-    assert runner.meta() == {"model": "fake:1b", "model_digest": "abc", "ollama_version": "0.0.1"}
+    assert runner.meta() == {
+        "model": "fake:1b",
+        "model_digest": "abc",
+        "ollama_version": "0.0.1",
+        "timeout_s": 180.0,
+        "retries_on_timeout": 1,
+    }
 
     with_tools = OllamaRunner(conn=None, client=client, tools_enabled=True)
     with_tools.ask("q")
@@ -155,3 +161,52 @@ def test_claude_runner_cleans_up(monkeypatch, tmp_path):
     assert reply.answer.endswith("ANSWER: 1") and r.model == "m1" and r.models_seen == {"m1"}
     assert seen["cfg_existed"] and not seen["cfg"].exists()
     assert made and not any(d.exists() for d in made)
+
+
+def test_every_runner_asks_for_the_answer_line(monkeypatch):
+    from evals.runners import ANSWER_SUFFIX, build_prompt
+
+    assert build_prompt("Q?").endswith(ANSWER_SUFFIX) and build_prompt("Q?").startswith("Q?")
+    work = tempfile.mkdtemp()
+    for tools in (True, False):
+        inv = cr.ClaudeRunner("postgresql://x", tools_enabled=tools).invocation("Q?", work)
+        assert inv.stdin == build_prompt("Q?")
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json={"message": {"role": "assistant", "content": "ANSWER: 1"}})
+
+    client = OllamaClient("http://ollama.test", "fake:1b", transport=httpx.MockTransport(handler))
+    for tools in (True, False):
+        OllamaRunner(conn=None, client=client, tools_enabled=tools).ask("Q?")
+    assert [b["messages"][-1]["content"] for b in bodies] == [build_prompt("Q?")] * 2
+
+
+def test_ollama_retries_once_on_timeout():
+    from evals.runners.ollama import RetryingClient
+
+    calls = []
+
+    def slow_then_ok(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        if len(calls) == 1:
+            raise httpx.ReadTimeout("slow", request=request)
+        return httpx.Response(200, json={"message": {"role": "assistant", "content": "ANSWER: 1"}})
+
+    client = OllamaClient(
+        "http://ollama.test", "fake:1b", transport=httpx.MockTransport(slow_then_ok), timeout=600
+    )
+    runner = OllamaRunner(conn=None, client=client, tools_enabled=False)
+    reply = runner.ask("Q?")
+    assert reply.answer == "ANSWER: 1" and reply.retries == 1 and runner.retries_total == 1
+    assert runner.meta()["timeout_s"] == 600 and runner.meta()["retries_on_timeout"] == 1
+
+    def always_slow(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("slow", request=request)
+
+    client = OllamaClient("http://ollama.test", "m", transport=httpx.MockTransport(always_slow))
+    reply = OllamaRunner(conn=None, client=client, tools_enabled=False).ask("Q?")
+    assert "timed out" in reply.error and reply.retries == 1
+    wrapped = RetryingClient(client, retries=1)
+    assert wrapped.model == "m"

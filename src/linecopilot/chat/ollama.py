@@ -20,6 +20,10 @@ class OllamaUnreachable(OllamaError):
     """No connection to Ollama (refused or DNS)."""
 
 
+class OllamaTimeout(OllamaError):
+    """Ollama took longer than the client timeout."""
+
+
 class OllamaClient:
     def __init__(
         self,
@@ -39,7 +43,7 @@ class OllamaClient:
         except httpx.ConnectError as e:
             raise OllamaUnreachable(f"local model not reachable at {self.base_url}") from e
         except httpx.TimeoutException as e:
-            raise OllamaError(f"local model timed out after {self.timeout:g} s") from e
+            raise OllamaTimeout(f"local model timed out after {self.timeout:g} s") from e
         except httpx.TransportError as e:
             raise OllamaError(f"local model connection failed: {type(e).__name__}") from e
         if resp.status_code >= 400:

@@ -112,3 +112,15 @@ def test_scope_hint_reaches_mcp_and_chat_schemas():
         ):
             assert "machine_id only" in props["machine_id"]["description"], name
             assert "'brick'" in props["line_id"]["description"], name
+
+
+def test_month_hint_reaches_mcp_and_chat_schemas():
+    from linecopilot.chat.loop import tool_schemas
+    from linecopilot.tools.common import MONTH_HINT
+
+    assert "group='month'" in MONTH_HINT
+    mcp_tools = {t.name: t for t in run(UNREACHABLE, lambda c: c.list_tools()).tools}
+    chat = {s["function"]["name"]: s["function"] for s in tool_schemas()}
+    for name in ("get_oee", "reliability", "loss_pareto", "breakdown", "repeat_failures"):
+        assert MONTH_HINT in mcp_tools[name].description, name
+        assert MONTH_HINT in chat[name]["description"], name
