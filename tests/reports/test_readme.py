@@ -312,7 +312,7 @@ def test_shortages_section_labels_synthetic_and_shared_definition(tmp_path):
 
 def test_shortages_section_states_decoy_construction_and_raw_only_scoring(tmp_path):
     write(tmp_path, "shortages.json", shortage_doc())
-    out = " ".join(rd.shortages_section(tmp_path).split())
+    out = " ".join(rd.shortages_section(tmp_path).split()).replace("Decoys are", "decoys are")
     assert "decoys are built to be cases the naive rule flags" in out
     assert "recall of 1.00 holds by construction" in out
     assert "depends on the number of decoys" in out

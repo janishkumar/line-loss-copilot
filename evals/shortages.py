@@ -51,7 +51,6 @@ def score(pred_pairs: set[Pair], truth_rows: list[dict]) -> dict[str, Any]:
     decoys = {(r["material_id"], r["order_id"]) for r in truth_rows if r["decoy"]}
     pred_m = {m for m, _ in pred}
     truth_m = {m for m, _ in truth}
-    decoy_m = {m for m, _ in decoys} - truth_m
 
     def kind_sets(kind: str) -> tuple[set, set, set, set]:
         t = {
