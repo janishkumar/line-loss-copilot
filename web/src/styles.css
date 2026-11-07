@@ -40,3 +40,10 @@ td.text { white-space: pre-wrap; }
 .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 0.6rem 0.9rem; }
 .stat b { display: block; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
 .chart { height: 300px; margin: 1rem 0; }
+.chart.small { height: 180px; margin: 0.25rem 0 1rem; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+.pair h3 { margin-top: 0.5rem; }
+input { font: inherit; padding: 0.3rem 0.5rem; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; }
+.cites summary { cursor: pointer; color: var(--accent); }
+.cites ul { margin: 0.3rem 0; padding-left: 1.1rem; max-height: 14rem; overflow: auto; }
+td .badge { white-space: nowrap; }

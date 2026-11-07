@@ -153,3 +153,144 @@ export interface ShiftEvidenceData {
 
 export const getShiftEvidence = (shiftId: string) =>
   get<ShiftEvidenceData>(`/shifts/${encodeURIComponent(shiftId)}/evidence`);
+
+// ---- Stage 2 tools: losses, reliability, risk, notes ----
+
+export type Scope = {
+  line_id?: string;
+  machine_id?: string;
+  start?: string;
+  end?: string;
+};
+
+export interface ParetoRow {
+  category: string;
+  lost_s: number;
+  stop_count: number;
+  share: number;
+  cumulative_share: number;
+  citations: Citation[];
+  citation_count: number;
+}
+export interface ParetoData {
+  source_system: string;
+  by: string;
+  rows: ParetoRow[];
+  total_lost_s: number;
+  total_stop_count: number;
+  other_lost_s: number;
+  other_stop_count: number;
+  other_categories: number;
+}
+export interface BreakdownData {
+  source_system: string;
+  rows: string;
+  cols: string;
+  row_keys: string[];
+  col_keys: string[];
+  cells: { row: string; col: string; lost_s: number; stop_count: number }[];
+  total_lost_s: number;
+  total_stop_count: number;
+}
+export interface RepeatChain {
+  machine_id: string | null;
+  line_id: string;
+  key: string;
+  count: number;
+  first_start: string;
+  last_end: string;
+  lost_s: number;
+  episode_ids: number[];
+  citations: Citation[];
+  citation_count: number;
+}
+export interface RepeatData {
+  source_system: string;
+  key: string;
+  within_hours: number;
+  min_repeats: number;
+  chains: RepeatChain[];
+  chain_count: number;
+  chains_truncated: boolean;
+  failure_count: number;
+}
+export interface ReliabilityRow {
+  period: string;
+  failure_count: number;
+  stop_count: number;
+  failure_s: number;
+  run_s: number;
+  mttr_s: number | null;
+  mtbf_s: number | null;
+  citations: Citation[];
+  citation_count: number;
+}
+export interface ReliabilityData {
+  source_system: string;
+  group: string;
+  rows: ReliabilityRow[];
+}
+export interface FeatureContribution {
+  feature: string;
+  contribution: number;
+  value: number;
+}
+export interface MachineRisk {
+  machine_id: string;
+  t: string;
+  covers_at: boolean;
+  score: number;
+  model_name: string;
+  split: string;
+  base_rate: number | null;
+  alert_threshold: number | null;
+  alert: boolean | null;
+  top_features: FeatureContribution[];
+  citations: Citation[];
+  citation_count: number;
+}
+export interface RiskData {
+  target: string;
+  definition: string;
+  rows: MachineRisk[];
+}
+export interface MetricRow {
+  target: string;
+  model_name: string;
+  split: string;
+  metric: string;
+  value: number | null;
+  machine_id: string | null;
+  created_at: string;
+}
+export interface RiskMetricsData {
+  rows: MetricRow[];
+}
+export interface NoteHit {
+  note_id: number;
+  event_id: number;
+  start_ts: string;
+  machine_id: string | null;
+  reason: string | null;
+  original_text: string;
+  language: string;
+  translation: { text: string; model_name: string; machine_translated: boolean } | null;
+}
+export interface NotesData {
+  query: string;
+  hits: NoteHit[];
+  total: number;
+  limit: number;
+  truncated: boolean;
+}
+
+export const getPareto = (p: Scope & { by: string }) => get<ParetoData>("/losses/pareto", p);
+export const getBreakdown = (p: Scope & { rows: string; cols: string }) =>
+  get<BreakdownData>("/losses/breakdown", p);
+export const getRepeats = (p: Scope & { key?: string }) => get<RepeatData>("/losses/repeats", p);
+export const getReliability = (p: Scope & { group: string }) =>
+  get<ReliabilityData>("/reliability", p);
+export const getRisk = (p: { machine_id?: string; at?: string; target?: string }) =>
+  get<RiskData>("/risk", p);
+export const getRiskMetrics = () => get<RiskMetricsData>("/risk/metrics");
+export const searchNotes = (p: Scope & { query: string }) => get<NotesData>("/notes/search", p);
