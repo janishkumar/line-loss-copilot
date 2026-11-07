@@ -1,6 +1,7 @@
 export PYTHONPATH := src
 
-TEST_DB_URL := postgresql://linecopilot:linecopilot@localhost:5433/linecopilot_test
+LINECOPILOT_DB_PORT ?= 5434
+TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
 .PHONY: setup up down lint test test-db data load dbt validate-oee report web
 

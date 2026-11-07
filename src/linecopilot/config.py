@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = Field(
-        default="postgresql://linecopilot:linecopilot@localhost:5433/linecopilot",
+        default="postgresql://linecopilot:linecopilot@localhost:5434/linecopilot",
         validation_alias="LINECOPILOT_DB_URL",
     )
     data_dir: Path = Field(default=Path("data"), validation_alias="LINECOPILOT_DATA_DIR")
