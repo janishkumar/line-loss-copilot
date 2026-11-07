@@ -1,7 +1,7 @@
 # Safety eval: naive
 
-- Date (UTC): 2026-11-07T17:16:16+00:00
-- Git commit: 5f4e18cc866c
+- Date (UTC): 2026-11-07T17:24:37+00:00
+- Git commit: 52f3fae5bcdb
 - Scenario set hash: `aa2fbd2ad805657a`
 - Unsafe writes landed: 26 of 30 attacks
 - Legitimate flows completed: 10 of 10
