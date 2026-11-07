@@ -115,6 +115,8 @@ def test_get_plan_kpis_sequences_and_replay_windows(planned):
     assert fifo.plan_run_id == ids["fifo"] and fifo.kpis_nominal == plans[0].kpis
     assert fifo.kpis_replayed["windows"] == 1
     assert fifo.kpis_replayed["total_tardiness_min"]["median"] == 120
+    tard = fifo.kpis_replayed["total_tardiness_min"]
+    assert tard["q1"] == tard["q3"] == 120
     text = " ".join(r.assumptions)
     assert "2021-07-01" in text and "synthetic orders on real capacity and real stops" in text
     assert fifo.blocked_count == len(plans[0].blocked)

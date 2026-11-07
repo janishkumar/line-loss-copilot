@@ -234,13 +234,26 @@ def _median(values: list[float]) -> float | None:
     return float(statistics.median(values)) if values else None
 
 
+def _quartiles(values: list[float]) -> tuple[float | None, float | None]:
+    """(q1, q3) by the inclusive method, as evals/plan.py; one value gives itself twice."""
+    if not values:
+        return None, None
+    if len(values) == 1:
+        return float(values[0]), float(values[0])
+    q1, _, q3 = statistics.quantiles(values, n=4, method="inclusive")
+    return float(q1), float(q3)
+
+
 def _replayed(replays: list[dict]) -> dict[str, Any]:
-    """Median and range over the replay windows of the headline KPIs."""
+    """Median, quartiles and range over this plan's replay windows (one plan, not pooled seeds)."""
     out: dict[str, Any] = {"windows": len(replays)}
     for key in ("late_orders", "total_tardiness_min", "changeover_min"):
         vals = [float(r["kpis"][key]) for r in replays if key in r["kpis"]]
+        q1, q3 = _quartiles(vals)
         out[key] = {
             "median": _median(vals),
+            "q1": q1,
+            "q3": q3,
             "min": min(vals) if vals else None,
             "max": max(vals) if vals else None,
         }

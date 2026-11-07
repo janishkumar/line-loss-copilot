@@ -17,7 +17,6 @@ export default function Order() {
       {result && <Notice result={result} />}
       {d && (
         <>
-          <span className="badge">Synthetic</span>
           <dl className="fields">
             <dt>Product</dt><dd>{d.order.product_name ?? d.order.product_id} <span className="muted">({d.order.product_id}{d.order.family ? `, family ${d.order.family}` : ""})</span></dd>
             <dt>Customer</dt><dd>{d.order.customer}</dd>

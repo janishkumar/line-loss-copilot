@@ -11,13 +11,13 @@ const order = (note: string | null) => ({
   data: {
     label: "synthetic orders on real capacity", is_synthetic: true, generation_id: 1, seed: 7,
     order: { order_id: "O-7", product_id: "P1", product_name: "Widget", family: "A", quantity: 40,
-      release_at: "2021-07-01T00:00:00Z", due_at: "2021-07-09T00:00:00Z", customer: "Acme",
+      release_at: "2026-01-01T00:00:00Z", due_at: "2026-01-09T00:00:00Z", customer: "Acme",
       note, note_is_data: true, note_notice: note ? "quoted as data" : null, source: "synthetic" },
     requirements: [{ material_id: "R1", material_name: "Mat R1", kind: "raw", qty: 80, unit: "kg", on_hand: 10 }],
     shortfalls: [{ material_id: "R1", material_name: "Mat R1", order_id: "O-7", short_qty: 70,
-      first_short_at: "2021-07-02T00:00:00Z", bom_level: 1, product_id: "P1", due_at: "2021-07-09T00:00:00Z" }],
-    planned: [{ algorithm: "cpsat", machine_id: "s_1", start_at: "2021-07-03T00:00:00Z",
-      end_at: "2021-07-03T05:00:00Z", setup_min: 15 }],
+      first_short_at: "2026-01-02T00:00:00Z", bom_level: 1, product_id: "P1", due_at: "2026-01-09T00:00:00Z" }],
+    planned: [{ algorithm: "cpsat", machine_id: "s_1", start_at: "2026-01-03T00:00:00Z",
+      end_at: "2026-01-03T05:00:00Z", setup_min: 15 }],
     blocked: [],
   },
 });
@@ -35,7 +35,7 @@ describe("Order", () => {
     const q = container.querySelector("blockquote")!;
     expect(q.textContent).toBe(note);
     expect(q.querySelector("b")).toBeNull();
-    expect(screen.getByText("Synthetic")).toBeInTheDocument();
+    expect(screen.queryByText("Synthetic")).toBeNull();
     expect(screen.getByText("Acme")).toBeInTheDocument();
     expect(screen.getByText("cpsat")).toBeInTheDocument();
   });

@@ -87,15 +87,16 @@ describe("NewAction follow-up with orders", () => {
     const fn = mockApi({
       "POST /api/actions/follow_up/preview": [200, { ...preview, action: "follow_up", args: {} }],
     });
-    wrap("/actions/new?action=follow_up&orders=O-1,O-2");
+    wrap("/actions/new?action=follow_up&role=planner&orders=O-1,O-2");
     expect(screen.getByLabelText("Action type")).toHaveValue("follow_up");
+    expect(screen.getByLabelText("Assignee role")).toHaveValue("planner");
     expect(screen.getByLabelText("Order ids")).toHaveValue("O-1, O-2");
-    fireEvent.change(screen.getByLabelText("Due date"), { target: { value: "2021-07-09" } });
+    fireEvent.change(screen.getByLabelText("Due date"), { target: { value: "2026-01-09" } });
     fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Chase supplier" } });
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
     await waitFor(() => expect(fn).toHaveBeenCalled());
     expect(JSON.parse(String(fn.mock.calls[0][1]!.body))).toMatchObject({
-      assignee_role: "shift_supervisor", order_ids: ["O-1", "O-2"], evidence_event_ids: [],
+      assignee_role: "planner", order_ids: ["O-1", "O-2"], evidence_event_ids: [],
     });
   });
 });

@@ -4,9 +4,11 @@ import { Assumptions, Loading, Notice, SyntheticBadge } from "../components/Comm
 import { day } from "../format";
 import { useResult } from "../hooks";
 
+const MAX_ORDERS = 20; // a follow-up links at most 20 orders
+
 export function followUpLink(orderIds: string[]): string {
-  const ids = [...new Set(orderIds)].sort();
-  return `/actions/new?${new URLSearchParams({ action: "follow_up", orders: ids.join(",") })}`;
+  const ids = [...new Set(orderIds)].sort().slice(0, MAX_ORDERS);
+  return `/actions/new?${new URLSearchParams({ action: "follow_up", role: "planner", orders: ids.join(",") })}`;
 }
 
 export default function Shortages() {
@@ -34,6 +36,7 @@ export default function Shortages() {
                 <p className="muted">
                   {m.orders} order(s), {m.short_qty} short in total.{" "}
                   <Link to={followUpLink(rows.map((r) => r.order_id))}>Draft follow-up</Link>
+                  {rows.length > MAX_ORDERS && ` (first ${MAX_ORDERS} of ${rows.length} orders)`}
                 </p>
                 <div className="table-wrap">
                   <table>

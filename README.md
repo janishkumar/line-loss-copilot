@@ -224,6 +224,8 @@ How to read it:
 - Replay: each plan is run against real PIADE stop episodes in 8 non-overlapping 14-day windows from 2021-07-01, after the planning cutoff. The sequence is kept and work only progresses while the machine is running. Where a machine has no data in part of a window it is replayed as having no stops; the results say how large those gaps are.
 - The planner is OR-Tools CP-SAT (Apache 2.0): one worker, fixed seed, a deterministic time limit of 60 with a 120 s wall-clock cap, objective total tardiness plus 0.1 times changeover minutes. It is compared with first in first out, earliest due date, and earliest due date with family batching.
 
+**Dates:** the synthetic horizon is a made-up two weeks starting 2026-01-05, so orders, receipts and plans carry 2026 dates. The real stops come from 2021 windows and are mapped onto the horizon by offset from each window start (horizon minute 0 is the start of the window), so a 2026 date on the Plan page stands for a day in a 2021 window.
+
 **Try it:** `make demo-stage4` (stage 3, then `make synth` and `make plan`), then open http://localhost:8080 and use Plan, Shortages and an order page. On the Shortages page "Draft follow-up" opens the follow-up form with the order ids filled in; the person previews, proposes and a different person approves, as for any action. An order's free-text note appears in a quoted block labelled as free text, shown as data. From Claude (see "Use it from Claude" below), ask: "Which orders will the board shortage hit?" It answers from the `shortages` tool and can then draft a follow-up for the planner.
 
 Stack addition: OR-Tools (CP-SAT) for scheduling; the web app draws the timeline with plain CSS, no new chart library.

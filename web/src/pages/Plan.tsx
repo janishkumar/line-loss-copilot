@@ -6,8 +6,8 @@ import { useResult } from "../hooks";
 
 const ORDER = ["cpsat", "edd_batch", "edd", "fifo"];
 const min = (v: number | null | undefined) => (v === null || v === undefined ? "n/a" : `${Math.round(v)} min`);
-const spread = (r: Range) =>
-  r.min === null || r.max === null ? "n/a" : `${Math.round(r.min)} to ${Math.round(r.max)} min`;
+const iqr = (r: Range, unit = " min") =>
+  r.q1 === null || r.q3 === null ? "n/a" : `${Math.round(r.q1)} to ${Math.round(r.q3)}${unit}`;
 
 /** Left offset and width of a bar as percentages of the timeline span (epoch milliseconds). */
 export function barStyle(startIso: string, endIso: string, t0: number, t1: number) {
@@ -78,7 +78,7 @@ export default function Plan() {
                 <tr>
                   <th rowSpan={2}>Algorithm</th>
                   <th colSpan={3}>Nominal</th>
-                  <th colSpan={3}>Replayed on real stops (median and range over windows)</th>
+                  <th colSpan={3}>Replayed on real stops (median and interquartile range over this plan's windows)</th>
                 </tr>
                 <tr>
                   <th>Late orders</th><th>Tardiness</th><th>Changeover</th>
@@ -92,9 +92,9 @@ export default function Plan() {
                     <td>{p.kpis_nominal.late_orders}</td>
                     <td>{min(p.kpis_nominal.total_tardiness_min)}</td>
                     <td>{min(p.kpis_nominal.changeover_min)}</td>
-                    <td>{p.kpis_replayed.late_orders.median ?? "n/a"} <span className="muted">({p.kpis_replayed.late_orders.min} to {p.kpis_replayed.late_orders.max})</span></td>
-                    <td>{min(p.kpis_replayed.total_tardiness_min.median)}<br /><span className="muted">{spread(p.kpis_replayed.total_tardiness_min)}</span></td>
-                    <td>{min(p.kpis_replayed.changeover_min.median)}<br /><span className="muted">{spread(p.kpis_replayed.changeover_min)}</span></td>
+                    <td>{p.kpis_replayed.late_orders.median ?? "n/a"}<br /><span className="muted">{iqr(p.kpis_replayed.late_orders, "")}</span></td>
+                    <td>{min(p.kpis_replayed.total_tardiness_min.median)}<br /><span className="muted">{iqr(p.kpis_replayed.total_tardiness_min)}</span></td>
+                    <td>{min(p.kpis_replayed.changeover_min.median)}<br /><span className="muted">{iqr(p.kpis_replayed.changeover_min)}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -103,6 +103,11 @@ export default function Plan() {
           <p className="muted">
             Synthetic orders on real capacity and real stops: a software test, not a production result.
             Replay windows: {plans[0]?.kpis_replayed.windows}.
+          </p>
+          <p className="muted">
+            Dates: the synthetic horizon is a made-up two weeks starting 2026-01-05. Real stops from
+            the 2021 replay windows are mapped onto it by offset from each window start, so a 2026
+            date here stands for a day in a 2021 window.
           </p>
           {shown && (
             <>

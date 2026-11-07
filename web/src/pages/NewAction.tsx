@@ -38,7 +38,7 @@ export default function NewAction() {
     events: parseSafe(params.get("events") ?? ""),
     orders: parseSafe(params.get("orders") ?? ""),
     priority: "low",
-    assignee_role: "shift_supervisor",
+    assignee_role: ROLES.includes(params.get("role") ?? "") ? params.get("role")! : "shift_supervisor",
   });
   // The code stays in state only: it is bound to these exact arguments and is not for copying.
   const [pv, setPv] = useState<Preview | null>(null);
