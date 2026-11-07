@@ -78,10 +78,10 @@ Each row is one runner and one model; rows are never averaged. Results from a lo
 
 | Runner | Model | Version | Run date (UTC) | Question set | Accuracy, all | Answerable | Unanswerable (says not available) | Cited rows supporting the answer | ANSWER line parsed | Context filled | Before/after facts found | Before/after wrong claims |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Local model, with tools | not run yet | - | - | - | - | - | - | - | - | - | - | - |
-| Local model, no tools | not run yet | - | - | - | - | - | - | - | - | - | - | - |
 | Claude through MCP, with tools | not run yet | - | - | - | - | - | - | - | - | - | - | - |
 | Claude, no tools | not run yet | - | - | - | - | - | - | - | - | - | - | - |
+| Local model, with tools | `qwen2.5:7b-instruct` | digest 845dbda0ea48, ollama 0.40.14 | 2026-11-07 | `c32c30730107` (70 of 70) | 38/70 (54.3%) | 28/60 (46.7%) | 10/10 (100.0%) | 7/7 (100.0%) | 97.1% | 4 | 0/4 (0.0%) | 0 of 0 |
+| Local model, no tools | `qwen2.5:7b-instruct` | digest 845dbda0ea48, ollama 0.40.14 | 2026-11-07 | `c32c30730107` (70 of 70) | 9/70 (12.9%) | 0/60 (0.0%) | 9/10 (90.0%) | 0/38 (0.0%) | 90.0% | 0 | 0/4 (0.0%) | 0 of 0 |
 
 How to read it:
 
@@ -156,6 +156,7 @@ Stages 1 and 2 contain no synthetic data.
 - **Sending whole tool results to the model.** Some calls returned 60k to 290k characters, above what Claude Code accepts from an MCP tool and enough to overflow the local model's context silently. Model-facing output now goes through one shared compaction step (MCP and chat get identical payloads, under 26k characters), the API still returns everything, and each Ollama round records its token counts so a full context is flagged.
 - **Scoring before/after on the raw October data.** The first answer key said brick availability went down after the program, but that came entirely from the 13 October days whose published planned time is not accounted for; without them it went up. Ratio facts are now scored only when both readings agree, and the rest are listed as ambiguous.
 - **A next-hour stop alarm worth acting on.** The long-stop model beats both baselines on PR-AUC, but at one alert per machine per shift the hour-of-week baseline is as good or better. It is published as a weak signal, not as an alarm.
+- **Getting a 7B local model to cite and to compare.** With tools it answered 28 of 60 answerable questions against 0 of 60 without, but it left citations out of 96% of its answers, so the 7 of 7 supported citations rest on very few rows. It got 0 of 6 stop counts, 0 of 5 month-to-month availability changes and 0 of 4 before/after facts, mostly by giving up with "not available" after a correct tool call. The tools return the evidence; this model does not carry it into the answer. The Claude rows above are the test of whether a stronger model does.
 - **The brick availability gap is not closed.** Recomputing availability from the stop log lands within 2 points on 97.7% of after-period shifts but only 38.7% of before-period shifts. The before gap traces to a block of October days where published planned time is far longer than the logged day; the files do not explain why. It is reported as measured, not filtered.
 
 ## Use it from Claude

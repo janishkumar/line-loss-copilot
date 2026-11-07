@@ -1,0 +1,671 @@
+{
+  "meta": {
+    "runner": "ollama",
+    "model": "qwen2.5:7b-instruct",
+    "model_digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+    "ollama_version": "0.40.14",
+    "timeout_s": 600.0,
+    "retries_on_timeout": 1,
+    "time_budget_s": 1800.0,
+    "max_rounds": 6,
+    "ollama_options": {
+      "temperature": 0,
+      "seed": 0,
+      "num_ctx": 16384,
+      "num_predict": 1024
+    },
+    "date": "2026-11-07T10:33:05+00:00",
+    "question_set_hash": "c32c30730107fd13be361ef1916b58909f2081f8e25ce93f170e186941d88f7c",
+    "questions_total": 70,
+    "questions_run": 70,
+    "partial": false,
+    "questions_done": 70,
+    "retries_total": 0
+  },
+  "before_after": {
+    "prompt": "What changed on the brick line between September-December 2025 (before) and January-April 2026 (after)? Compare the two periods using the data. Definitions: availability is recomputed from the stop log (availability_calc); performance and quality are the published per-shift values; oee is availability_calc times performance times quality; mttr is mean failure stop seconds. stop_time (stop seconds) and stop_count are totals over each window, and the windows hold different numbers of shifts, so also look at them per shift; the same holds for the lost time of each stop group. A change counts only if it is at least 1 percentage point for a ratio or 5% otherwise, and, for totals, only if the total and the per-shift figure move the same way. End your answer with a JSON block of claims, a list of objects like {\"metric\": \"...\", \"direction\": \"up\" or \"down\", \"value\": <number or null>}, where metric is one of availability, performance, quality, oee, stop_time, stop_count, mttr, or reason:<STOP_GROUP> for the lost time of a stop group. Then finish with a separate last line 'ANSWER: <one-sentence summary>'.",
+    "answer": "The tool loop stopped after 6 rounds without a final answer. Try a narrower question.",
+    "latency_s": 379.62,
+    "tool_calls": [
+      {
+        "name": "compare_periods",
+        "args": {
+          "line_id": "brick",
+          "a_start": "2025-09-01",
+          "a_end": "2025-12-01",
+          "b_start": "2026-01-01",
+          "b_end": "2026-04-01"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "line_id": "brick",
+          "start": "2025-09-01",
+          "end": "2025-12-01",
+          "event_type": "stop",
+          "reason": "",
+          "state": "stopped"
+        },
+        "status": "insufficient_evidence",
+        "missing": "no events match for brick between 2025-09-01T00:00:00+00:00 and 2025-12-01T00:00:00+00:00; coverage is 2025-09-22T04:15:00+00:00 to 2026-04-03T13:00:00+00:00"
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "start": "2026-01-01",
+          "end": "2026-04-01",
+          "event_type": "stop",
+          "reason": "",
+          "state": "stopped",
+          "line_id": "brick"
+        },
+        "status": "insufficient_evidence",
+        "missing": "no events match for brick between 2026-01-01T00:00:00+00:00 and 2026-04-01T00:00:00+00:00; coverage is 2025-09-22T04:15:00+00:00 to 2026-04-03T13:00:00+00:00"
+      },
+      {
+        "name": "get_oee",
+        "args": {
+          "line_id": "brick",
+          "start": "2025-09-01",
+          "end": "2025-12-01",
+          "group": "month"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_oee",
+        "args": {
+          "end": "2026-04-01",
+          "group": "month",
+          "line_id": "brick",
+          "start": "2026-01-01"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "reliability",
+        "args": {
+          "line_id": "brick",
+          "start": "2025-09-01",
+          "end": "2025-12-01",
+          "group": "month"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "reliability",
+        "args": {
+          "line_id": "brick",
+          "start": "2026-01-01",
+          "end": "2026-04-01",
+          "group": "month"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "loss_pareto",
+        "args": {
+          "line_id": "brick",
+          "start": "2025-09-01",
+          "end": "2025-12-01",
+          "by": "reason"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "loss_pareto",
+        "args": {
+          "by": "reason",
+          "line_id": "brick",
+          "start": "2026-01-01",
+          "end": "2026-04-01"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "breakdown",
+        "args": {
+          "rows": "reason",
+          "cols": "month",
+          "line_id": "brick",
+          "start": "2025-09-01",
+          "end": "2025-12-01"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "breakdown",
+        "args": {
+          "line_id": "brick",
+          "start": "2026-01-01",
+          "end": "2026-04-01",
+          "rows": "reason",
+          "cols": "month"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "search_notes",
+        "args": {
+          "line_id": "brick",
+          "start": "2025-09-01",
+          "end": "2025-12-01",
+          "query": "improvement"
+        },
+        "status": "insufficient_evidence",
+        "missing": "no operator note matches 'improvement' in this scope. Notes exist only for the brick line's stop log (mostly Greek, some in Latin letters)."
+      },
+      {
+        "name": "search_notes",
+        "args": {
+          "line_id": "brick",
+          "start": "2026-01-01",
+          "end": "2026-04-01",
+          "query": "improvement"
+        },
+        "status": "insufficient_evidence",
+        "missing": "no operator note matches 'improvement' in this scope. Notes exist only for the brick line's stop log (mostly Greek, some in Latin letters)."
+      },
+      {
+        "name": "stop_risk",
+        "args": {
+          "line_id": "brick",
+          "start": "2025-09-01",
+          "end": "2025-12-01"
+        },
+        "status": "out_of_scope",
+        "missing": "invalid arguments for stop_risk: line_id: Extra inputs are not permitted; start: Extra inputs are not permitted; end: Extra inputs are not permitted"
+      },
+      {
+        "name": "stop_risk",
+        "args": {
+          "line_id": "brick",
+          "start": "2026-01-01",
+          "end": "2026-04-01"
+        },
+        "status": "out_of_scope",
+        "missing": "invalid arguments for stop_risk: line_id: Extra inputs are not permitted; start: Extra inputs are not permitted; end: Extra inputs are not permitted"
+      },
+      {
+        "name": "repeat_failures",
+        "args": {
+          "end": "2025-12-01",
+          "key": "reason",
+          "line_id": "brick",
+          "start": "2025-09-01"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "line_id": "brick",
+          "event_type": "stop",
+          "reason": "FAILURE",
+          "start": "2025-09-01T00:00:00Z",
+          "end": "2025-12-01T00:00:00Z",
+          "limit": 10
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "limit": 10,
+          "line_id": "brick",
+          "event_type": "stop",
+          "reason": "MATERIALS",
+          "start": "2025-09-01T00:00:00Z",
+          "end": "2025-12-01T00:00:00Z"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "limit": 10,
+          "line_id": "brick",
+          "event_type": "stop",
+          "reason": "OPERATIONAL",
+          "start": "2025-09-01T00:00:00Z",
+          "end": "2025-12-01T00:00:00Z"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "event_type": "stop",
+          "reason": "SETUPS-CHANGEOVERS",
+          "start": "2025-09-01T00:00:00Z",
+          "end": "2025-12-01T00:00:00Z",
+          "limit": 10,
+          "line_id": "brick"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-04-01T00:00:00Z",
+          "limit": 10,
+          "line_id": "brick",
+          "event_type": "stop",
+          "reason": "FAILURE"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "line_id": "brick",
+          "event_type": "stop",
+          "reason": "MATERIALS",
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-04-01T00:00:00Z",
+          "limit": 10
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "end": "2026-04-01T00:00:00Z",
+          "limit": 10,
+          "line_id": "brick",
+          "event_type": "stop",
+          "reason": "OPERATIONAL",
+          "start": "2026-01-01T00:00:00Z"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_events",
+        "args": {
+          "line_id": "brick",
+          "event_type": "stop",
+          "reason": "SETUPS-CHANGEOVERS",
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-04-01T00:00:00Z",
+          "limit": 10
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "stop_risk",
+        "args": {
+          "start": "2025-10-01T00:00:00Z",
+          "end": "2025-10-31T23:59:00Z",
+          "line_id": "brick"
+        },
+        "status": "out_of_scope",
+        "missing": "invalid arguments for stop_risk: start: Extra inputs are not permitted; end: Extra inputs are not permitted; line_id: Extra inputs are not permitted"
+      },
+      {
+        "name": "stop_risk",
+        "args": {
+          "line_id": "brick",
+          "start": "2025-11-01T00:00:00Z",
+          "end": "2025-11-30T23:59:00Z"
+        },
+        "status": "out_of_scope",
+        "missing": "invalid arguments for stop_risk: line_id: Extra inputs are not permitted; start: Extra inputs are not permitted; end: Extra inputs are not permitted"
+      },
+      {
+        "name": "stop_risk",
+        "args": {
+          "line_id": "brick",
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-03-31T23:59:00Z"
+        },
+        "status": "out_of_scope",
+        "missing": "invalid arguments for stop_risk: line_id: Extra inputs are not permitted; start: Extra inputs are not permitted; end: Extra inputs are not permitted"
+      },
+      {
+        "name": "list_assets",
+        "args": {},
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "get_oee",
+        "args": {
+          "line_id": "brick",
+          "start": "2026-01-01T00:00:00Z",
+          "end": "2026-04-01T00:00:00Z",
+          "group": "month"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "loss_pareto",
+        "args": {
+          "by": "reason",
+          "end": "2026-04-01T00:00:00Z",
+          "line_id": "brick",
+          "start": "2026-01-01T00:00:00Z"
+        },
+        "status": "ok",
+        "missing": null
+      },
+      {
+        "name": "breakdown",
+        "args": {
+          "start": "2026-01-01T00:00:00Z",
+          "rows": "reason",
+          "cols": "month",
+          "end": "2026-04-01T00:00:00Z",
+          "line_id": "brick"
+        },
+        "status": "ok",
+        "missing": null
+      }
+    ],
+    "error": "rounds",
+    "retries": 0,
+    "rounds_detail": [
+      {
+        "prompt_eval_count": 3391,
+        "eval_count": 1024,
+        "context_full": false
+      },
+      {
+        "prompt_eval_count": 15752,
+        "eval_count": 1024,
+        "context_full": false
+      },
+      {
+        "prompt_eval_count": 14361,
+        "eval_count": 16,
+        "context_full": false
+      },
+      {
+        "prompt_eval_count": 15493,
+        "eval_count": 78,
+        "context_full": false
+      },
+      {
+        "prompt_eval_count": 14361,
+        "eval_count": 79,
+        "context_full": false
+      },
+      {
+        "prompt_eval_count": 15891,
+        "eval_count": 83,
+        "context_full": false
+      }
+    ],
+    "context_full": false,
+    "truth": {
+      "before_window": [
+        "2025-09-01",
+        "2026-01-01"
+      ],
+      "after_window": [
+        "2026-01-01",
+        "2026-05-01"
+      ],
+      "shifts": {
+        "before": 62.0,
+        "after": 45.0
+      },
+      "planned_gap_days": {
+        "rule": "published planned_s - production - published stops > 3600 s",
+        "before": [
+          "2025-10-14",
+          "2025-10-15",
+          "2025-10-16",
+          "2025-10-17",
+          "2025-10-20",
+          "2025-10-21",
+          "2025-10-22",
+          "2025-10-23",
+          "2025-10-24",
+          "2025-10-27",
+          "2025-10-29",
+          "2025-10-30",
+          "2025-10-31"
+        ],
+        "after": [],
+        "shifts_ex": {
+          "before": 49.0,
+          "after": 45.0
+        }
+      },
+      "min_effect": {
+        "ratio_abs": 0.01,
+        "other_rel": 0.05
+      },
+      "facts": [
+        {
+          "metric": "availability",
+          "kind": "ratio",
+          "before": 0.7359152266702429,
+          "after": 0.7002061894984629,
+          "delta": -0.03570903717177998,
+          "before_ex_planned_gap": 0.6755421381908244,
+          "after_ex_planned_gap": 0.7002061894984629,
+          "readings": {
+            "value": "down",
+            "ex_planned_gap": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        },
+        {
+          "metric": "performance",
+          "kind": "ratio",
+          "before": 0.9320382433560328,
+          "after": 0.9374370594349792,
+          "delta": 0.0053988160789464334,
+          "before_ex_planned_gap": 0.9338140639387816,
+          "after_ex_planned_gap": 0.9374370594349792,
+          "readings": {
+            "value": "flat",
+            "ex_planned_gap": "flat"
+          },
+          "status": "flat",
+          "direction": null
+        },
+        {
+          "metric": "quality",
+          "kind": "ratio",
+          "before": 0.984993846290722,
+          "after": 0.9682127582541117,
+          "delta": -0.01678108803661027,
+          "before_ex_planned_gap": 0.9841339237409505,
+          "after_ex_planned_gap": 0.9682127582541117,
+          "readings": {
+            "value": "down",
+            "ex_planned_gap": "down"
+          },
+          "status": "scored",
+          "direction": "down"
+        },
+        {
+          "metric": "oee",
+          "kind": "ratio",
+          "before": 0.6756083972616405,
+          "after": 0.6355341102350471,
+          "delta": -0.040074287026593325,
+          "before_ex_planned_gap": 0.6208219406489237,
+          "after_ex_planned_gap": 0.6355341102350471,
+          "readings": {
+            "value": "down",
+            "ex_planned_gap": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        },
+        {
+          "metric": "stop_time",
+          "kind": "total",
+          "before": 523800.0,
+          "after": 345900.0,
+          "delta": -177900.0,
+          "before_per_shift": 8448.387096774193,
+          "after_per_shift": 7686.666666666667,
+          "readings": {
+            "total": "down",
+            "per_shift": "down"
+          },
+          "status": "scored",
+          "direction": "down"
+        },
+        {
+          "metric": "stop_count",
+          "kind": "total",
+          "before": 612.0,
+          "after": 505.0,
+          "delta": -107.0,
+          "before_per_shift": 9.870967741935484,
+          "after_per_shift": 11.222222222222221,
+          "readings": {
+            "total": "down",
+            "per_shift": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        },
+        {
+          "metric": "mttr",
+          "kind": "mean",
+          "before": 841.3513513513514,
+          "after": 862.7586206896551,
+          "delta": 21.407269338303763,
+          "readings": {
+            "value": "flat"
+          },
+          "status": "flat",
+          "direction": null
+        },
+        {
+          "metric": "reason:FAILURE",
+          "kind": "total",
+          "before": 186780.0,
+          "after": 100080.0,
+          "delta": -86700.0,
+          "before_per_shift": 3012.5806451612902,
+          "after_per_shift": 2224.0,
+          "readings": {
+            "total": "down",
+            "per_shift": "down"
+          },
+          "status": "scored",
+          "direction": "down"
+        },
+        {
+          "metric": "reason:OPERATIONAL",
+          "kind": "total",
+          "before": 104520.0,
+          "after": 35340.0,
+          "delta": -69180.0,
+          "before_per_shift": 1685.8064516129032,
+          "after_per_shift": 785.3333333333334,
+          "readings": {
+            "total": "down",
+            "per_shift": "down"
+          },
+          "status": "scored",
+          "direction": "down"
+        },
+        {
+          "metric": "reason:SETUPS-CHANGEOVERS",
+          "kind": "total",
+          "before": 95940.0,
+          "after": 84300.0,
+          "delta": -11640.0,
+          "before_per_shift": 1547.4193548387098,
+          "after_per_shift": 1873.3333333333333,
+          "readings": {
+            "total": "down",
+            "per_shift": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        },
+        {
+          "metric": "reason:MATERIALS",
+          "kind": "total",
+          "before": 136560.0,
+          "after": 126180.0,
+          "delta": -10380.0,
+          "before_per_shift": 2202.5806451612902,
+          "after_per_shift": 2804.0,
+          "readings": {
+            "total": "down",
+            "per_shift": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        }
+      ],
+      "status": {
+        "availability": "ambiguous",
+        "performance": "flat",
+        "quality": "down",
+        "oee": "ambiguous",
+        "stop_time": "down",
+        "stop_count": "ambiguous",
+        "mttr": "flat",
+        "reason:FAILURE": "down",
+        "reason:OPERATIONAL": "down",
+        "reason:SETUPS-CHANGEOVERS": "ambiguous",
+        "reason:MATERIALS": "ambiguous"
+      }
+    },
+    "score": {
+      "facts_total": 4,
+      "facts_found": 0,
+      "share_found": 0.0,
+      "found": [],
+      "missed": [
+        "quality",
+        "stop_time",
+        "reason:FAILURE",
+        "reason:OPERATIONAL"
+      ],
+      "not_scored": {
+        "availability": "ambiguous",
+        "performance": "flat",
+        "oee": "ambiguous",
+        "stop_count": "ambiguous",
+        "mttr": "flat",
+        "reason:SETUPS-CHANGEOVERS": "ambiguous",
+        "reason:MATERIALS": "ambiguous"
+      },
+      "claims": [],
+      "wrong_claims": 0,
+      "neutral_claims": 0
+    },
+    "caveats": [
+      "In the before period, 13 days in October 2025 have a published planned time 2.9 to 8.1 hours larger than published production plus stops (docs/data-notes.md). Availability recomputed from the stop log is inflated on those days. Each ratio fact (availability, performance, quality, oee) is therefore also read without the days picked by that rule (truth.planned_gap_days); where the two readings disagree the fact is ambiguous and not scored. Both values are kept in the facts.",
+      "Brick performance and quality are the published per-shift values (no independent source); oee here is recomputed availability times published performance and quality.",
+      "stop_time, stop_count and reason:<group> are totals over windows with different numbers of shifts (truth.shifts). Each is read as a total and per shift; where the two readings disagree the fact is ambiguous and not scored.",
+      "Facts below the minimum effect size (1 percentage point for ratios, 5% relative otherwise) are flat and not scored.",
+      "Windows are calendar months by shift or stop start (UTC). The before data covers 2025-09-22 to 2025-12-18 and the after data 2026-01-30 to 2026-04-03."
+    ]
+  }
+}

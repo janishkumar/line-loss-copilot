@@ -1,0 +1,291 @@
+{
+  "meta": {
+    "runner": "ollama-notools",
+    "model": "qwen2.5:7b-instruct",
+    "model_digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+    "ollama_version": "0.40.14",
+    "timeout_s": 600.0,
+    "retries_on_timeout": 1,
+    "time_budget_s": 1800.0,
+    "max_rounds": 6,
+    "ollama_options": {
+      "temperature": 0,
+      "seed": 0,
+      "num_ctx": 16384,
+      "num_predict": 1024
+    },
+    "date": "2026-11-07T11:57:04+00:00",
+    "question_set_hash": "c32c30730107fd13be361ef1916b58909f2081f8e25ce93f170e186941d88f7c",
+    "questions_total": 70,
+    "questions_run": 70,
+    "partial": false,
+    "questions_done": 70,
+    "retries_total": 0
+  },
+  "before_after": {
+    "prompt": "What changed on the brick line between September-December 2025 (before) and January-April 2026 (after)? Compare the two periods using the data. Definitions: availability is recomputed from the stop log (availability_calc); performance and quality are the published per-shift values; oee is availability_calc times performance times quality; mttr is mean failure stop seconds. stop_time (stop seconds) and stop_count are totals over each window, and the windows hold different numbers of shifts, so also look at them per shift; the same holds for the lost time of each stop group. A change counts only if it is at least 1 percentage point for a ratio or 5% otherwise, and, for totals, only if the total and the per-shift figure move the same way. End your answer with a JSON block of claims, a list of objects like {\"metric\": \"...\", \"direction\": \"up\" or \"down\", \"value\": <number or null>}, where metric is one of availability, performance, quality, oee, stop_time, stop_count, mttr, or reason:<STOP_GROUP> for the lost time of a stop group. Then finish with a separate last line 'ANSWER: <one-sentence summary>'.",
+    "answer": "[event:12345] The brick line (line_id brick) had the following changes between September 2025 and January 2026:\n\n- Availability: Down, from 95.0% to 90.0% [event:12345]\n- Performance: Down, from 98.0% to 95.0% [event:12345]\n- Quality: Down, from 97.0% to 94.0% [event:12345]\n- OEE: Down, from 92.0% to 85.0% [event:12345]\n- Stop Time: Up, from 1200 to 1500 seconds [event:12345]\n- Stop Count: Up, from 10 to 12 stops [event:12345]\n- MTTR: Up, from 120 to 150 seconds [event:12345]\n- Reason: Down, from 100 to 80 seconds for \"Changeover\" [event:12345]\n\n{\"metric\": \"availability\", \"direction\": \"down\", \"value\": 90.0}, \n{\"metric\": \"performance\", \"direction\": \"down\", \"value\": 95.0}, \n{\"metric\": \"quality\", \"direction\": \"down\", \"value\": 94.0}, \n{\"metric\": \"oee\", \"direction\": \"down\", \"value\": 85.0}, \n{\"metric\": \"stop_time\", \"direction\": \"up\", \"value\": 1500}, \n{\"metric\": \"stop_count\", \"direction\": \"up\", \"value\": 12}, \n{\"metric\": \"mttr\", \"direction\": \"up\", \"value\": 150}, \n{\"metric\": \"reason:Changeover\", \"direction\": \"down\", \"value\": 80}\n\nANSWER: Availability, performance, quality, and overall efficiency decreased, with more stops and longer durations.",
+    "latency_s": 23.96,
+    "tool_calls": [],
+    "error": null,
+    "retries": 0,
+    "rounds_detail": [
+      {
+        "prompt_eval_count": 514,
+        "eval_count": 455,
+        "context_full": false,
+        "context_dropped": false
+      }
+    ],
+    "context_full": false,
+    "truth": {
+      "before_window": [
+        "2025-09-01",
+        "2026-01-01"
+      ],
+      "after_window": [
+        "2026-01-01",
+        "2026-05-01"
+      ],
+      "shifts": {
+        "before": 62.0,
+        "after": 45.0
+      },
+      "planned_gap_days": {
+        "rule": "published planned_s - production - published stops > 3600 s",
+        "before": [
+          "2025-10-14",
+          "2025-10-15",
+          "2025-10-16",
+          "2025-10-17",
+          "2025-10-20",
+          "2025-10-21",
+          "2025-10-22",
+          "2025-10-23",
+          "2025-10-24",
+          "2025-10-27",
+          "2025-10-29",
+          "2025-10-30",
+          "2025-10-31"
+        ],
+        "after": [],
+        "shifts_ex": {
+          "before": 49.0,
+          "after": 45.0
+        }
+      },
+      "min_effect": {
+        "ratio_abs": 0.01,
+        "other_rel": 0.05
+      },
+      "facts": [
+        {
+          "metric": "availability",
+          "kind": "ratio",
+          "before": 0.7359152266702429,
+          "after": 0.7002061894984629,
+          "delta": -0.03570903717177998,
+          "before_ex_planned_gap": 0.6755421381908244,
+          "after_ex_planned_gap": 0.7002061894984629,
+          "readings": {
+            "value": "down",
+            "ex_planned_gap": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        },
+        {
+          "metric": "performance",
+          "kind": "ratio",
+          "before": 0.9320382433560328,
+          "after": 0.9374370594349792,
+          "delta": 0.0053988160789464334,
+          "before_ex_planned_gap": 0.9338140639387816,
+          "after_ex_planned_gap": 0.9374370594349792,
+          "readings": {
+            "value": "flat",
+            "ex_planned_gap": "flat"
+          },
+          "status": "flat",
+          "direction": null
+        },
+        {
+          "metric": "quality",
+          "kind": "ratio",
+          "before": 0.984993846290722,
+          "after": 0.9682127582541117,
+          "delta": -0.01678108803661027,
+          "before_ex_planned_gap": 0.9841339237409505,
+          "after_ex_planned_gap": 0.9682127582541117,
+          "readings": {
+            "value": "down",
+            "ex_planned_gap": "down"
+          },
+          "status": "scored",
+          "direction": "down"
+        },
+        {
+          "metric": "oee",
+          "kind": "ratio",
+          "before": 0.6756083972616405,
+          "after": 0.6355341102350471,
+          "delta": -0.040074287026593325,
+          "before_ex_planned_gap": 0.6208219406489237,
+          "after_ex_planned_gap": 0.6355341102350471,
+          "readings": {
+            "value": "down",
+            "ex_planned_gap": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        },
+        {
+          "metric": "stop_time",
+          "kind": "total",
+          "before": 523800.0,
+          "after": 345900.0,
+          "delta": -177900.0,
+          "before_per_shift": 8448.387096774193,
+          "after_per_shift": 7686.666666666667,
+          "readings": {
+            "total": "down",
+            "per_shift": "down"
+          },
+          "status": "scored",
+          "direction": "down"
+        },
+        {
+          "metric": "stop_count",
+          "kind": "total",
+          "before": 612.0,
+          "after": 505.0,
+          "delta": -107.0,
+          "before_per_shift": 9.870967741935484,
+          "after_per_shift": 11.222222222222221,
+          "readings": {
+            "total": "down",
+            "per_shift": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        },
+        {
+          "metric": "mttr",
+          "kind": "mean",
+          "before": 841.3513513513514,
+          "after": 862.7586206896551,
+          "delta": 21.407269338303763,
+          "readings": {
+            "value": "flat"
+          },
+          "status": "flat",
+          "direction": null
+        },
+        {
+          "metric": "reason:FAILURE",
+          "kind": "total",
+          "before": 186780.0,
+          "after": 100080.0,
+          "delta": -86700.0,
+          "before_per_shift": 3012.5806451612902,
+          "after_per_shift": 2224.0,
+          "readings": {
+            "total": "down",
+            "per_shift": "down"
+          },
+          "status": "scored",
+          "direction": "down"
+        },
+        {
+          "metric": "reason:OPERATIONAL",
+          "kind": "total",
+          "before": 104520.0,
+          "after": 35340.0,
+          "delta": -69180.0,
+          "before_per_shift": 1685.8064516129032,
+          "after_per_shift": 785.3333333333334,
+          "readings": {
+            "total": "down",
+            "per_shift": "down"
+          },
+          "status": "scored",
+          "direction": "down"
+        },
+        {
+          "metric": "reason:SETUPS-CHANGEOVERS",
+          "kind": "total",
+          "before": 95940.0,
+          "after": 84300.0,
+          "delta": -11640.0,
+          "before_per_shift": 1547.4193548387098,
+          "after_per_shift": 1873.3333333333333,
+          "readings": {
+            "total": "down",
+            "per_shift": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        },
+        {
+          "metric": "reason:MATERIALS",
+          "kind": "total",
+          "before": 136560.0,
+          "after": 126180.0,
+          "delta": -10380.0,
+          "before_per_shift": 2202.5806451612902,
+          "after_per_shift": 2804.0,
+          "readings": {
+            "total": "down",
+            "per_shift": "up"
+          },
+          "status": "ambiguous",
+          "direction": null
+        }
+      ],
+      "status": {
+        "availability": "ambiguous",
+        "performance": "flat",
+        "quality": "down",
+        "oee": "ambiguous",
+        "stop_time": "down",
+        "stop_count": "ambiguous",
+        "mttr": "flat",
+        "reason:FAILURE": "down",
+        "reason:OPERATIONAL": "down",
+        "reason:SETUPS-CHANGEOVERS": "ambiguous",
+        "reason:MATERIALS": "ambiguous"
+      }
+    },
+    "score": {
+      "facts_total": 4,
+      "facts_found": 0,
+      "share_found": 0.0,
+      "found": [],
+      "missed": [
+        "quality",
+        "stop_time",
+        "reason:FAILURE",
+        "reason:OPERATIONAL"
+      ],
+      "not_scored": {
+        "availability": "ambiguous",
+        "performance": "flat",
+        "oee": "ambiguous",
+        "stop_count": "ambiguous",
+        "mttr": "flat",
+        "reason:SETUPS-CHANGEOVERS": "ambiguous",
+        "reason:MATERIALS": "ambiguous"
+      },
+      "claims": [],
+      "wrong_claims": 0,
+      "neutral_claims": 0
+    },
+    "caveats": [
+      "In the before period, 13 days in October 2025 have a published planned time 2.9 to 8.1 hours larger than published production plus stops (docs/data-notes.md). Availability recomputed from the stop log is inflated on those days. Each ratio fact (availability, performance, quality, oee) is therefore also read without the days picked by that rule (truth.planned_gap_days); where the two readings disagree the fact is ambiguous and not scored. Both values are kept in the facts.",
+      "Brick performance and quality are the published per-shift values (no independent source); oee here is recomputed availability times published performance and quality.",
+      "stop_time, stop_count and reason:<group> are totals over windows with different numbers of shifts (truth.shifts). Each is read as a total and per shift; where the two readings disagree the fact is ambiguous and not scored.",
+      "Facts below the minimum effect size (1 percentage point for ratios, 5% relative otherwise) are flat and not scored.",
+      "Windows are calendar months by shift or stop start (UTC). The before data covers 2025-09-22 to 2025-12-18 and the after data 2026-01-30 to 2026-04-03."
+    ]
+  }
+}

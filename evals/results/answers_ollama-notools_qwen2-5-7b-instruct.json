@@ -1,0 +1,3437 @@
+{
+  "meta": {
+    "runner": "ollama-notools",
+    "model": "qwen2.5:7b-instruct",
+    "model_digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+    "ollama_version": "0.40.14",
+    "timeout_s": 600.0,
+    "retries_on_timeout": 1,
+    "time_budget_s": 1800.0,
+    "max_rounds": 6,
+    "ollama_options": {
+      "temperature": 0,
+      "seed": 0,
+      "num_ctx": 16384,
+      "num_predict": 1024
+    },
+    "date": "2026-11-07T11:57:04+00:00",
+    "question_set_hash": "c32c30730107fd13be361ef1916b58909f2081f8e25ce93f170e186941d88f7c",
+    "questions_total": 70,
+    "questions_run": 70,
+    "partial": false,
+    "questions_done": 70,
+    "retries_total": 0
+  },
+  "summary": {
+    "overall": {
+      "n": 70,
+      "correct": 9,
+      "accuracy": 0.12857142857142856
+    },
+    "answerable": {
+      "n": 60,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "unanswerable": {
+      "n": 10,
+      "correct": 9,
+      "accuracy": 0.9
+    },
+    "by_kind": {
+      "label": {
+        "n": 14,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "na": {
+        "n": 10,
+        "correct": 9,
+        "accuracy": 0.9
+      },
+      "numeric": {
+        "n": 46,
+        "correct": 0,
+        "accuracy": 0.0
+      }
+    },
+    "by_template": {
+      "oee_month": {
+        "n": 6,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "availability_month": {
+        "n": 7,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "top_reason": {
+        "n": 9,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "top_reason_lost": {
+        "n": 6,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "mttr_month": {
+        "n": 6,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "mtbf_month": {
+        "n": 5,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "stop_count": {
+        "n": 6,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "repeat_chains": {
+        "n": 5,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "note_date": {
+        "n": 5,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "compare_availability": {
+        "n": 5,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "unanswerable": {
+        "n": 10,
+        "correct": 9,
+        "accuracy": 0.9
+      }
+    },
+    "citations_all": {
+      "answers": 70,
+      "cited_rows": 38,
+      "supported_rows": 0,
+      "micro_support_rate": 0.0,
+      "share_fully_supported": 0.0,
+      "share_no_citations": 0.5857142857142857
+    },
+    "citations_answerable": {
+      "answers": 60,
+      "cited_rows": 33,
+      "supported_rows": 0,
+      "micro_support_rate": 0.0,
+      "share_fully_supported": 0.0,
+      "share_no_citations": 0.6
+    },
+    "format_ok": 0.9,
+    "errors": 0,
+    "stopped_on_budget": 0,
+    "stopped_on_rounds": 0,
+    "context_full": 0,
+    "median_latency_s": 1.33
+  },
+  "questions": [
+    {
+      "id": "oee_month_01",
+      "template": "oee_month",
+      "kind": "numeric",
+      "question": "What was the OEE of machine s_3 in December 2021? Answer as a percentage.",
+      "expected": 0.39945444901193755,
+      "expected_display": "39.95%",
+      "answer": "evidence is not available [event:678]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        678
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        678
+      ],
+      "evidence_event_count": 3124,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.44,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 302,
+          "eval_count": 18,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "oee_month_02",
+      "template": "oee_month",
+      "kind": "numeric",
+      "question": "What was the OEE of machine s_4 in April 2020? Answer as a percentage.",
+      "expected": 0.4354084790478497,
+      "expected_display": "43.54%",
+      "answer": "[evidence:not available]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 6534,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.81,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 302,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "oee_month_03",
+      "template": "oee_month",
+      "kind": "numeric",
+      "question": "What was the OEE of machine s_1 in June 2020? Answer as a percentage.",
+      "expected": 0.5804743455631245,
+      "expected_display": "58.05%",
+      "answer": "evidence is not available [event:678]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        678
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        678
+      ],
+      "evidence_event_count": 4439,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.15,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 302,
+          "eval_count": 18,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "oee_month_04",
+      "template": "oee_month",
+      "kind": "numeric",
+      "question": "What was the OEE of machine s_2 in July 2021? Answer as a percentage.",
+      "expected": 0.3856324756176311,
+      "expected_display": "38.56%",
+      "answer": "evidence is not available [event:678]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        678
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        678
+      ],
+      "evidence_event_count": 6568,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.16,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 302,
+          "eval_count": 18,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "oee_month_05",
+      "template": "oee_month",
+      "kind": "numeric",
+      "question": "What was the OEE of machine s_5 in May 2020? Answer as a percentage.",
+      "expected": 0.44384410242860856,
+      "expected_display": "44.38%",
+      "answer": "evidence is not available [event:1234]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        1234
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        1234
+      ],
+      "evidence_event_count": 8524,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.18,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 302,
+          "eval_count": 19,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "oee_month_06",
+      "template": "oee_month",
+      "kind": "numeric",
+      "question": "What was the OEE of machine s_4 in December 2021? Answer as a percentage.",
+      "expected": 0.3869031727462067,
+      "expected_display": "38.69%",
+      "answer": "evidence is not available [event:678]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        678
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        678
+      ],
+      "evidence_event_count": 8095,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.14,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 302,
+          "eval_count": 18,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "availability_month_01",
+      "template": "availability_month",
+      "kind": "numeric",
+      "question": "What was the availability recomputed from the stop log (availability_calc) of the brick line in December 2025? Answer as a percentage.",
+      "expected": 0.6375138272307688,
+      "expected_display": "63.75%",
+      "answer": "[event:123] The brick line (line_id brick) runs from September 2025 to April 2026. December 2025 is within this period.\n\n[availability_calc] Availability for the brick line in December 2025 is 95%.\n\nANSWER: 95%",
+      "extracted": "95%",
+      "parsed_value": 0.95,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        123
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        123
+      ],
+      "evidence_event_count": 157,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.73,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 310,
+          "eval_count": 71,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "availability_month_02",
+      "template": "availability_month",
+      "kind": "numeric",
+      "question": "What was the availability recomputed from the stop log (availability_calc) of the brick line in February 2026? Answer as a percentage.",
+      "expected": 0.702059811610489,
+      "expected_display": "70.21%",
+      "answer": "[event:12345] The brick line's stop log in February 2026 shows it was operational from March 1, 2025, to April 1, 2026. The availability calculation (availability_calc) for February 2026 is 95%.\n\nANSWER: 95%",
+      "extracted": "95%",
+      "parsed_value": 0.95,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 213,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.94,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 310,
+          "eval_count": 75,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "availability_month_03",
+      "template": "availability_month",
+      "kind": "numeric",
+      "question": "What was the availability of machine s_4 in November 2021? Answer as a percentage.",
+      "expected": 0.6611299469934764,
+      "expected_display": "66.11%",
+      "answer": "[evidence:12345] The availability of machine s_4 in November 2021 is 95%.\n\nANSWER: 95%",
+      "extracted": "95%",
+      "parsed_value": 0.95,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 8249,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.0,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 301,
+          "eval_count": 36,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "availability_month_04",
+      "template": "availability_month",
+      "kind": "numeric",
+      "question": "What was the availability of machine s_3 in August 2021? Answer as a percentage.",
+      "expected": 0.47372401205801684,
+      "expected_display": "47.37%",
+      "answer": "[evidence:12345] The availability of machine s_3 in August 2021 is 95%.\n\nANSWER: 95%",
+      "extracted": "95%",
+      "parsed_value": 0.95,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 2279,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.0,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 301,
+          "eval_count": 36,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "availability_month_05",
+      "template": "availability_month",
+      "kind": "numeric",
+      "question": "What was the availability of machine s_5 in September 2021? Answer as a percentage.",
+      "expected": 0.6525445695071654,
+      "expected_display": "65.25%",
+      "answer": "[evidence:12345] The data indicates that PIADE packaging machines s_1 to s_5 ran from 2020 to early 2022. However, specific operational details for machine s_5 in September 2021 are not provided.\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 4739,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.53,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 301,
+          "eval_count": 67,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "availability_month_06",
+      "template": "availability_month",
+      "kind": "numeric",
+      "question": "What was the availability of machine s_2 in January 2021? Answer as a percentage.",
+      "expected": 0.34702316946096007,
+      "expected_display": "34.70%",
+      "answer": "[evidence:12345] The availability of machine s_2 in January 2021 is 95%.\n\nANSWER: 95%",
+      "extracted": "95%",
+      "parsed_value": 0.95,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 3429,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.04,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 301,
+          "eval_count": 36,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "availability_month_07",
+      "template": "availability_month",
+      "kind": "numeric",
+      "question": "What was the availability of machine s_5 in March 2020? Answer as a percentage.",
+      "expected": 0.6296221820891631,
+      "expected_display": "62.96%",
+      "answer": "[evidence:12345] The data indicates that PIADE packaging machines s_1 to s_5 ran from 2020 to early 2022. However, specific operational details for machine s_5 in March 2020 are not provided.\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 6554,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.51,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 301,
+          "eval_count": 67,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_01",
+      "template": "top_reason",
+      "kind": "label",
+      "question": "Which stop group cost the brick line the most stop time in November 2025? Answer with the stop group name.",
+      "expected": "MATERIALS",
+      "expected_display": "MATERIALS",
+      "answer": "[event:12345] The stop group that cost the brick line the most stop time in November 2025 was [event:12346] material supply [event:12347].\n\nANSWER: material supply [event:12345, event:12346, event:12347]",
+      "extracted": "material supply [event:12345, event:12346, event:12347]",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345,
+        12346,
+        12347
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345,
+        12346,
+        12347
+      ],
+      "evidence_event_count": 85,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 4.2,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 80,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_02",
+      "template": "top_reason",
+      "kind": "label",
+      "question": "Which stop group cost the brick line the most stop time in December 2025? Answer with the stop group name.",
+      "expected": "FAILURE",
+      "expected_display": "FAILURE",
+      "answer": "[event:12345] The stop group that cost the brick line the most stop time in December 2025 was [event:12346] material supply [event:12347].\n\nANSWER: material supply",
+      "extracted": "material supply",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345,
+        12346,
+        12347
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345,
+        12346,
+        12347
+      ],
+      "evidence_event_count": 52,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.97,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 55,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_03",
+      "template": "top_reason",
+      "kind": "label",
+      "question": "Which stop group cost the brick line the most stop time in October 2025? Answer with the stop group name.",
+      "expected": "FAILURE",
+      "expected_display": "FAILURE",
+      "answer": "[event:12345] The stop group that cost the brick line the most stop time in October 2025 was [event:12346] material supply [event:12347].\n\nANSWER: material supply",
+      "extracted": "material supply",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345,
+        12346,
+        12347
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345,
+        12346,
+        12347
+      ],
+      "evidence_event_count": 87,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.93,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 55,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_04",
+      "template": "top_reason",
+      "kind": "label",
+      "question": "Which alarm code cost machine s_1 the most stop time in January 2021? Answer with the alarm code.",
+      "expected": "A_065",
+      "expected_display": "A_065",
+      "answer": "[search:events?machine=s_1&date=2021-01-01T00:00:00&date=2021-02-01T00:00:00&sort=-stop_time&project=1]\n- event:123\n- event:456\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 868,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 4.34,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 83,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_05",
+      "template": "top_reason",
+      "kind": "label",
+      "question": "Which alarm code cost machine s_2 the most stop time in August 2021? Answer with the alarm code.",
+      "expected": "A_101",
+      "expected_display": "A_101",
+      "answer": "[event:12345] The alarm code that cost machine s_2 the most stop time in August 2021 was \"004\".\n\nANSWER: 004",
+      "extracted": "004",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 565,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.37,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 43,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_06",
+      "template": "top_reason",
+      "kind": "label",
+      "question": "Which alarm code cost machine s_5 the most stop time in June 2021? Answer with the alarm code.",
+      "expected": "A_101",
+      "expected_display": "A_101",
+      "answer": "[event:12345] The alarm code that cost machine s_5 the most stop time in June 2021 was \"004\".\n\nANSWER: 004",
+      "extracted": "004",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 607,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.35,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 43,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_07",
+      "template": "top_reason",
+      "kind": "label",
+      "question": "Which alarm code cost machine s_1 the most stop time in July 2021? Answer with the alarm code.",
+      "expected": "A_065",
+      "expected_display": "A_065",
+      "answer": "[event:12345] The alarm code that cost machine s_1 the most stop time in July 2021 was \"004\".\n\nANSWER: 004",
+      "extracted": "004",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 1112,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.35,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 43,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_08",
+      "template": "top_reason",
+      "kind": "label",
+      "question": "Which alarm code cost machine s_3 the most stop time in May 2021? Answer with the alarm code.",
+      "expected": "A_006",
+      "expected_display": "A_006",
+      "answer": "[event:12345] The alarm code that cost machine s_3 the most stop time in May 2021 was \"004\".\n\nANSWER: 004",
+      "extracted": "004",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 111,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.36,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 43,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_09",
+      "template": "top_reason",
+      "kind": "label",
+      "question": "Which alarm code cost machine s_5 the most stop time in December 2021? Answer with the alarm code.",
+      "expected": "A_101",
+      "expected_display": "A_101",
+      "answer": "[event:12345] The alarm code that cost machine s_5 the most stop time in December 2021 was \"004\".\n\nANSWER: 004",
+      "extracted": "004",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 593,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 2.36,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 43,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_lost_01",
+      "template": "top_reason_lost",
+      "kind": "numeric",
+      "question": "How much stop time did the biggest stop group cost the brick line in October 2025? Answer in hours.",
+      "expected": 85500.0,
+      "expected_display": "23.750 h",
+      "answer": "[evidence:123] The brick line (line_id brick) runs from September 2025 to April 2026. [event:123]\n\n[evidence:456] In October 2025, the biggest stop group for the brick line had a stop time of 7200 seconds. [event:456]\n\n7200 seconds is 2 hours.\n\nANSWER: 2",
+      "extracted": "2",
+      "parsed_value": 7200.0,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        123,
+        456
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        123,
+        456
+      ],
+      "evidence_event_count": 87,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 4.97,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 304,
+          "eval_count": 96,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_lost_02",
+      "template": "top_reason_lost",
+      "kind": "numeric",
+      "question": "How much stop time did the biggest stop group cost the brick line in December 2025? Answer in hours.",
+      "expected": 39180.0,
+      "expected_display": "10.883 h",
+      "answer": "[evidence:123] The brick line (line_id brick) runs from September 2025 to April 2026. [event:123]\n\n[evidence:456] In December 2025, the biggest stop group for the brick line had a stop time of 7200 seconds. [event:456]\n\n7200 seconds is 2 hours.\n\nANSWER: 2",
+      "extracted": "2",
+      "parsed_value": 7200.0,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        123,
+        456
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        123,
+        456
+      ],
+      "evidence_event_count": 52,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 4.97,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 304,
+          "eval_count": 96,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_lost_03",
+      "template": "top_reason_lost",
+      "kind": "numeric",
+      "question": "How much stop time did the biggest alarm code cost machine s_5 in May 2020? Answer in hours.",
+      "expected": 42811.154,
+      "expected_display": "11.892 h",
+      "answer": "[evidence:not available]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 479,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.8,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_lost_04",
+      "template": "top_reason_lost",
+      "kind": "numeric",
+      "question": "How much stop time did the biggest alarm code cost machine s_5 in November 2021? Answer in hours.",
+      "expected": 109270.721,
+      "expected_display": "30.353 h",
+      "answer": "[evidence:not available]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 718,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.8,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_lost_05",
+      "template": "top_reason_lost",
+      "kind": "numeric",
+      "question": "How much stop time did the biggest alarm code cost machine s_1 in January 2021? Answer in hours.",
+      "expected": 133077.598,
+      "expected_display": "36.966 h",
+      "answer": "[evidence:not available]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 868,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.8,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "top_reason_lost_06",
+      "template": "top_reason_lost",
+      "kind": "numeric",
+      "question": "How much stop time did the biggest alarm code cost machine s_3 in November 2021? Answer in hours.",
+      "expected": 71694.567,
+      "expected_display": "19.915 h",
+      "answer": "[evidence:not available]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 109,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.8,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mttr_month_01",
+      "template": "mttr_month",
+      "kind": "numeric",
+      "question": "What was the MTTR (mean time to repair) of the brick line in February 2026? Answer in minutes.",
+      "expected": 792.0,
+      "expected_display": "13.20 min",
+      "answer": "evidence is not available\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 70,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.86,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 306,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mttr_month_02",
+      "template": "mttr_month",
+      "kind": "numeric",
+      "question": "What was the MTTR (mean time to repair) of the brick line in December 2025? Answer in minutes.",
+      "expected": 753.4615384615385,
+      "expected_display": "12.56 min",
+      "answer": "evidence is not available\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 52,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 306,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mttr_month_03",
+      "template": "mttr_month",
+      "kind": "numeric",
+      "question": "What was the MTTR (mean time to repair) of machine s_2 in December 2020? Answer in minutes.",
+      "expected": 96.84243516873889,
+      "expected_display": "1.61 min",
+      "answer": "evidence is not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 596,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 307,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mttr_month_04",
+      "template": "mttr_month",
+      "kind": "numeric",
+      "question": "What was the MTTR (mean time to repair) of machine s_5 in October 2020? Answer in minutes.",
+      "expected": 78.84590681003584,
+      "expected_display": "1.31 min",
+      "answer": "evidence is not available\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 566,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 307,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mttr_month_05",
+      "template": "mttr_month",
+      "kind": "numeric",
+      "question": "What was the MTTR (mean time to repair) of machine s_4 in November 2021? Answer in minutes.",
+      "expected": 75.93967612293144,
+      "expected_display": "1.27 min",
+      "answer": "evidence is not available [event:678]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        678
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        678
+      ],
+      "evidence_event_count": 1801,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.14,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 307,
+          "eval_count": 18,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mttr_month_06",
+      "template": "mttr_month",
+      "kind": "numeric",
+      "question": "What was the MTTR (mean time to repair) of machine s_4 in June 2021? Answer in minutes.",
+      "expected": 88.79100239520957,
+      "expected_display": "1.48 min",
+      "answer": "evidence is not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 871,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.84,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 307,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mtbf_month_01",
+      "template": "mtbf_month",
+      "kind": "numeric",
+      "question": "What was the MTBF (mean time between failures) of the brick line in March 2026? Answer in minutes.",
+      "expected": 10746.026315789473,
+      "expected_display": "179.10 min",
+      "answer": "evidence is not available\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 59,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 306,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mtbf_month_02",
+      "template": "mtbf_month",
+      "kind": "numeric",
+      "question": "What was the MTBF (mean time between failures) of the brick line in December 2025? Answer in minutes.",
+      "expected": 4178.326923076923,
+      "expected_display": "69.64 min",
+      "answer": "evidence is not available\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 66,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.84,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 306,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mtbf_month_03",
+      "template": "mtbf_month",
+      "kind": "numeric",
+      "question": "What was the MTBF (mean time between failures) of machine s_1 in August 2020? Answer in minutes.",
+      "expected": 1145.2299318346627,
+      "expected_display": "19.09 min",
+      "answer": "evidence is not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 4840,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 307,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mtbf_month_04",
+      "template": "mtbf_month",
+      "kind": "numeric",
+      "question": "What was the MTBF (mean time between failures) of machine s_5 in October 2020? Answer in minutes.",
+      "expected": 2200.1277634408602,
+      "expected_display": "36.67 min",
+      "answer": "evidence is not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 3626,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.86,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 307,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "mtbf_month_05",
+      "template": "mtbf_month",
+      "kind": "numeric",
+      "question": "What was the MTBF (mean time between failures) of machine s_1 in February 2020? Answer in minutes.",
+      "expected": 1038.1702881231672,
+      "expected_display": "17.30 min",
+      "answer": "evidence is not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 4298,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 307,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "stop_count_01",
+      "template": "stop_count",
+      "kind": "numeric",
+      "question": "How many stops that count in OEE did the brick line have in October 2025? Answer with a number.",
+      "expected": 196.0,
+      "expected_display": "196",
+      "answer": "[event:12345] The brick line (line_id brick) runs from September 2025 to April 2026. October 2025 falls within this period. However, the specific data for stops that count in OEE for October 2025 is not provided.\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 196,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.83,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 73,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "stop_count_02",
+      "template": "stop_count",
+      "kind": "numeric",
+      "question": "How many stops that count in OEE did the brick line have in February 2026? Answer with a number.",
+      "expected": 194.0,
+      "expected_display": "194",
+      "answer": "[event:12345] The brick line runs from September 2025 to April 2026, and February 2026 is within this period. However, the specific number of stops that count in OEE for the brick line in February 2026 is not provided in the given data.\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 194,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 4.02,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 305,
+          "eval_count": 77,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "stop_count_03",
+      "template": "stop_count",
+      "kind": "numeric",
+      "question": "How many stops that count in OEE did machine s_1 have in January 2020? Answer with a number.",
+      "expected": 1483.0,
+      "expected_display": "1483",
+      "answer": "evidence is not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 1515,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 306,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "stop_count_04",
+      "template": "stop_count",
+      "kind": "numeric",
+      "question": "How many stops that count in OEE did machine s_5 have in February 2020? Answer with a number.",
+      "expected": 1208.0,
+      "expected_display": "1208",
+      "answer": "[evidence:not available]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 1235,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.8,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 306,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "stop_count_05",
+      "template": "stop_count",
+      "kind": "numeric",
+      "question": "How many stops that count in OEE did machine s_3 have in May 2021? Answer with a number.",
+      "expected": 577.0,
+      "expected_display": "577",
+      "answer": "evidence is not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 584,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.84,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 306,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "stop_count_06",
+      "template": "stop_count",
+      "kind": "numeric",
+      "question": "How many stops that count in OEE did machine s_2 have in May 2021? Answer with a number.",
+      "expected": 1315.0,
+      "expected_display": "1315",
+      "answer": "evidence is not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 1368,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 306,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "repeat_chains_01",
+      "template": "repeat_chains",
+      "kind": "numeric",
+      "question": "How many repeat-failure chains did the brick line have in December 2025, counting a chain as the same stop group failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "expected": 4.0,
+      "expected_display": "4",
+      "answer": "evidence not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 48,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.95,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 331,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "repeat_chains_02",
+      "template": "repeat_chains",
+      "kind": "numeric",
+      "question": "How many repeat-failure chains did the brick line have in October 2025, counting a chain as the same stop group failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "expected": 7.0,
+      "expected_display": "7",
+      "answer": "[evidence:1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901",
+      "extracted": null,
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": false,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 87,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 50.84,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 331,
+          "eval_count": 1024,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "repeat_chains_03",
+      "template": "repeat_chains",
+      "kind": "numeric",
+      "question": "How many repeat-failure chains did machine s_2 have in September 2020, counting a chain as the same alarm code failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "expected": 34.0,
+      "expected_display": "34",
+      "answer": "evidence not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 397,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.97,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 332,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "repeat_chains_04",
+      "template": "repeat_chains",
+      "kind": "numeric",
+      "question": "How many repeat-failure chains did machine s_5 have in May 2021, counting a chain as the same alarm code failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "expected": 29.0,
+      "expected_display": "29",
+      "answer": "evidence not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 1027,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.95,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 332,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "repeat_chains_05",
+      "template": "repeat_chains",
+      "kind": "numeric",
+      "question": "How many repeat-failure chains did machine s_2 have in February 2021, counting a chain as the same alarm code failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "expected": 41.0,
+      "expected_display": "41",
+      "answer": "evidence not available\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 583,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.95,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 332,
+          "eval_count": 11,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "note_date_01",
+      "template": "note_date",
+      "kind": "label",
+      "question": "On what date was a brick line stop logged with an operator note mentioning \"ΥΓΡΑΣΙΑ\"? Answer as YYYY-MM-DD.",
+      "expected": "2025-10-08",
+      "expected_display": "2025-10-08",
+      "answer": "[evidence:12345] The operator note \"ΥΓΡΑΣΙΑ\" was logged on 2022-03-01 [event:12345].\n\nANSWER: 2022-03-01",
+      "extracted": "2022-03-01",
+      "parsed_value": "2022-03-01",
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 1,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.18,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 308,
+          "eval_count": 59,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "note_date_02",
+      "template": "note_date",
+      "kind": "label",
+      "question": "On what date was a brick line stop logged with an operator note mentioning \"ΚΟΥΖΙΝΕΤΟ\"? Answer as YYYY-MM-DD.",
+      "expected": "2026-03-24",
+      "expected_display": "2026-03-24",
+      "answer": "[evidence:12345] The operator note \"ΚΟΥΖΙΝΕΤΟ\" was logged on 2022-03-01 [event:12345].\n\nANSWER: 2022-03-01",
+      "extracted": "2022-03-01",
+      "parsed_value": "2022-03-01",
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 1,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.25,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 310,
+          "eval_count": 61,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "note_date_03",
+      "template": "note_date",
+      "kind": "label",
+      "question": "On what date was a brick line stop logged with an operator note mentioning \"TELARVN\"? Answer as YYYY-MM-DD.",
+      "expected": "2026-02-25",
+      "expected_display": "2026-02-25",
+      "answer": "[evidence:123] The brick line (line_id brick) runs from 2025-09-01 to 2026-04-01. There is no operator note mentioning \"TELARVN\" logged during this period.\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 1,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.37,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 304,
+          "eval_count": 63,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "note_date_04",
+      "template": "note_date",
+      "kind": "label",
+      "question": "On what date was a brick line stop logged with an operator note mentioning \"ΜΑΓΝΗΤΗ\"? Answer as YYYY-MM-DD.",
+      "expected": "2025-11-24",
+      "expected_display": "2025-11-24",
+      "answer": "[evidence:12345] The operator note \"ΜΑΓΝΗΤΗ\" was logged on 2022-03-01 [event:12345].\n\nANSWER: 2022-03-01",
+      "extracted": "2022-03-01",
+      "parsed_value": "2022-03-01",
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 1,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.15,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 308,
+          "eval_count": 59,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "note_date_05",
+      "template": "note_date",
+      "kind": "label",
+      "question": "On what date was a brick line stop logged with an operator note mentioning \"reflector\"? Answer as YYYY-MM-DD.",
+      "expected": "2026-03-05",
+      "expected_display": "2026-03-05",
+      "answer": "[evidence:12345] The brick line [event:67890] runs from 2025-09-01 to 2026-04-01. There is an operator note mentioning \"reflector\" on 2025-10-02 [event:12345].\n\nANSWER: 2025-10-02",
+      "extracted": "2025-10-02",
+      "parsed_value": "2025-10-02",
+      "correct": false,
+      "format_ok": true,
+      "cited_ids": [
+        67890,
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        67890,
+        12345
+      ],
+      "evidence_event_count": 1,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 4.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 303,
+          "eval_count": 93,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "compare_availability_01",
+      "template": "compare_availability",
+      "kind": "numeric",
+      "question": "By how many percentage points did the availability recomputed from the stop log (availability_calc) of the brick line change from November 2025 to February 2026? Answer in percentage points, negative if it fell.",
+      "expected": 0.028671761487207403,
+      "expected_display": "+2.87 pp",
+      "answer": "[evidence:1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901",
+      "extracted": null,
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": false,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 442,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 50.87,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 327,
+          "eval_count": 1024,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "compare_availability_02",
+      "template": "compare_availability",
+      "kind": "numeric",
+      "question": "By how many percentage points did the availability of machine s_2 change from March 2021 to June 2021? Answer in percentage points, negative if it fell.",
+      "expected": 0.09614677847934172,
+      "expected_display": "+9.61 pp",
+      "answer": "[evidence:1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901",
+      "extracted": null,
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": false,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 10296,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 50.77,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 318,
+          "eval_count": 1024,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "compare_availability_03",
+      "template": "compare_availability",
+      "kind": "numeric",
+      "question": "By how many percentage points did the availability of machine s_5 change from October 2020 to December 2021? Answer in percentage points, negative if it fell.",
+      "expected": -0.06587099155227172,
+      "expected_display": "-6.59 pp",
+      "answer": "[evidence:1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901",
+      "extracted": null,
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": false,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 9831,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 50.78,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 318,
+          "eval_count": 1024,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "compare_availability_04",
+      "template": "compare_availability",
+      "kind": "numeric",
+      "question": "By how many percentage points did the availability of machine s_3 change from December 2020 to June 2021? Answer in percentage points, negative if it fell.",
+      "expected": 0.11027524403445094,
+      "expected_display": "+11.03 pp",
+      "answer": "[evidence:1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901",
+      "extracted": null,
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": false,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 5676,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 50.85,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 318,
+          "eval_count": 1024,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "compare_availability_05",
+      "template": "compare_availability",
+      "kind": "numeric",
+      "question": "By how many percentage points did the availability of machine s_4 change from April 2021 to August 2021? Answer in percentage points, negative if it fell.",
+      "expected": 0.06480981364468985,
+      "expected_display": "+6.48 pp",
+      "answer": "[evidence:1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901",
+      "extracted": null,
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": false,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 15767,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 50.93,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 318,
+          "eval_count": 1024,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_01",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "How much electricity, in kWh, did machine s_1 use in March 2021?",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "evidence is not available [event:678]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": true,
+      "format_ok": true,
+      "cited_ids": [
+        678
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        678
+      ],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.18,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 300,
+          "eval_count": 18,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_02",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "What was the OEE of machine s_9 in May 2021? Answer as a percentage.",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "evidence is not available [event:678]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": true,
+      "format_ok": true,
+      "cited_ids": [
+        678
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        678
+      ],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.15,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 302,
+          "eval_count": 18,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_03",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "What was the availability of the brick line in June 2025? Answer as a percentage.",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "[evidence:12345] The brick line (line_id brick) runs from September 2025 to April 2026. June 2025 falls within this period, but the specific availability is not provided.\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": true,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 3.12,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 300,
+          "eval_count": 58,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_04",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "Which operator was running the brick line on 14 October 2025?",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "EVIDENCE: NOT_AVAILABLE\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": true,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.91,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 297,
+          "eval_count": 13,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_05",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "What did the downtime on machine s_2 cost in euros in July 2021?",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "evidence is not available\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": true,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.86,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 299,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_06",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "What was the OEE of machine s_3 in February 2021? Answer as a percentage.",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "evidence is not available [event:678]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": true,
+      "format_ok": true,
+      "cited_ids": [
+        678
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        678
+      ],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.15,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 302,
+          "eval_count": 18,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_07",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "How many kilograms of scrap did the brick line produce in November 2025?",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "evidence is not available [event:123] ANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": true,
+      "format_ok": true,
+      "cited_ids": [
+        123
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        123
+      ],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.15,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 297,
+          "eval_count": 18,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_08",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "Which maintenance technician repaired the longest stop on machine s_4 in 2021?",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "[evidence:1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901",
+      "extracted": null,
+      "parsed_value": null,
+      "correct": false,
+      "format_ok": false,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 51.34,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 298,
+          "eval_count": 1024,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_09",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "What was the average ambient temperature at machine s_5 in June 2021?",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "EVIDENCE:NOT_AVAILABLE [event:12345]\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": true,
+      "format_ok": true,
+      "cited_ids": [
+        12345
+      ],
+      "supported_ids": [],
+      "unsupported_ids": [
+        12345
+      ],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 1.33,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 298,
+          "eval_count": 21,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    },
+    {
+      "id": "na_10",
+      "template": "unanswerable",
+      "kind": "na",
+      "question": "What was the MTTR of machine s_5 in August 2021? Answer in minutes.",
+      "expected": "NOT_AVAILABLE",
+      "expected_display": "NOT_AVAILABLE",
+      "answer": "evidence is not available\n\nANSWER: NOT_AVAILABLE",
+      "extracted": "NOT_AVAILABLE",
+      "parsed_value": null,
+      "correct": true,
+      "format_ok": true,
+      "cited_ids": [],
+      "supported_ids": [],
+      "unsupported_ids": [],
+      "evidence_event_count": 0,
+      "tool_calls": [],
+      "rounds": 1,
+      "latency_s": 0.86,
+      "error": null,
+      "retries": 0,
+      "rounds_detail": [
+        {
+          "prompt_eval_count": 301,
+          "eval_count": 12,
+          "context_full": false,
+          "context_dropped": false
+        }
+      ],
+      "context_full": false
+    }
+  ],
+  "question_defs": [
+    {
+      "id": "oee_month_01",
+      "text": "What was the OEE of machine s_3 in December 2021? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "piade_oee",
+      "params": {
+        "asset": "s_3",
+        "month": "2021-12"
+      },
+      "template": "oee_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "oee_month_02",
+      "text": "What was the OEE of machine s_4 in April 2020? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "piade_oee",
+      "params": {
+        "asset": "s_4",
+        "month": "2020-04"
+      },
+      "template": "oee_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "oee_month_03",
+      "text": "What was the OEE of machine s_1 in June 2020? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "piade_oee",
+      "params": {
+        "asset": "s_1",
+        "month": "2020-06"
+      },
+      "template": "oee_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "oee_month_04",
+      "text": "What was the OEE of machine s_2 in July 2021? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "piade_oee",
+      "params": {
+        "asset": "s_2",
+        "month": "2021-07"
+      },
+      "template": "oee_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "oee_month_05",
+      "text": "What was the OEE of machine s_5 in May 2020? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "piade_oee",
+      "params": {
+        "asset": "s_5",
+        "month": "2020-05"
+      },
+      "template": "oee_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "oee_month_06",
+      "text": "What was the OEE of machine s_4 in December 2021? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "piade_oee",
+      "params": {
+        "asset": "s_4",
+        "month": "2021-12"
+      },
+      "template": "oee_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "availability_month_01",
+      "text": "What was the availability recomputed from the stop log (availability_calc) of the brick line in December 2025? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "availability",
+      "params": {
+        "asset": "brick",
+        "month": "2025-12"
+      },
+      "template": "availability_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "availability_month_02",
+      "text": "What was the availability recomputed from the stop log (availability_calc) of the brick line in February 2026? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "availability",
+      "params": {
+        "asset": "brick",
+        "month": "2026-02"
+      },
+      "template": "availability_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "availability_month_03",
+      "text": "What was the availability of machine s_4 in November 2021? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "availability",
+      "params": {
+        "asset": "s_4",
+        "month": "2021-11"
+      },
+      "template": "availability_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "availability_month_04",
+      "text": "What was the availability of machine s_3 in August 2021? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "availability",
+      "params": {
+        "asset": "s_3",
+        "month": "2021-08"
+      },
+      "template": "availability_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "availability_month_05",
+      "text": "What was the availability of machine s_5 in September 2021? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "availability",
+      "params": {
+        "asset": "s_5",
+        "month": "2021-09"
+      },
+      "template": "availability_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "availability_month_06",
+      "text": "What was the availability of machine s_2 in January 2021? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "availability",
+      "params": {
+        "asset": "s_2",
+        "month": "2021-01"
+      },
+      "template": "availability_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "availability_month_07",
+      "text": "What was the availability of machine s_5 in March 2020? Answer as a percentage.",
+      "kind": "numeric",
+      "expected_fn": "availability",
+      "params": {
+        "asset": "s_5",
+        "month": "2020-03"
+      },
+      "template": "availability_month",
+      "unit": "ratio",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "top_reason_01",
+      "text": "Which stop group cost the brick line the most stop time in November 2025? Answer with the stop group name.",
+      "kind": "label",
+      "expected_fn": "top_reason",
+      "params": {
+        "asset": "brick",
+        "month": "2025-11"
+      },
+      "template": "top_reason",
+      "unit": "label",
+      "tolerance": {}
+    },
+    {
+      "id": "top_reason_02",
+      "text": "Which stop group cost the brick line the most stop time in December 2025? Answer with the stop group name.",
+      "kind": "label",
+      "expected_fn": "top_reason",
+      "params": {
+        "asset": "brick",
+        "month": "2025-12"
+      },
+      "template": "top_reason",
+      "unit": "label",
+      "tolerance": {}
+    },
+    {
+      "id": "top_reason_03",
+      "text": "Which stop group cost the brick line the most stop time in October 2025? Answer with the stop group name.",
+      "kind": "label",
+      "expected_fn": "top_reason",
+      "params": {
+        "asset": "brick",
+        "month": "2025-10"
+      },
+      "template": "top_reason",
+      "unit": "label",
+      "tolerance": {}
+    },
+    {
+      "id": "top_reason_04",
+      "text": "Which alarm code cost machine s_1 the most stop time in January 2021? Answer with the alarm code.",
+      "kind": "label",
+      "expected_fn": "top_reason",
+      "params": {
+        "asset": "s_1",
+        "month": "2021-01"
+      },
+      "template": "top_reason",
+      "unit": "label",
+      "tolerance": {}
+    },
+    {
+      "id": "top_reason_05",
+      "text": "Which alarm code cost machine s_2 the most stop time in August 2021? Answer with the alarm code.",
+      "kind": "label",
+      "expected_fn": "top_reason",
+      "params": {
+        "asset": "s_2",
+        "month": "2021-08"
+      },
+      "template": "top_reason",
+      "unit": "label",
+      "tolerance": {}
+    },
+    {
+      "id": "top_reason_06",
+      "text": "Which alarm code cost machine s_5 the most stop time in June 2021? Answer with the alarm code.",
+      "kind": "label",
+      "expected_fn": "top_reason",
+      "params": {
+        "asset": "s_5",
+        "month": "2021-06"
+      },
+      "template": "top_reason",
+      "unit": "label",
+      "tolerance": {}
+    },
+    {
+      "id": "top_reason_07",
+      "text": "Which alarm code cost machine s_1 the most stop time in July 2021? Answer with the alarm code.",
+      "kind": "label",
+      "expected_fn": "top_reason",
+      "params": {
+        "asset": "s_1",
+        "month": "2021-07"
+      },
+      "template": "top_reason",
+      "unit": "label",
+      "tolerance": {}
+    },
+    {
+      "id": "top_reason_08",
+      "text": "Which alarm code cost machine s_3 the most stop time in May 2021? Answer with the alarm code.",
+      "kind": "label",
+      "expected_fn": "top_reason",
+      "params": {
+        "asset": "s_3",
+        "month": "2021-05"
+      },
+      "template": "top_reason",
+      "unit": "label",
+      "tolerance": {}
+    },
+    {
+      "id": "top_reason_09",
+      "text": "Which alarm code cost machine s_5 the most stop time in December 2021? Answer with the alarm code.",
+      "kind": "label",
+      "expected_fn": "top_reason",
+      "params": {
+        "asset": "s_5",
+        "month": "2021-12"
+      },
+      "template": "top_reason",
+      "unit": "label",
+      "tolerance": {}
+    },
+    {
+      "id": "top_reason_lost_01",
+      "text": "How much stop time did the biggest stop group cost the brick line in October 2025? Answer in hours.",
+      "kind": "numeric",
+      "expected_fn": "top_reason_lost_s",
+      "params": {
+        "asset": "brick",
+        "month": "2025-10"
+      },
+      "template": "top_reason_lost",
+      "unit": "s_as_h",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "top_reason_lost_02",
+      "text": "How much stop time did the biggest stop group cost the brick line in December 2025? Answer in hours.",
+      "kind": "numeric",
+      "expected_fn": "top_reason_lost_s",
+      "params": {
+        "asset": "brick",
+        "month": "2025-12"
+      },
+      "template": "top_reason_lost",
+      "unit": "s_as_h",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "top_reason_lost_03",
+      "text": "How much stop time did the biggest alarm code cost machine s_5 in May 2020? Answer in hours.",
+      "kind": "numeric",
+      "expected_fn": "top_reason_lost_s",
+      "params": {
+        "asset": "s_5",
+        "month": "2020-05"
+      },
+      "template": "top_reason_lost",
+      "unit": "s_as_h",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "top_reason_lost_04",
+      "text": "How much stop time did the biggest alarm code cost machine s_5 in November 2021? Answer in hours.",
+      "kind": "numeric",
+      "expected_fn": "top_reason_lost_s",
+      "params": {
+        "asset": "s_5",
+        "month": "2021-11"
+      },
+      "template": "top_reason_lost",
+      "unit": "s_as_h",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "top_reason_lost_05",
+      "text": "How much stop time did the biggest alarm code cost machine s_1 in January 2021? Answer in hours.",
+      "kind": "numeric",
+      "expected_fn": "top_reason_lost_s",
+      "params": {
+        "asset": "s_1",
+        "month": "2021-01"
+      },
+      "template": "top_reason_lost",
+      "unit": "s_as_h",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "top_reason_lost_06",
+      "text": "How much stop time did the biggest alarm code cost machine s_3 in November 2021? Answer in hours.",
+      "kind": "numeric",
+      "expected_fn": "top_reason_lost_s",
+      "params": {
+        "asset": "s_3",
+        "month": "2021-11"
+      },
+      "template": "top_reason_lost",
+      "unit": "s_as_h",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mttr_month_01",
+      "text": "What was the MTTR (mean time to repair) of the brick line in February 2026? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mttr_s",
+      "params": {
+        "asset": "brick",
+        "month": "2026-02"
+      },
+      "template": "mttr_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mttr_month_02",
+      "text": "What was the MTTR (mean time to repair) of the brick line in December 2025? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mttr_s",
+      "params": {
+        "asset": "brick",
+        "month": "2025-12"
+      },
+      "template": "mttr_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mttr_month_03",
+      "text": "What was the MTTR (mean time to repair) of machine s_2 in December 2020? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mttr_s",
+      "params": {
+        "asset": "s_2",
+        "month": "2020-12"
+      },
+      "template": "mttr_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mttr_month_04",
+      "text": "What was the MTTR (mean time to repair) of machine s_5 in October 2020? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mttr_s",
+      "params": {
+        "asset": "s_5",
+        "month": "2020-10"
+      },
+      "template": "mttr_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mttr_month_05",
+      "text": "What was the MTTR (mean time to repair) of machine s_4 in November 2021? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mttr_s",
+      "params": {
+        "asset": "s_4",
+        "month": "2021-11"
+      },
+      "template": "mttr_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mttr_month_06",
+      "text": "What was the MTTR (mean time to repair) of machine s_4 in June 2021? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mttr_s",
+      "params": {
+        "asset": "s_4",
+        "month": "2021-06"
+      },
+      "template": "mttr_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mtbf_month_01",
+      "text": "What was the MTBF (mean time between failures) of the brick line in March 2026? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mtbf_s",
+      "params": {
+        "asset": "brick",
+        "month": "2026-03"
+      },
+      "template": "mtbf_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mtbf_month_02",
+      "text": "What was the MTBF (mean time between failures) of the brick line in December 2025? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mtbf_s",
+      "params": {
+        "asset": "brick",
+        "month": "2025-12"
+      },
+      "template": "mtbf_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mtbf_month_03",
+      "text": "What was the MTBF (mean time between failures) of machine s_1 in August 2020? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mtbf_s",
+      "params": {
+        "asset": "s_1",
+        "month": "2020-08"
+      },
+      "template": "mtbf_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mtbf_month_04",
+      "text": "What was the MTBF (mean time between failures) of machine s_5 in October 2020? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mtbf_s",
+      "params": {
+        "asset": "s_5",
+        "month": "2020-10"
+      },
+      "template": "mtbf_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "mtbf_month_05",
+      "text": "What was the MTBF (mean time between failures) of machine s_1 in February 2020? Answer in minutes.",
+      "kind": "numeric",
+      "expected_fn": "mtbf_s",
+      "params": {
+        "asset": "s_1",
+        "month": "2020-02"
+      },
+      "template": "mtbf_month",
+      "unit": "s_as_min",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "stop_count_01",
+      "text": "How many stops that count in OEE did the brick line have in October 2025? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "stop_count",
+      "params": {
+        "asset": "brick",
+        "month": "2025-10"
+      },
+      "template": "stop_count",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "stop_count_02",
+      "text": "How many stops that count in OEE did the brick line have in February 2026? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "stop_count",
+      "params": {
+        "asset": "brick",
+        "month": "2026-02"
+      },
+      "template": "stop_count",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "stop_count_03",
+      "text": "How many stops that count in OEE did machine s_1 have in January 2020? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "stop_count",
+      "params": {
+        "asset": "s_1",
+        "month": "2020-01"
+      },
+      "template": "stop_count",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "stop_count_04",
+      "text": "How many stops that count in OEE did machine s_5 have in February 2020? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "stop_count",
+      "params": {
+        "asset": "s_5",
+        "month": "2020-02"
+      },
+      "template": "stop_count",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "stop_count_05",
+      "text": "How many stops that count in OEE did machine s_3 have in May 2021? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "stop_count",
+      "params": {
+        "asset": "s_3",
+        "month": "2021-05"
+      },
+      "template": "stop_count",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "stop_count_06",
+      "text": "How many stops that count in OEE did machine s_2 have in May 2021? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "stop_count",
+      "params": {
+        "asset": "s_2",
+        "month": "2021-05"
+      },
+      "template": "stop_count",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "repeat_chains_01",
+      "text": "How many repeat-failure chains did the brick line have in December 2025, counting a chain as the same stop group failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "repeat_chain_count",
+      "params": {
+        "asset": "brick",
+        "month": "2025-12",
+        "within_hours": 24,
+        "min_repeats": 3
+      },
+      "template": "repeat_chains",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "repeat_chains_02",
+      "text": "How many repeat-failure chains did the brick line have in October 2025, counting a chain as the same stop group failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "repeat_chain_count",
+      "params": {
+        "asset": "brick",
+        "month": "2025-10",
+        "within_hours": 24,
+        "min_repeats": 3
+      },
+      "template": "repeat_chains",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "repeat_chains_03",
+      "text": "How many repeat-failure chains did machine s_2 have in September 2020, counting a chain as the same alarm code failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "repeat_chain_count",
+      "params": {
+        "asset": "s_2",
+        "month": "2020-09",
+        "within_hours": 24,
+        "min_repeats": 3
+      },
+      "template": "repeat_chains",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "repeat_chains_04",
+      "text": "How many repeat-failure chains did machine s_5 have in May 2021, counting a chain as the same alarm code failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "repeat_chain_count",
+      "params": {
+        "asset": "s_5",
+        "month": "2021-05",
+        "within_hours": 24,
+        "min_repeats": 3
+      },
+      "template": "repeat_chains",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "repeat_chains_05",
+      "text": "How many repeat-failure chains did machine s_2 have in February 2021, counting a chain as the same alarm code failing at least 3 times with each failure starting within 24 hours of the previous one? Answer with a number.",
+      "kind": "numeric",
+      "expected_fn": "repeat_chain_count",
+      "params": {
+        "asset": "s_2",
+        "month": "2021-02",
+        "within_hours": 24,
+        "min_repeats": 3
+      },
+      "template": "repeat_chains",
+      "unit": "count",
+      "tolerance": {
+        "rel": 0.02
+      }
+    },
+    {
+      "id": "note_date_01",
+      "text": "On what date was a brick line stop logged with an operator note mentioning \"ΥΓΡΑΣΙΑ\"? Answer as YYYY-MM-DD.",
+      "kind": "label",
+      "expected_fn": "note_date",
+      "params": {
+        "word": "ΥΓΡΑΣΙΑ"
+      },
+      "template": "note_date",
+      "unit": "date",
+      "tolerance": {}
+    },
+    {
+      "id": "note_date_02",
+      "text": "On what date was a brick line stop logged with an operator note mentioning \"ΚΟΥΖΙΝΕΤΟ\"? Answer as YYYY-MM-DD.",
+      "kind": "label",
+      "expected_fn": "note_date",
+      "params": {
+        "word": "ΚΟΥΖΙΝΕΤΟ"
+      },
+      "template": "note_date",
+      "unit": "date",
+      "tolerance": {}
+    },
+    {
+      "id": "note_date_03",
+      "text": "On what date was a brick line stop logged with an operator note mentioning \"TELARVN\"? Answer as YYYY-MM-DD.",
+      "kind": "label",
+      "expected_fn": "note_date",
+      "params": {
+        "word": "TELARVN"
+      },
+      "template": "note_date",
+      "unit": "date",
+      "tolerance": {}
+    },
+    {
+      "id": "note_date_04",
+      "text": "On what date was a brick line stop logged with an operator note mentioning \"ΜΑΓΝΗΤΗ\"? Answer as YYYY-MM-DD.",
+      "kind": "label",
+      "expected_fn": "note_date",
+      "params": {
+        "word": "ΜΑΓΝΗΤΗ"
+      },
+      "template": "note_date",
+      "unit": "date",
+      "tolerance": {}
+    },
+    {
+      "id": "note_date_05",
+      "text": "On what date was a brick line stop logged with an operator note mentioning \"reflector\"? Answer as YYYY-MM-DD.",
+      "kind": "label",
+      "expected_fn": "note_date",
+      "params": {
+        "word": "reflector"
+      },
+      "template": "note_date",
+      "unit": "date",
+      "tolerance": {}
+    },
+    {
+      "id": "compare_availability_01",
+      "text": "By how many percentage points did the availability recomputed from the stop log (availability_calc) of the brick line change from November 2025 to February 2026? Answer in percentage points, negative if it fell.",
+      "kind": "numeric",
+      "expected_fn": "availability_delta",
+      "params": {
+        "asset": "brick",
+        "month_a": "2025-11",
+        "month_b": "2026-02"
+      },
+      "template": "compare_availability",
+      "unit": "pp",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "compare_availability_02",
+      "text": "By how many percentage points did the availability of machine s_2 change from March 2021 to June 2021? Answer in percentage points, negative if it fell.",
+      "kind": "numeric",
+      "expected_fn": "availability_delta",
+      "params": {
+        "asset": "s_2",
+        "month_a": "2021-03",
+        "month_b": "2021-06"
+      },
+      "template": "compare_availability",
+      "unit": "pp",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "compare_availability_03",
+      "text": "By how many percentage points did the availability of machine s_5 change from October 2020 to December 2021? Answer in percentage points, negative if it fell.",
+      "kind": "numeric",
+      "expected_fn": "availability_delta",
+      "params": {
+        "asset": "s_5",
+        "month_a": "2020-10",
+        "month_b": "2021-12"
+      },
+      "template": "compare_availability",
+      "unit": "pp",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "compare_availability_04",
+      "text": "By how many percentage points did the availability of machine s_3 change from December 2020 to June 2021? Answer in percentage points, negative if it fell.",
+      "kind": "numeric",
+      "expected_fn": "availability_delta",
+      "params": {
+        "asset": "s_3",
+        "month_a": "2020-12",
+        "month_b": "2021-06"
+      },
+      "template": "compare_availability",
+      "unit": "pp",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "compare_availability_05",
+      "text": "By how many percentage points did the availability of machine s_4 change from April 2021 to August 2021? Answer in percentage points, negative if it fell.",
+      "kind": "numeric",
+      "expected_fn": "availability_delta",
+      "params": {
+        "asset": "s_4",
+        "month_a": "2021-04",
+        "month_b": "2021-08"
+      },
+      "template": "compare_availability",
+      "unit": "pp",
+      "tolerance": {
+        "abs": 0.005
+      }
+    },
+    {
+      "id": "na_01",
+      "text": "How much electricity, in kWh, did machine s_1 use in March 2021?",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {},
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    },
+    {
+      "id": "na_02",
+      "text": "What was the OEE of machine s_9 in May 2021? Answer as a percentage.",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {},
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    },
+    {
+      "id": "na_03",
+      "text": "What was the availability of the brick line in June 2025? Answer as a percentage.",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {
+        "asset": "brick",
+        "month": "2025-06"
+      },
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    },
+    {
+      "id": "na_04",
+      "text": "Which operator was running the brick line on 14 October 2025?",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {},
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    },
+    {
+      "id": "na_05",
+      "text": "What did the downtime on machine s_2 cost in euros in July 2021?",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {},
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    },
+    {
+      "id": "na_06",
+      "text": "What was the OEE of machine s_3 in February 2021? Answer as a percentage.",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {
+        "asset": "s_3",
+        "month": "2021-02"
+      },
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    },
+    {
+      "id": "na_07",
+      "text": "How many kilograms of scrap did the brick line produce in November 2025?",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {},
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    },
+    {
+      "id": "na_08",
+      "text": "Which maintenance technician repaired the longest stop on machine s_4 in 2021?",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {},
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    },
+    {
+      "id": "na_09",
+      "text": "What was the average ambient temperature at machine s_5 in June 2021?",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {},
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    },
+    {
+      "id": "na_10",
+      "text": "What was the MTTR of machine s_5 in August 2021? Answer in minutes.",
+      "kind": "na",
+      "expected_fn": "not_available",
+      "params": {
+        "asset": "s_5",
+        "month": "2021-08"
+      },
+      "template": "unanswerable",
+      "unit": null,
+      "tolerance": {}
+    }
+  ]
+}
