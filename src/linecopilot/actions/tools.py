@@ -9,6 +9,7 @@ warns about instruction-like wording."""
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -19,6 +20,8 @@ from pydantic import BaseModel, ConfigDict, Field, create_model
 from linecopilot.actions import args as argmod
 from linecopilot.actions.identity import ActionContext
 from linecopilot.actions.service import ActionService
+
+log = logging.getLogger(__name__)
 
 Status = Literal["ok", "blocked", "refused", "out_of_scope"]
 CODE_NOTE = "the confirmation code returned by the matching preview call, copied exactly"
@@ -155,11 +158,13 @@ def call_action_tool(
                 checks=_checks(pv.checks),
                 code=pv.code,
             )
+        # a blank, missing or non-string code goes on as None so the service refuses and audits it
         code = args.get("code")
-        if not isinstance(code, str) or not code.strip():
-            return _result("out_of_scope", "code: a confirmation code from the preview is required")
-        out = service.propose(conn, ctx, spec.action, raw, code.strip())
+        code = code.strip() if isinstance(code, str) and code.strip() else None
+        out = service.propose(conn, ctx, spec.action, raw, code)
     except Exception:
+        # the service audits unexpected errors itself; the model only sees a generic message
+        log.exception("action tool %s failed", name)
         return _result("out_of_scope", f"internal error in {name}")
     if out.outcome == "proposed":
         return _result(

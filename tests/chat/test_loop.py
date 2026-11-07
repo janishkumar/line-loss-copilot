@@ -517,8 +517,7 @@ def test_context_trouble_and_count_from_recorded_rounds():
 
 
 class FakeService:
-    def __init__(self):
-        self.calls = []
+    """Stands in for the action service; the loop must not call it in these tests."""
 
 
 def _names(request: dict) -> list[str]:

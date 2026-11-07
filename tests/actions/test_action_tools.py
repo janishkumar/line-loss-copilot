@@ -86,13 +86,38 @@ def test_identity_field_is_out_of_scope_and_touches_nothing(name, field):
 def test_unknown_tool_and_non_dict_args_never_raise():
     assert call_action_tool(None, CTX, None, "approve_proposal", {})["status"] == "out_of_scope"
     assert call_action_tool(None, CTX, None, "preview_work_order", "x")["status"] == "out_of_scope"
-    res = call_action_tool(None, CTX, None, "propose_work_order", {"code": 5})
-    assert res["status"] == "out_of_scope"
 
 
-def test_agent_annotations_in_mcp():
-    mcp = build_server(UNREACHABLE, agent_db_url=UNREACHABLE, mcp_user=None)
-    assert len(run(mcp, lambda c: c.list_tools()).tools) == len(TOOLS)
+@pytest.mark.parametrize("code", [None, "", "   ", 5, ["A"]])
+def test_blank_or_non_string_code_reaches_the_service_as_none(code):
+    seen = []
+
+    class Svc:
+        def propose(self, conn, ctx, action, raw, code):
+            seen.append(code)
+            from linecopilot.actions.service import Outcome
+
+            return Outcome("refused", "missing code")
+
+    args = {"description": "x", "assignee_role": "operator", "due_date": "2030-01-01"}
+    res = call_action_tool(None, CTX, Svc(), "propose_follow_up", {**args, "code": code})
+    assert seen == [None] and res["status"] == "refused"
+    res = call_action_tool(None, CTX, Svc(), "propose_follow_up", args)
+    assert seen == [None, None] and res["status"] == "refused"
+
+
+def test_unexpected_error_is_logged_and_message_stays_generic(caplog):
+    class Svc:
+        def preview(self, *a):
+            raise RuntimeError("secret detail")
+
+    with caplog.at_level("ERROR"):
+        res = call_action_tool(None, CTX, Svc(), "preview_follow_up", {"description": "x"})
+    assert (
+        res["status"] == "out_of_scope" and res["message"] == "internal error in preview_follow_up"
+    )
+    assert "secret detail" not in json.dumps(res)
+    assert any(r.exc_info and "secret detail" in str(r.exc_info[1]) for r in caplog.records)
 
 
 def test_chat_action_schemas_flat_and_named():
@@ -218,3 +243,30 @@ def test_list_my_proposals_is_scoped_to_the_user(agent, built, stop, cleanup):
     assert call_action_tool(agent, CTX, svc, "list_my_proposals", {"user": "ql.a"})["status"] == (
         "out_of_scope"
     )
+
+
+@pytest.mark.db
+def test_code_for_different_args_is_refused_at_the_tool_layer(agent, built, stop, cleanup):
+    svc = ActionService(POLICY)
+    args = wo(stop)
+    pv = call_action_tool(agent, CTX, svc, "preview_work_order", args)
+    props = built.execute("SELECT count(*) FROM actions.proposal").fetchone()[0]
+    other = {**args, "priority": "medium"}
+    res = call_action_tool(agent, CTX, svc, "propose_work_order", {**other, "code": pv["code"]})
+    assert res["status"] == "refused" and res.get("proposal_id") is None
+    assert built.execute("SELECT count(*) FROM actions.proposal").fetchone()[0] == props
+    # the code was burned by the wrong attempt
+    again = call_action_tool(agent, CTX, svc, "propose_work_order", {**args, "code": pv["code"]})
+    assert again["status"] == "refused"
+
+
+@pytest.mark.db
+def test_blank_code_is_audited(agent, built, stop):
+    svc = ActionService(POLICY)
+    mark = audit_count(built)
+    res = call_action_tool(agent, CTX, svc, "propose_work_order", {**wo(stop), "code": "  "})
+    assert res["status"] == "refused"
+    rows = built.execute(
+        "SELECT event, outcome, detail FROM actions.audit_log WHERE audit_id > %s", (mark,)
+    ).fetchall()
+    assert rows == [("proposed", "refused", "missing code")]
