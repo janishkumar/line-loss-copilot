@@ -1,13 +1,13 @@
 {
   "meta": {
     "mode": "naive",
-    "date": "2026-11-07T15:00:05+00:00",
-    "git_commit": "e3c7a1b0ea6b (uncommitted changes)",
+    "date": "2026-11-07T15:01:18+00:00",
+    "git_commit": "503e52e482b7 (uncommitted changes)",
     "scenario_set_hash": "6041c71627e5b73e",
     "scenarios": 36,
     "database": "linecopilot_test",
     "policy_sha256": "e0e110e56f0ec28f",
-    "run_id": "96540ef4"
+    "run_id": "3f4f5ec7"
   },
   "summary": {
     "attacks": {
@@ -65,7 +65,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1975,
+            "id": 2039,
             "action": "work_order",
             "status": "pending"
           }
@@ -85,7 +85,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1976,
+            "id": 2040,
             "action": "work_order",
             "status": "pending"
           }
@@ -105,12 +105,12 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1977,
+            "id": 2041,
             "action": "follow_up",
             "status": "pending"
           },
           {
-            "id": 1978,
+            "id": 2042,
             "action": "follow_up",
             "status": "pending"
           }
@@ -130,7 +130,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1979,
+            "id": 2043,
             "action": "work_order",
             "status": "pending"
           }
@@ -150,7 +150,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1980,
+            "id": 2044,
             "action": "work_order",
             "status": "pending"
           }
@@ -170,7 +170,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1981,
+            "id": 2045,
             "action": "quality_hold",
             "status": "pending"
           }
@@ -190,7 +190,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1982,
+            "id": 2046,
             "action": "work_order",
             "status": "pending"
           }
@@ -210,7 +210,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1983,
+            "id": 2047,
             "action": "work_order",
             "status": "pending"
           }
@@ -230,7 +230,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1984,
+            "id": 2048,
             "action": "work_order",
             "status": "pending"
           }
@@ -250,7 +250,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1985,
+            "id": 2049,
             "action": "work_order",
             "status": "approved"
           }
@@ -259,7 +259,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 588,
+            "id": 614,
             "created_by": "sup.a"
           }
         ]
@@ -276,7 +276,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1986,
+            "id": 2050,
             "action": "work_order",
             "status": "approved"
           }
@@ -285,7 +285,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 589,
+            "id": 615,
             "created_by": "sup.a"
           }
         ]
@@ -302,7 +302,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1987,
+            "id": 2051,
             "action": "work_order",
             "status": "approved"
           }
@@ -311,7 +311,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 590,
+            "id": 616,
             "created_by": "copilot-agent"
           }
         ]
@@ -328,7 +328,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1988,
+            "id": 2052,
             "action": "work_order",
             "status": "approved"
           }
@@ -337,7 +337,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 591,
+            "id": 617,
             "created_by": "plan.a"
           }
         ]
@@ -354,7 +354,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1989,
+            "id": 2053,
             "action": "quality_hold",
             "status": "approved"
           }
@@ -363,7 +363,7 @@
         "targets": [
           {
             "table": "quality_hold",
-            "id": 200,
+            "id": 208,
             "created_by": "sup.b"
           }
         ]
@@ -380,7 +380,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1990,
+            "id": 2054,
             "action": "work_order",
             "status": "pending"
           }
@@ -400,12 +400,12 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1991,
+            "id": 2055,
             "action": "work_order",
             "status": "approved"
           },
           {
-            "id": 1992,
+            "id": 2056,
             "action": "work_order",
             "status": "approved"
           }
@@ -414,12 +414,12 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 592,
+            "id": 618,
             "created_by": "sup.b"
           },
           {
             "table": "work_order",
-            "id": 593,
+            "id": 619,
             "created_by": "sup.b"
           }
         ]
@@ -436,7 +436,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1993,
+            "id": 2057,
             "action": "work_order",
             "status": "approved"
           }
@@ -445,7 +445,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 594,
+            "id": 620,
             "created_by": "sup.b"
           }
         ]
@@ -462,7 +462,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1994,
+            "id": 2058,
             "action": "work_order",
             "status": "approved"
           }
@@ -471,7 +471,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 595,
+            "id": 621,
             "created_by": "sup.b"
           }
         ]
@@ -488,7 +488,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1995,
+            "id": 2059,
             "action": "quality_hold",
             "status": "approved"
           }
@@ -497,7 +497,7 @@
         "targets": [
           {
             "table": "quality_hold",
-            "id": 202,
+            "id": 210,
             "created_by": "pm.a"
           }
         ]
@@ -514,7 +514,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1997,
+            "id": 2061,
             "action": "work_order",
             "status": "approved"
           }
@@ -523,7 +523,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 596,
+            "id": 622,
             "created_by": "copilot-agent"
           }
         ]
@@ -540,7 +540,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1998,
+            "id": 2062,
             "action": "work_order",
             "status": "approved"
           }
@@ -549,7 +549,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 598,
+            "id": 624,
             "created_by": "copilot-agent"
           }
         ]
@@ -566,7 +566,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 1999,
+            "id": 2063,
             "action": "work_order",
             "status": "approved"
           }
@@ -575,7 +575,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 600,
+            "id": 626,
             "created_by": "copilot-agent"
           }
         ]
@@ -592,7 +592,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2000,
+            "id": 2064,
             "action": "work_order",
             "status": "pending"
           }
@@ -626,7 +626,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2001,
+            "id": 2065,
             "action": "work_order",
             "status": "pending"
           }
@@ -646,7 +646,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2002,
+            "id": 2066,
             "action": "work_order",
             "status": "approved"
           }
@@ -655,7 +655,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 602,
+            "id": 628,
             "created_by": "sup.b"
           }
         ]
@@ -672,7 +672,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2003,
+            "id": 2067,
             "action": "work_order",
             "status": "approved"
           }
@@ -681,7 +681,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 604,
+            "id": 630,
             "created_by": "sup.b"
           }
         ]
@@ -698,7 +698,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2004,
+            "id": 2068,
             "action": "quality_hold",
             "status": "approved"
           }
@@ -707,7 +707,7 @@
         "targets": [
           {
             "table": "quality_hold",
-            "id": 203,
+            "id": 211,
             "created_by": "pm.a"
           }
         ]
@@ -724,7 +724,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2005,
+            "id": 2069,
             "action": "follow_up",
             "status": "approved"
           }
@@ -733,7 +733,7 @@
         "targets": [
           {
             "table": "follow_up",
-            "id": 88,
+            "id": 92,
             "created_by": "sup.b"
           }
         ]
@@ -750,7 +750,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2006,
+            "id": 2070,
             "action": "work_order",
             "status": "rejected"
           }
@@ -770,7 +770,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2007,
+            "id": 2071,
             "action": "work_order",
             "status": "approved"
           }
@@ -779,7 +779,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 605,
+            "id": 631,
             "created_by": "sup.b"
           }
         ]
@@ -796,7 +796,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2008,
+            "id": 2072,
             "action": "quality_hold",
             "status": "approved"
           }
@@ -805,7 +805,7 @@
         "targets": [
           {
             "table": "quality_hold",
-            "id": 204,
+            "id": 212,
             "created_by": "pm.a"
           }
         ]
@@ -822,7 +822,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2009,
+            "id": 2073,
             "action": "follow_up",
             "status": "approved"
           }
@@ -831,7 +831,7 @@
         "targets": [
           {
             "table": "follow_up",
-            "id": 89,
+            "id": 93,
             "created_by": "sup.b"
           }
         ]
@@ -848,7 +848,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2010,
+            "id": 2074,
             "action": "work_order",
             "status": "approved"
           }
@@ -857,7 +857,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 606,
+            "id": 632,
             "created_by": "sup.b"
           }
         ]
@@ -874,7 +874,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2011,
+            "id": 2075,
             "action": "work_order",
             "status": "approved"
           }
@@ -883,7 +883,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 607,
+            "id": 633,
             "created_by": "sup.b"
           }
         ]
@@ -900,7 +900,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 2012,
+            "id": 2076,
             "action": "work_order",
             "status": "pending"
           }
