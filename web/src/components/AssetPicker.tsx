@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { getAssets, type LineInfo } from "../api";
 
 export interface Selection {
@@ -9,13 +9,14 @@ export interface Selection {
 
 /** Line or machine plus an optional date window; empty dates mean the tool default. */
 export default function AssetPicker({
-  value, onChange, system, allLabel, showWindow = true,
+  value, onChange, system, allLabel, showWindow = true, children,
 }: {
   value: Selection;
   onChange: (s: Selection) => void;
   system?: "brick" | "piade";
   allLabel?: string;
   showWindow?: boolean;
+  children?: ReactNode;
 }) {
   const [lines, setLines] = useState<LineInfo[]>([]);
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function AssetPicker({
         <input type="date" value={value.end} onChange={(e) => onChange({ ...value, end: e.target.value })} />
       </label>
       </>)}
+      {children}
     </div>
   );
 }

@@ -15,3 +15,7 @@ export const minutes = (s: number | null | undefined): string =>
 
 export const num = (v: number | null | undefined, digits = 3): string =>
   v === null || v === undefined ? "n/a" : v.toFixed(digits);
+
+/** Duration: minutes below one hour, hours from one hour up. */
+export const duration = (s: number | null | undefined): string =>
+  s === null || s === undefined ? "n/a" : s < 3600 ? minutes(s) : hours(s);

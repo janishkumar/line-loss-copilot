@@ -36,12 +36,33 @@ describe("StopRisk", () => {
     expect(screen.getByText(/running_s_1h \(-0\.58\)/)).toBeInTheDocument();
     const sentence = await screen.findByText(/long-stop signal is weak/);
     expect(sentence).toHaveTextContent("hist_gb");
-    expect(sentence).toHaveTextContent("PR-AUC 0.181 against a base rate of 0.055");
-    expect(sentence).toHaveTextContent("0.067");
+    expect(sentence).toHaveTextContent("PR-AUC 0.181, 1.6x persistence (0.113) and 3.3x the base rate (5.5%)");
+    expect(sentence).toHaveTextContent("precision at top-3 volume is 6.7%");
     expect(sentence).not.toHaveTextContent("0.99");
     expect(screen.getByText("persistence (baseline)")).toBeInTheDocument();
     // default is the latest scored hour: no `at` parameter
     expect(f.mock.calls.some(([u]) => String(u).startsWith("/api/risk?") && !String(u).includes("at="))).toBe(true);
+  });
+
+  it("does not call the signal weak when lift is large", async () => {
+    const rows = [
+      m("long", "data", "base_rate", 0.05),
+      m("long", "hist_gb", "pr_auc", 0.5), m("long", "hist_gb", "precision_top3", 0.4),
+      m("long", "persistence", "pr_auc", 0.1),
+    ];
+    mockFetch({ "/risk/metrics": { ...env, status: "ok", data: { rows } }, "/risk": risk });
+    render(<MemoryRouter><StopRisk /></MemoryRouter>);
+    const sentence = await screen.findByText(/long-stop signal shows lift/);
+    expect(sentence).toHaveTextContent("5.0x persistence");
+    expect(sentence).toHaveTextContent("10.0x the base rate");
+    expect(screen.queryByText(/signal is weak/)).toBeNull();
+  });
+
+  it("shows precision, recall and base rate as percentages", async () => {
+    mockFetch({ "/risk/metrics": { ...env, status: "ok", data: { rows: metricRows } }, "/risk": risk });
+    render(<MemoryRouter><StopRisk /></MemoryRouter>);
+    expect(await screen.findByText("6.7%", { selector: "td" })).toBeInTheDocument();
+    expect(screen.getByText("0.181", { selector: "td" })).toBeInTheDocument();
   });
 
   it("shows the missing text", async () => {

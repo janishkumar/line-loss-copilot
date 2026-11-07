@@ -9,7 +9,7 @@ export default function Citations({ count, citations }: { count: number; citatio
   const withEvent = citations.filter((c) => c.event_id !== null);
   const ids = new Set(withEvent.map((c) => c.event_id));
   if (ids.size === 0) return <span className="muted">{label}</span>;
-  if (ids.size === 1)
+  if (count === 1 && ids.size === 1)
     return (
       <Link to={`/evidence/${[...ids][0]}`} title="Source rows for this number">
         {label}

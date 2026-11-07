@@ -6,7 +6,7 @@ import { getBreakdown, getPareto, getRepeats } from "../api";
 import AssetPicker, { scopeOf, type Selection } from "../components/AssetPicker";
 import Citations from "../components/Citations";
 import { Assumptions, Loading, Notice, RealBadge } from "../components/Common";
-import { day, hours, pct } from "../format";
+import { day, duration, pct } from "../format";
 import { useResult } from "../hooks";
 
 const PARETO_BY: Record<string, string[]> = {
@@ -72,7 +72,7 @@ export default function Losses() {
       {p?.status === "ok" && p.data && (
         <>
           <p className="muted">
-            {hours(p.data.total_lost_s)} lost over {p.data.total_stop_count} stops
+            {duration(p.data.total_lost_s)} lost over {p.data.total_stop_count} stops
             {p.data.other_categories ? `; ${p.data.other_categories} smaller categories are grouped as other` : ""}.
           </p>
           <div className="chart">
@@ -101,13 +101,23 @@ export default function Losses() {
                 {p.data.rows.map((row) => (
                   <tr key={row.category}>
                     <td>{row.category}</td>
-                    <td className="num">{hours(row.lost_s)}</td>
+                    <td className="num">{duration(row.lost_s)}</td>
                     <td className="num">{row.stop_count}</td>
                     <td className="num">{pct(row.share)}</td>
                     <td className="num">{pct(row.cumulative_share)}</td>
                     <td><Citations count={row.citation_count} citations={row.citations} /></td>
                   </tr>
                 ))}
+                {p.data.other_categories > 0 && (
+                  <tr>
+                    <td>other ({p.data.other_categories} categories)</td>
+                    <td className="num">{duration(p.data.other_lost_s)}</td>
+                    <td className="num">{p.data.other_stop_count}</td>
+                    <td className="num">{pct(p.data.total_lost_s ? p.data.other_lost_s / p.data.total_lost_s : null)}</td>
+                    <td className="num"></td>
+                    <td></td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -139,7 +149,7 @@ export default function Losses() {
                     return (
                       <td key={ck} className="num" style={{ background: `rgba(42,125,225,${a})` }}
                           title={cell ? `${cell.stop_count} stops` : "no stops"}>
-                        {cell ? hours(cell.lost_s) : ""}
+                        {cell ? duration(cell.lost_s) : ""}
                       </td>
                     );
                   })}
@@ -175,7 +185,7 @@ export default function Losses() {
                     <td className="num">{c.count}</td>
                     <td>{day(c.first_start)}</td>
                     <td>{day(c.last_end)}</td>
-                    <td className="num">{hours(c.lost_s)}</td>
+                    <td className="num">{duration(c.lost_s)}</td>
                     <td><Citations count={c.citation_count} citations={c.citations} /></td>
                   </tr>
                 ))}

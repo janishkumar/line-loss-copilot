@@ -6,7 +6,7 @@ import { getReliability } from "../api";
 import AssetPicker, { scopeOf, type Selection } from "../components/AssetPicker";
 import Citations from "../components/Citations";
 import { Assumptions, Loading, Notice, RealBadge } from "../components/Common";
-import { hours, minutes } from "../format";
+import { duration } from "../format";
 import { useResult } from "../hooks";
 
 export default function Reliability() {
@@ -57,10 +57,10 @@ export default function Reliability() {
                     <td>{r.period}</td>
                     <td className="num">{r.failure_count}</td>
                     <td className="num">{r.stop_count}</td>
-                    <td className="num">{hours(r.failure_s)}</td>
-                    <td className="num">{hours(r.run_s)}</td>
-                    <td className="num">{minutes(r.mttr_s)}</td>
-                    <td className="num">{hours(r.mtbf_s)}</td>
+                    <td className="num">{duration(r.failure_s)}</td>
+                    <td className="num">{duration(r.run_s)}</td>
+                    <td className="num">{duration(r.mttr_s)}</td>
+                    <td className="num">{duration(r.mtbf_s)}</td>
                     <td><Citations count={r.citation_count} citations={r.citations} /></td>
                   </tr>
                 ))}

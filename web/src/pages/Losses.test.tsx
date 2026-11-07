@@ -41,10 +41,20 @@ describe("Losses", () => {
     expect(screen.getByTitle("2 stops")).toHaveTextContent("2.0 h");
   });
 
+  it("shows the other remainder with its category count", async () => {
+    const withOther = { ...pareto, data: { ...pareto.data, other_lost_s: 1800, other_stop_count: 5, other_categories: 12 } };
+    mockFetch({ "/losses/pareto": withOther, "/losses/breakdown": breakdown, "/losses/repeats": repeats });
+    render(<MemoryRouter><Losses /></MemoryRouter>);
+    expect(await screen.findByText("other (12 categories)")).toBeInTheDocument();
+    expect(screen.getByText("30.0 min")).toBeInTheDocument();
+  });
+
   it("shows the missing text instead of an empty chart", async () => {
     const gap = { ...env, status: "insufficient_evidence", data: null, missing: "No stops in this window." };
     mockFetch({ "/losses/pareto": gap, "/losses/breakdown": gap, "/losses/repeats": gap });
     render(<MemoryRouter><Losses /></MemoryRouter>);
     expect(await screen.findAllByText(/No stops in this window\./)).toHaveLength(3);
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(document.querySelector(".chart")).toBeNull();
   });
 });

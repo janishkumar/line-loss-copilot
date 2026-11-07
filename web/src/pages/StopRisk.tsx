@@ -25,21 +25,29 @@ function pool(rows: MetricRow[]) {
   return t;
 }
 
-function weakSentence(t: ReturnType<typeof pool>): string | null {
+const ratio = (a: number, b: number) => (b > 0 ? `${(a / b).toFixed(1)}x` : "n/a");
+
+/** Describes the long-stop result from the pooled test rows. "Weak" only when the best model's
+ * PR-AUC is under 2x persistence or under 4x the base rate. */
+export function signalSentence(t: ReturnType<typeof pool>): string | null {
   const long = t.long;
   if (!long) return null;
   const models = Object.keys(long).filter((m) => m !== "data" && !BASELINES.includes(m));
-  const best = models.sort((a, b) => (long[b].pr_auc ?? 0) - (long[a].pr_auc ?? 0))[0];
+  const best = models.sort((x, y) => (long[y].pr_auc ?? 0) - (long[x].pr_auc ?? 0))[0];
   const base = long.data?.base_rate;
-  if (!best || long[best].pr_auc == null || base == null) return null;
+  const prauc = best ? long[best].pr_auc : null;
+  const pers = long.persistence?.pr_auc;
+  if (!best || prauc == null || base == null || pers == null) return null;
+  const vsPers = prauc / pers;
+  const vsBase = prauc / base;
+  const weak = vsPers < 2 || vsBase < 4;
   const p3 = long[best].precision_top3;
-  const bl = BASELINES.map((m) => long[m]?.pr_auc).filter((v): v is number => v != null);
   return (
-    `The long-stop signal is weak: on the test split the best model (${best}) reaches PR-AUC ` +
-    `${num(long[best].pr_auc)} against a base rate of ${num(base)}` +
-    (p3 != null ? `, and precision at top-3 volume is ${num(p3)}` : "") +
-    (bl.length ? `; the best baseline reaches PR-AUC ${num(Math.max(...bl))}` : "") +
-    ". Most alerts for a long stop would be false."
+    `${weak ? "The long-stop signal is weak" : "The long-stop signal shows lift"}: on the test split the best model ` +
+    `(${best}) reaches PR-AUC ${num(prauc)}, ${ratio(prauc, pers)} persistence (${num(pers)}) and ` +
+    `${ratio(prauc, base)} the base rate (${pct(base)})` +
+    (p3 != null ? `; precision at top-3 volume is ${pct(p3)}` : "") +
+    (weak ? ". Most alerts for a long stop would be false." : ".")
   );
 }
 
@@ -53,7 +61,7 @@ export default function StopRisk() {
   );
   const metrics = useResult(() => getRiskMetrics(), []);
   const pooled = metrics.result?.data ? pool(metrics.result.data.rows) : {};
-  const weak = weakSentence(pooled);
+  const signal = signalSentence(pooled);
   const t0 = risk.result?.data?.rows[0]?.t;
 
   return (
@@ -63,9 +71,8 @@ export default function StopRisk() {
         Next-hour risk scores for the PIADE machines. A score is a ranking signal, not a probability
         of a stop.
       </p>
-      <div className="controls">
-        <AssetPicker value={sel} onChange={(s) => setSel({ ...sel, lineId: s.lineId })}
-                     system="piade" allLabel="All machines" showWindow={false} />
+      <AssetPicker value={sel} onChange={(s) => setSel({ ...sel, lineId: s.lineId })}
+                   system="piade" allLabel="All machines" showWindow={false}>
         <label>
           Target
           <select value={target} onChange={(e) => setTarget(e.target.value)}>
@@ -77,7 +84,7 @@ export default function StopRisk() {
           At (UTC, blank for latest scored hour)
           <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
         </label>
-      </div>
+      </AssetPicker>
       {risk.error && <Loading error={risk.error} />}
       {!risk.result && !risk.error && <Loading error={null} />}
       {risk.result && <Notice result={risk.result} />}
@@ -119,7 +126,7 @@ export default function StopRisk() {
       {metrics.result && <Notice result={metrics.result} />}
       {metrics.result?.status === "ok" && (
         <>
-          {weak && <p className="notice">{weak}</p>}
+          {signal && <p className="notice">{signal}</p>}
           <div className="table-wrap">
             <table>
               <thead>
@@ -133,7 +140,7 @@ export default function StopRisk() {
                       <tr key={`${tg}:${m}`}>
                         <td>{tg}</td>
                         <td>{m}{BASELINES.includes(m) ? " (baseline)" : ""}</td>
-                        {COLS.map(([k]) => <td key={k} className="num">{num(vals[k])}</td>)}
+                        {COLS.map(([k]) => <td key={k} className="num">{k === "pr_auc" ? num(vals[k]) : pct(vals[k])}</td>)}
                       </tr>
                     )),
                 )}
@@ -142,7 +149,7 @@ export default function StopRisk() {
           </div>
           <p className="muted">
             Top 1 and top 3 mean the highest-scoring hours per machine per 8 h shift raise an alert; thresholds are chosen on the
-            validation split. Base rate (test): {Object.entries(pooled).map(([tg, m]) => `${tg} ${num(m.data?.base_rate)}`).join(", ")}.
+            validation split. Base rate (test): {Object.entries(pooled).map(([tg, m]) => `${tg} ${pct(m.data?.base_rate)}`).join(", ")}.
           </p>
         </>
       )}
