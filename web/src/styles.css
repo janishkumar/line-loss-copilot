@@ -47,3 +47,12 @@ input { font: inherit; padding: 0.3rem 0.5rem; background: var(--panel); color: 
 .cites summary { cursor: pointer; color: var(--accent); }
 .cites ul { margin: 0.3rem 0; padding-left: 1.1rem; max-height: 14rem; overflow: auto; }
 td .badge { white-space: nowrap; }
+.chat { display: flex; flex-direction: column; gap: 0.8rem; margin: 1rem 0; }
+.chat .turn { border: 1px solid var(--line); border-radius: 6px; padding: 0.6rem 0.9rem; background: var(--panel); }
+.chat .turn.user { border-color: var(--accent); }
+.chat .answer { white-space: pre-wrap; margin: 0.3rem 0; }
+.chat .meta { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: baseline; font-size: 0.85rem; }
+.chat .trace summary { cursor: pointer; color: var(--accent); }
+.chat .trace code { font-size: 0.8rem; word-break: break-all; }
+.chat-form { display: flex; gap: 0.5rem; align-items: flex-end; }
+.chat-form textarea { flex: 1; font: inherit; padding: 0.4rem 0.5rem; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; min-height: 3.2rem; }

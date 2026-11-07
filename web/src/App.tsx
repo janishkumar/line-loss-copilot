@@ -7,6 +7,7 @@ import Losses from "./pages/Losses";
 import Reliability from "./pages/Reliability";
 import StopRisk from "./pages/StopRisk";
 import Notes from "./pages/Notes";
+import Chat from "./pages/Chat";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <NavLink to="/reliability">Reliability</NavLink>
           <NavLink to="/risk">Stop risk</NavLink>
           <NavLink to="/notes">Notes</NavLink>
+          <NavLink to="/chat">Ask</NavLink>
           <NavLink to="/validation">Validation</NavLink>
         </nav>
       </header>
@@ -29,6 +31,7 @@ export default function App() {
           <Route path="/reliability" element={<Reliability />} />
           <Route path="/risk" element={<StopRisk />} />
           <Route path="/notes" element={<Notes />} />
+          <Route path="/chat" element={<Chat />} />
           <Route path="/validation" element={<Validation />} />
           <Route path="/evidence/shift/:shiftId" element={<ShiftEvidence />} />
           <Route path="/evidence/:eventId" element={<Evidence />} />

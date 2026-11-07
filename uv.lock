@@ -932,6 +932,7 @@ source = { editable = "." }
 dependencies = [
     { name = "dbt-postgres" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "mcp" },
     { name = "pandas" },
     { name = "psycopg", extra = ["binary"] },
@@ -942,7 +943,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "pip-audit" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -953,6 +953,7 @@ dev = [
 requires-dist = [
     { name = "dbt-postgres", specifier = ">=1.11.0" },
     { name = "fastapi", specifier = ">=0.162.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "mcp", specifier = ">=2.3,<3" },
     { name = "pandas", specifier = ">=3.1.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
@@ -963,7 +964,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.28.1" },
     { name = "pip-audit", specifier = ">=2.7" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-cov", specifier = ">=5" },

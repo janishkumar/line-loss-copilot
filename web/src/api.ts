@@ -294,3 +294,44 @@ export const getRisk = (p: { machine_id?: string; at?: string; target?: string }
   get<RiskData>("/risk", p);
 export const getRiskMetrics = () => get<RiskMetricsData>("/risk/metrics");
 export const searchNotes = (p: Scope & { query: string }) => get<NotesData>("/notes/search", p);
+
+// ---- Chat with the local model ----
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+export interface ToolCall {
+  name: string;
+  args: Record<string, unknown> | string;
+  status: string;
+  missing: string | null;
+}
+export interface ChatResult {
+  answer: string;
+  citations: Citation[];
+  citation_count: number;
+  cited_event_ids: number[];
+  unsupported_cited_ids: number[];
+  tool_calls: ToolCall[];
+  model: string;
+  rounds: number;
+}
+
+/** POST /api/chat. A non-2xx answer throws with the envelope's `missing` text (503 when the
+ * local model is not reachable) or the validation messages. */
+export async function postChat(messages: ChatMessage[]): Promise<ChatResult> {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const detail = Array.isArray(body?.detail)
+      ? body.detail.map((d: { msg: string }) => d.msg).join("; ")
+      : null;
+    throw new Error(body?.missing ?? detail ?? `${res.status} ${res.statusText}`);
+  }
+  return body as ChatResult;
+}

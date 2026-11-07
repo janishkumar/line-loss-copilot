@@ -1,0 +1,486 @@
+{
+  "generated_at": "2026-11-07",
+  "ollama_url": "http://localhost:11434",
+  "rule": "most points (valid tool JSON + expected tool + ANSWER line, per prompt); ties go to the lower total wall time",
+  "chosen": "qwen2.5:7b-instruct",
+  "models": [
+    {
+      "model": "qwen2.5:7b-instruct",
+      "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+      "points": 22,
+      "max_points": 24,
+      "wall_s_total": 220.2,
+      "results": [
+        {
+          "id": "pareto_s1",
+          "prompt": "What was the top stop reason by lost time on machine s_1 in March 2021?",
+          "expected_tools": [
+            "loss_pareto"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": false,
+          "answer_present": true,
+          "points": 2,
+          "wall_s": 25.2,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "breakdown",
+              "args": {
+                "start": "2021-03-01",
+                "top": 1,
+                "cols": "reason",
+                "end": "2021-04-01",
+                "line_id": "s_1",
+                "rows": "month"
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The top stop reason by lost time on machine s_1 in March 2021 was A_065, with 56,900.9 seconds of lost time [event:77365, event:75826, event:75672, event:76540, event:76542, event:77253, event:76519, event:76469, event:77414, event:77363]. ANSWER: A_065"
+        },
+        {
+          "id": "oee_brick",
+          "prompt": "What was the OEE of the brick line in October 2025?",
+          "expected_tools": [
+            "get_oee"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 5.5,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "get_oee",
+              "args": {
+                "end": "2025-10-01",
+                "group": "month",
+                "line_id": "brick",
+                "start": "2025-10-01"
+              },
+              "status": "out_of_scope",
+              "missing": "end must be after start"
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The OEE for the brick line in October 2025 is not available because the end date must be after the start date. ANSWER: Not available."
+        },
+        {
+          "id": "mttr_s2",
+          "prompt": "What was the MTTR of machine s_2 in 2021?",
+          "expected_tools": [
+            "reliability"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 5.6,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "reliability",
+              "args": {
+                "machine_id": "s_2",
+                "start": "2021-01-01",
+                "end": "2021-12-31",
+                "group": "none",
+                "line_id": "brick"
+              },
+              "status": "out_of_scope",
+              "missing": "machine 's_2' is not on line 'brick'"
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The evidence is not available. Machine s_2 is not on line brick. ANSWER: MTTR not available."
+        },
+        {
+          "id": "notes_valves",
+          "prompt": "Find operator notes that mention valves.",
+          "expected_tools": [
+            "search_notes"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 36.2,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "valves",
+                "line_id": "brick"
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [
+            1087,
+            663,
+            549
+          ],
+          "unsupported_cited_ids": [],
+          "answer": "Operator notes mentioning valves include:\n\n- ΑΝΤΙΚΑΤΑΣΤΑΣΗ ΔΟΧΕΙΟΥ ΠΙΕΣΕΩΣ ΣΤΙΣ ΑΝΤΛΙΕΣ ΝΕΡΟΥ (Replacement of water pressure pump valves) on 2025-12-08 at 12:07 [event:1087]\n- ΜΟΤΕΡ 3ο ΚΑΡΕΛΙΝΟΥ ΠΡΙΝ ΤΗΝ ΕΙΔΟΔΟ ΞΥΡΑΝΤΗΡΙΟΥ ΕΚΟΨΕ ΤΗΝ ΚΑΔΕΝΑ (The 3rd kiln motor before the kneading machine stopped the valves) on 2025-10-09 at 09:18 [event:663]\n- ΤΟΥΒΛΑ ΕΣΠΑΖΑΝ (valve fault) on 2025-09-23 at 07:41 [event:549]\n- ΣΠΑΣΜΕΝΑ ΤΟΥΒΛΑ (broken valve) on multiple dates from 2025-10-03 to 2025-11-11 [events:578, 706, 720, 746, 797, 869, 870, 871, 872, 873, 874, 875]\n\nANSWER: Multiple operator notes mention v"
+        },
+        {
+          "id": "list_machines",
+          "prompt": "Which lines and machines are loaded, and what dates do they cover?",
+          "expected_tools": [
+            "list_assets"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 29.6,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "list_assets",
+              "args": {},
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The brick line (line_id brick) covers from September 22, 2025, to April 3, 2026. PIADE machines s_1 to s_5 cover from January 1, 2020, to January 2, 2022, with gaps. ANSWER: brick line (2025-09-22T04:15:00Z to 2026-04-03T13:00:00Z), s_1 (2020-01-01T11:21:28.907000Z to 2021-12-31T16:11:47.752000Z), s_2 (2020-06-15T06:24:48.518000Z to 2021-12-31T10:16:25.503000Z), s_3 (2020-10-07T10:18:00.725000Z to 2022-01-02T00:34:51.646000Z), s_4 (2020-01-01T00:05:02.863000Z to 2022-01-02T00:08:20.770000Z), s_5 (2020-01-12T01:26:51.449000Z to 2022-01-02T00:22:33.499000Z)."
+        },
+        {
+          "id": "risk_s4",
+          "prompt": "What is the long-stop risk for machine s_4 at 2021-11-15 08:00?",
+          "expected_tools": [
+            "stop_risk"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 17.3,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "stop_risk",
+              "args": {
+                "at": "2021-11-15T08:00",
+                "machine_id": "s_4",
+                "target": "long"
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The long-stop risk for machine s_4 at 2021-11-15 08:00 is 0.792%. The model used is \"hist_gb\". The base rate is 2.0913%, and the alert threshold is 3.21602%. The top contributing features are:\n- running_s_1h with a contribution of -0.5844\n- off_s_24h with a contribution of -0.5332\n- speed_mean_1h with a contribution of -0.4559\n\nThe score is below the alert threshold, so no alert is triggered. ANSWER: 0.792%"
+        },
+        {
+          "id": "compare_brick",
+          "prompt": "Compare the brick line's stop time between September to December 2025 and January to April 2026.",
+          "expected_tools": [
+            "compare_periods"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 35.0,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "compare_periods",
+              "args": {
+                "a_start": "2025-09-01",
+                "a_end": "2025-12-01",
+                "b_start": "2026-01-01",
+                "b_end": "2026-04-01",
+                "line_id": "brick"
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The brick line's stop time comparison between September to December 2025 and January to April 2026 shows:\n\n- The total planned time decreased by 527,711 seconds.\n- The union of stop time decreased by 70,320 seconds.\n- Availability (calculated) decreased by 0.0522603.\n- Availability (published) increased by 0.127256.\n- Performance (published) increased by 0.00607771.\n- Quality (published) decreased by 0.0169391.\n- OEE (calculated with published performance and quality) decreased by 0.0547896.\n- The total stop time decreased by 70,320 seconds.\n- The total stop count increased by 7.\n- The failure"
+        },
+        {
+          "id": "events_then_mtbf",
+          "prompt": "Which PIADE machine has the most events loaded, and what is its MTBF over its whole coverage?",
+          "expected_tools": [
+            "list_assets",
+            "reliability"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": false,
+          "answer_present": true,
+          "points": 2,
+          "wall_s": 65.8,
+          "rounds": 3,
+          "tool_calls": [
+            {
+              "name": "list_assets",
+              "args": {},
+              "status": "ok",
+              "missing": null
+            },
+            {
+              "name": "get_oee",
+              "args": {
+                "machine_id": "s_5",
+                "start": "2020-01-01",
+                "end": "2022-01-03",
+                "group": "month",
+                "line_id": "s_5"
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The PIADE machine with the most events loaded is s_5, with 100,855 events.\n\nTo calculate the MTBF (Mean Time Between Failures) for s_5 over its whole coverage, we need to look at the total downtime and the total operational time. However, the tool did not provide this information directly. We can infer that the MTBF would be calculated by dividing the total operational time by the total number of failures (downtime periods).\n\nSince the exact MTBF cannot be calculated from the provided data, the evidence is not available.\n\nANSWER: s_5 has the most events loaded, but the exact MTBF is not availa"
+        }
+      ]
+    },
+    {
+      "model": "llama3.1:8b-instruct-q4_K_M",
+      "digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+      "points": 19,
+      "max_points": 24,
+      "wall_s_total": 332.9,
+      "results": [
+        {
+          "id": "pareto_s1",
+          "prompt": "What was the top stop reason by lost time on machine s_1 in March 2021?",
+          "expected_tools": [
+            "loss_pareto"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": false,
+          "points": 2,
+          "wall_s": 27.9,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "loss_pareto",
+              "args": {
+                "start": "2021-03-01T00:00:00",
+                "top": "1",
+                "by": "reason",
+                "end": "2021-03-31T23:59:59",
+                "include_not_in_oee": "false",
+                "line_id": "s_1",
+                "machine_id": "s_1"
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The top stop reason by lost time on machine s_1 in March 2021 was A_065, with 56900.9 seconds of lost time."
+        },
+        {
+          "id": "oee_brick",
+          "prompt": "What was the OEE of the brick line in October 2025?",
+          "expected_tools": [
+            "get_oee"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 10.4,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "get_oee",
+              "args": {
+                "end": "2025-10-01T00:00:00Z",
+                "group": "month",
+                "limit": "1",
+                "line_id": "brick",
+                "start": "2025-09-01T00:00:00Z"
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The OEE of the brick line in October 2025 is 0.665175. \n\nANSWER: 0.665175"
+        },
+        {
+          "id": "mttr_s2",
+          "prompt": "What was the MTTR of machine s_2 in 2021?",
+          "expected_tools": [
+            "reliability"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 28.1,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "reliability",
+              "args": {
+                "start": "2021-01-01T00:00:00",
+                "end": "2021-12-31T23:59:59",
+                "group": "month",
+                "line_id": "s_2",
+                "machine_id": "s_2"
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The MTTR of machine s_2 in 2021 was 123.881 seconds in January, 163.165 seconds in February, 134.685 seconds in March, 85.1275 seconds in April, 104.475 seconds in May, 96.6783 seconds in June, 102.205 seconds in July, 98.7292 seconds in August, 143.608 seconds in September, 148.414 seconds in October, 198.577 seconds in November, and 169.513 seconds in December.\n\nANSWER: The MTTR of machine s_2 in 2021 varied from 85.1275 seconds in April to 198.577 seconds in November."
+        },
+        {
+          "id": "notes_valves",
+          "prompt": "Find operator notes that mention valves.",
+          "expected_tools": [
+            "search_notes"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 37.1,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "search_notes",
+              "args": {
+                "query": "valves",
+                "line_id": "brick",
+                "start": "2025-09-01T00:00:00Z",
+                "end": "2026-04-01T00:00:00Z",
+                "limit": 100
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The operator notes that mention valves are:\n\n* \"ΑΝΤΙΚΑΤΑΣΤΑΣΗ ΔΟΧΕΙΟΥ ΠΙΕΣΕΩΣ ΣΤΙΣ ΑΝΤΛΙΕΣ ΝΕΡΟΥ\" (replacement of water pressure pump valves) - event_id: 1087\n* \"ΜΟΤΕΡ 3ο ΚΑΡΕΛΙΝΟΥ ΠΡΙΝ ΤΗΝ ΕΙΔΟΔΟ ΞΥΡΑΝΤΗΡΙΟΥ ΕΚΟΨΕ ΤΗΝ ΚΑΔΕΝΑ\" (The 3rd kiln motor before the kneading machine stopped the valves) - event_id: 663\n* \"ΤΟΥΒΛΑ ΕΣΠΑΖΑΝ\" (valve fault) - event_id: 549, 555\n* \"ΣΠΑΣΜΕΝΑ ΤΟΥΒΛΑ\" (broken valve) - event_id: 578, 579, 625, 689, 706, 720, 746, 797, 869, 870, 871, 872, 873, 874, 875, 876, 877, 878, 879, 880, 881, 886, 887, 888, 889, 893\n\nANSWER: There are 26 operator notes that mention valves."
+        },
+        {
+          "id": "list_machines",
+          "prompt": "Which lines and machines are loaded, and what dates do they cover?",
+          "expected_tools": [
+            "list_assets"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 21.9,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "list_assets",
+              "args": {},
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The lines and machines that are loaded are:\n\n* Line \"brick\" with machines []\n* Line \"s_1\" with machine \"s_1\"\n* Line \"s_2\" with machine \"s_2\"\n* Line \"s_3\" with machine \"s_3\"\n* Line \"s_4\" with machine \"s_4\"\n* Line \"s_5\" with machine \"s_5\"\n\nThe dates covered by these lines and machines are:\n\n* Line \"brick\": September 22, 2025 to April 3, 2026\n* Line \"s_1\": January 1, 2020 to December 31, 2021\n* Line \"s_2\": June 15, 2020 to December 31, 2021\n* Line \"s_3\": October 7, 2020 to January 2, 2022\n* Line \"s_4\": January 1, 2020 to January 2, 2022\n* Line \"s_5\": January 12, 2020 to January 2, 2022\n\nANSWER: T"
+        },
+        {
+          "id": "risk_s4",
+          "prompt": "What is the long-stop risk for machine s_4 at 2021-11-15 08:00?",
+          "expected_tools": [
+            "stop_risk"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": true,
+          "points": 3,
+          "wall_s": 15.5,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "stop_risk",
+              "args": {
+                "at": "2021-11-15T08:00:00",
+                "machine_id": "s_4",
+                "target": "long"
+              },
+              "status": "ok",
+              "missing": null
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "The long-stop risk for machine s_4 at 2021-11-15 08:00 is 0.00792029, which is below the alert threshold of 0.0321602. The top features contributing to this score are:\n\n* running_s_1h: 0.0\n* off_s_24h: 64773.1\n* speed_mean_1h: 0.0\n\nThe citations for this score are the machine's events that start in the 24 hours before 2021-11-15 08:00, stopped intervals first, then the most recent.\n\nANSWER: 0.00792029"
+        },
+        {
+          "id": "compare_brick",
+          "prompt": "Compare the brick line's stop time between September to December 2025 and January to April 2026.",
+          "expected_tools": [
+            "compare_periods"
+          ],
+          "valid_tool_json": true,
+          "correct_tool": true,
+          "answer_present": false,
+          "points": 2,
+          "wall_s": 12.0,
+          "rounds": 2,
+          "tool_calls": [
+            {
+              "name": "compare_periods",
+              "args": {
+                "a_start": "2025-09-01T00:00:00Z",
+                "a_end": "2025-12-31T23:59:59Z",
+                "b_start": "2026-01-01T00:00:00Z",
+                "b_end": "2026-04-30T23:59:59Z",
+                "line_id": "brick",
+                "machine_id": "brick",
+                "top": "10"
+              },
+              "status": "out_of_scope",
+              "missing": "period A: unknown machine_id 'brick'"
+            }
+          ],
+          "cited_event_ids": [],
+          "unsupported_cited_ids": [],
+          "answer": "{\"status\":\"out_of_scope\",\"data\":null,\"citations\":[],\"citation_count\":0,\"window\":{\"start\":\"2026-01-01T00:00:00Z\",\"end\":\"2026-04-30T23:59:59Z\",\"line_id\":\"brick\",\"machine_id\":\"brick\",\"group\":null},\"assumptions\":[],\"missing\":\"period B: unknown machine_id 'brick\"}\n\nThe evidence is not available."
+        },
+        {
+          "id": "events_then_mtbf",
+          "prompt": "Which PIADE machine has the most events loaded, and what is its MTBF over its whole coverage?",
+          "expected_tools": [
+            "list_assets",
+            "reliability"
+          ],
+          "error": "OllamaUnreachable: local model not reachable at http://localhost:11434",
+          "wall_s": 180.0,
+          "valid_tool_json": false,
+          "correct_tool": false,
+          "answer_present": false,
+          "points": 0
+        }
+      ]
+    }
+  ]
+}

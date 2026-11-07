@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "dbt-postgres>=1.11.0",
     "fastapi>=0.162.0",
+    "httpx>=0.28.1",
     "mcp>=2.3,<3",
     "pandas>=3.1.1",
     "psycopg[binary]>=3.2",
@@ -20,7 +21,6 @@ dev = [
     "pytest-cov>=5",
     "ruff>=0.5",
     "pip-audit>=2.7",
-    "httpx>=0.28.1",
 ]
 
 [build-system]

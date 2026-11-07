@@ -3,11 +3,16 @@ returns the tool's Result envelope unchanged."""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
+import httpx
 import psycopg
 from fastapi import Depends, FastAPI, Query
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from linecopilot.chat.loop import ChatResult, run_chat
+from linecopilot.chat.ollama import OllamaClient, OllamaError, OllamaUnreachable
 from linecopilot.config import get_settings
 from linecopilot.reports.oee_validation import validate_oee
 from linecopilot.tools.assets import AssetsData, ListAssetsArgs, list_assets
@@ -49,10 +54,38 @@ from linecopilot.tools.risk import (
     stop_risk,
 )
 
+CHAT_MAX_MESSAGES = 20
+CHAT_MAX_CHARS = 4000
 
-def create_app(db_url: str | None = None) -> FastAPI:
+
+class ChatMessage(BaseModel):
+    """A user or assistant turn. There is no system role: the system prompt is the server's."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=CHAT_MAX_CHARS)
+
+
+class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    messages: list[ChatMessage] = Field(min_length=1, max_length=CHAT_MAX_MESSAGES)
+
+    @field_validator("messages")
+    @classmethod
+    def ends_with_user(cls, v: list[ChatMessage]) -> list[ChatMessage]:
+        if v[-1].role != "user":
+            raise ValueError("the last message must be from the user")
+        return v
+
+
+def create_app(
+    db_url: str | None = None, ollama_transport: httpx.BaseTransport | None = None
+) -> FastAPI:
     app = FastAPI(title="line-loss-copilot API", version="0.1.0")
-    url = db_url or get_settings().database_url
+    settings = get_settings()
+    url = db_url or settings.database_url
 
     def get_conn() -> Iterator[psycopg.Connection]:
         with psycopg.connect(url, autocommit=True) as conn:
@@ -150,6 +183,24 @@ def create_app(db_url: str | None = None) -> FastAPI:
                 "Each row's shift_id matches the shift rows of /api/oee, which carry citations.",
             ],
         )
+
+    @app.post("/api/chat", response_model=ChatResult, responses={502: {}, 503: {}})
+    def chat(body: ChatRequest, conn: Conn) -> ChatResult | JSONResponse:
+        client = OllamaClient(settings.ollama_url, settings.chat_model, transport=ollama_transport)
+        try:
+            return run_chat(conn, client, [m.model_dump() for m in body.messages])
+        except OllamaUnreachable as e:
+            return JSONResponse(
+                Result(status="out_of_scope", missing=str(e)).model_dump(mode="json"),
+                status_code=503,
+            )
+        except OllamaError as e:
+            return JSONResponse(
+                Result(status="out_of_scope", missing=str(e)).model_dump(mode="json"),
+                status_code=502,
+            )
+        finally:
+            client.close()
 
     @app.get("/api/shifts/{shift_id}/evidence")
     def shift_evidence_route(shift_id: str, conn: Conn) -> Result[ShiftEvidenceData]:

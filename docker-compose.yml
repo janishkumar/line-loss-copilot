@@ -20,6 +20,9 @@ services:
     build: .
     environment:
       LINECOPILOT_DB_URL: postgresql://linecopilot:linecopilot@db:5432/linecopilot
+      LINECOPILOT_OLLAMA_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${LINECOPILOT_API_PORT:-8000}:8000"
     depends_on:

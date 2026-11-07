@@ -1,0 +1,257 @@
+"""Tool-calling chat loop: the model asks for read tools, the registry runs them, and the
+model answers from the results.
+
+The tools offered are fixed per call (every registry entry, or none for the no-tools
+baseline), so nothing a tool returns can add, remove or change a tool. Tool results reach the
+model only as `tool` messages, compacted by `trim_result`; the full citations are kept for the
+caller."""
+
+from __future__ import annotations
+
+import json
+import logging
+import re
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+from linecopilot.chat.ollama import OllamaClient
+from linecopilot.chat.prompt import SYSTEM_PROMPT
+from linecopilot.tools.envelope import Citation, Result, cap_citations
+from linecopilot.tools.registry import TOOLS, call_tool
+
+log = logging.getLogger(__name__)
+
+MODEL_CITATIONS = 10
+MODEL_NESTED_CITATIONS = 3
+MODEL_LIST_ROWS = 30
+# [event:12], and the grouped forms small models write: [event:12, event:13] or [event:12, 13]
+EVENT_REF = re.compile(r"\[event:\s*\d+(?:\s*,\s*(?:event:)?\s*\d+)*\s*\]")
+
+
+class ToolCall(BaseModel):
+    name: str
+    args: dict[str, Any] | str
+    status: str
+    missing: str | None = None
+
+
+class ChatResult(BaseModel):
+    answer: str
+    citations: list[Citation] = Field(description="capped union of the tool results' citations")
+    citation_count: int = 0
+    cited_event_ids: list[int] = Field(description="ids cited as [event:<id>] in the answer")
+    unsupported_cited_ids: list[int] = Field(
+        description="cited ids that appear in no tool result citation"
+    )
+    tool_calls: list[ToolCall]
+    model: str
+    rounds: int
+
+
+# ---- tool schemas ----------------------------------------------------------------------
+
+
+def _flatten(node: Any, defs: dict[str, Any]) -> Any:
+    """Inline `$ref`s, turn `anyOf [X, null]` into X and drop titles: small models handle a
+    flat schema better. Property names are never touched."""
+    if isinstance(node, list):
+        return [_flatten(x, defs) for x in node]
+    if not isinstance(node, dict):
+        return node
+    if "$ref" in node:
+        target = defs[node["$ref"].rsplit("/", 1)[-1]]
+        rest = {k: v for k, v in node.items() if k != "$ref"}
+        return _flatten({**target, **rest}, defs)
+    if "anyOf" in node:
+        options = [o for o in node["anyOf"] if o != {"type": "null"}]
+        if len(options) == 1:
+            rest = {k: v for k, v in node.items() if k != "anyOf"}
+            return _flatten({**options[0], **rest}, defs)
+    out: dict[str, Any] = {}
+    for k, v in node.items():
+        if k in ("$defs", "title"):
+            continue
+        if k == "properties":
+            out[k] = {name: _flatten(sub, defs) for name, sub in v.items()}
+        else:
+            out[k] = _flatten(v, defs)
+    return out
+
+
+def tool_schemas() -> list[dict[str, Any]]:
+    """Ollama tool definitions for every registry entry, same names and argument names."""
+    out = []
+    for spec in TOOLS.values():
+        schema = spec.args_model.model_json_schema()
+        out.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": spec.name,
+                    "description": spec.description,
+                    "parameters": _flatten(schema, schema.get("$defs", {})),
+                },
+            }
+        )
+    return out
+
+
+# ---- tool results for the model -----------------------------------------------------------
+
+
+def _compact(value: Any, path: str, notes: dict[str, int], nested: list[int]) -> Any:
+    if isinstance(value, dict):
+        out = {}
+        for k, v in value.items():
+            if k == "citations" and isinstance(v, list):
+                if len(v) > MODEL_NESTED_CITATIONS:
+                    nested[0] += 1
+                out[k] = v[:MODEL_NESTED_CITATIONS]
+            else:
+                out[k] = _compact(v, f"{path}.{k}", notes, nested)
+        return out
+    if isinstance(value, list):
+        if len(value) > MODEL_LIST_ROWS:
+            notes[path] = max(notes.get(path, 0), len(value))
+            value = value[:MODEL_LIST_ROWS]
+        return [_compact(x, f"{path}[]", notes, nested) for x in value]
+    if isinstance(value, float):
+        return float(f"{value:.6g}")
+    return value
+
+
+def trim_result(res: Result) -> dict[str, Any]:
+    """The envelope as the model sees it: every key kept, top-level citations cut to 10,
+    citations inside data rows to 3, long lists to 30 items, and a `trimmed` note saying what
+    was cut."""
+    d = res.model_dump(mode="json")
+    notes: dict[str, int] = {}
+    nested = [0]
+    data = _compact(d["data"], "data", notes, nested)
+    count = max(d["citation_count"], len(d["citations"]))
+    out = {
+        "status": d["status"],
+        "data": data,
+        "citations": d["citations"][:MODEL_CITATIONS],
+        "citation_count": count,
+        "window": d["window"],
+        "assumptions": d["assumptions"],
+        "missing": d["missing"],
+    }
+    trimmed = [f"{p}: showing {MODEL_LIST_ROWS} of {n}" for p, n in notes.items()]
+    if len(d["citations"]) > MODEL_CITATIONS:
+        trimmed.append(f"citations: showing {MODEL_CITATIONS} of {count}")
+    if nested[0]:
+        trimmed.append(f"citations inside data: at most {MODEL_NESTED_CITATIONS} per item")
+    if trimmed:
+        out["trimmed"] = trimmed
+    return out
+
+
+def _event_ids(node: Any, into: set[int]) -> None:
+    """Every event_id found in any `citations` list of a dumped result."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == "citations" and isinstance(v, list):
+                into.update(
+                    c["event_id"]
+                    for c in v
+                    if isinstance(c, dict) and c.get("event_id") is not None
+                )
+            else:
+                _event_ids(v, into)
+    elif isinstance(node, list):
+        for x in node:
+            _event_ids(x, into)
+
+
+def cited_ids(answer: str) -> list[int]:
+    ids = (int(n) for ref in EVENT_REF.findall(answer) for n in re.findall(r"\d+", ref))
+    return list(dict.fromkeys(ids))
+
+
+def _parse_args(raw: Any) -> tuple[dict[str, Any] | str, str | None]:
+    """Arguments arrive as a dict or a JSON string. Returns (args, error)."""
+    if raw is None:
+        return {}, None
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw) if raw.strip() else {}
+        except ValueError:
+            return raw, "arguments were not valid JSON"
+    if not isinstance(raw, dict):
+        return str(raw), "arguments must be a JSON object"
+    return raw, None
+
+
+def _dumps(obj: Any) -> str:
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":"), default=str)
+
+
+# ---- the loop ------------------------------------------------------------------------------
+
+
+def run_chat(
+    conn: Any,
+    client: OllamaClient,
+    messages: list[dict],
+    tools_enabled: bool = True,
+    max_rounds: int = 6,
+) -> ChatResult:
+    """Run the conversation until the model answers without a tool call, or `max_rounds`
+    model calls have been made. `messages` holds user and assistant turns only; the system
+    prompt is always ours."""
+    tools = tool_schemas() if tools_enabled else []
+    convo: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    convo += [{"role": m["role"], "content": m["content"]} for m in messages]
+    cites: list[Citation] = []
+    supported: set[int] = set()
+    calls: list[ToolCall] = []
+    answer = ""
+    rounds = 0
+    for rounds in range(1, max_rounds + 1):  # noqa: B007 - rounds is reported
+        msg = client.chat(convo, tools).get("message") or {}
+        content = str(msg.get("content") or "")
+        requested = (msg.get("tool_calls") or []) if tools_enabled else []
+        if not requested:
+            answer = content
+            break
+        convo.append({"role": "assistant", "content": content, "tool_calls": requested})
+        for tc in requested:
+            fn = (tc or {}).get("function") or {}
+            name = str(fn.get("name") or "")
+            args, err = _parse_args(fn.get("arguments"))
+            if err is not None:
+                payload: dict[str, Any] = {"status": "out_of_scope", "missing": err}
+            else:
+                try:
+                    res = call_tool(conn, name, args)  # type: ignore[arg-type]
+                except Exception:
+                    log.exception("tool %s failed", name)
+                    payload = {"status": "error", "missing": f"tool {name} failed internally"}
+                else:
+                    payload = trim_result(res)
+                    cites.extend(res.citations)
+                    _event_ids(res.model_dump(mode="json"), supported)
+            calls.append(
+                ToolCall(name=name, args=args, status=payload["status"], missing=payload["missing"])
+            )
+            convo.append({"role": "tool", "tool_name": name, "content": _dumps(payload)})
+    else:
+        answer = (
+            f"The tool loop stopped after {max_rounds} rounds without a final answer. "
+            "Try a narrower question."
+        )
+    capped, count = cap_citations(cites)
+    ids = cited_ids(answer)
+    return ChatResult(
+        answer=answer,
+        citations=capped,
+        citation_count=count,
+        cited_event_ids=ids,
+        unsupported_cited_ids=[i for i in ids if i not in supported],
+        tool_calls=calls,
+        model=client.model,
+        rounds=rounds,
+    )
