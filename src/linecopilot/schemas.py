@@ -1,5 +1,6 @@
 """Apply the schemas dbt does not build: enrich (notes search), ml (stop-risk tables), demo
-(synthetic users) and actions (approved actions, audit log, agent role grants).
+(synthetic users), actions (approved actions, audit log, agent role grants), then synthetic
+(stage 4 orders, BOMs, stock) and plan (plan outputs), which grant the agent role SELECT.
 
 All files are idempotent. `make dbt` runs this before and after every build: dbt recreates
 core and mart tables, which drops their grants, so the second run restores the agent's
@@ -21,6 +22,8 @@ FILES = (
     SQL_DIR / "ml_schema.sql",
     SQL_DIR / "demo_schema.sql",
     SQL_DIR / "actions_schema.sql",
+    SQL_DIR / "synthetic_schema.sql",
+    SQL_DIR / "plan_schema.sql",
 )
 
 

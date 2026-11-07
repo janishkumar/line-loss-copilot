@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: demo-stage3 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: synth demo-stage3 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -40,6 +40,10 @@ load:
 # and mart tables and drops their grants, so `dbt` applies this again after the build.
 schemas:
 	uv run python -m linecopilot.schemas
+
+# Seeded synthetic orders, BOMs and stock on real capacity (stage 4); needs the marts built.
+synth: schemas
+	uv run python -m linecopilot.synth
 
 dbt: schemas
 	uv run dbt build --project-dir dbt --profiles-dir dbt
