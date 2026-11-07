@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pytest
 
+from linecopilot.supply.mrp import Order, Receipt, SupplyInput, detect, naive_rule
 from linecopilot.synth.anchors import Anchors
 from linecopilot.synth.generate import (
     HORIZON_START,
@@ -216,3 +217,40 @@ def test_changeover_never_zero_for_a_different_product():
     a = Anchors(rates={"s_1": 4500.0}, availability={"s_1": 0.9}, changeover_same_family_min=0)
     d = generate(a, 7)
     assert all(c["minutes"] >= 1 for c in d.changeover if not c["same_product"])
+
+
+def _supply_input(d):
+    fam = {p["product_id"]: p["family"] for p in d.product}
+    eff = {
+        r["machine_id"]: float(r["rate_per_hour"]) * float(r["availability"])
+        for r in d.machine_rate
+    }
+    best_f = {}
+    for c in d.machine_capability:
+        best_f[c["family"]] = max(best_f.get(c["family"], 0.0), eff[c["machine_id"]])
+    bom = {}
+    for b in d.bom:
+        bom.setdefault(b["parent_id"], []).append((b["child_id"], float(b["qty_per"])))
+    return SupplyInput(
+        orders=[
+            Order(o["order_id"], o["product_id"], o["quantity"], o["release_at"], o["due_at"])
+            for o in d.customer_order
+        ],
+        bom=bom,
+        kinds={m["material_id"]: m["kind"] for m in d.material},
+        stock={s["material_id"]: float(s["on_hand"]) for s in d.stock},
+        receipts=[Receipt(r["material_id"], float(r["qty"]), r["due_at"]) for r in d.receipt],
+        best_rate={p: best_f[f] for p, f in fam.items()},
+    )
+
+
+@pytest.mark.parametrize("seed", [7, 1, 2])
+def test_production_engine_agrees_with_independent_netting_and_naive(seed):
+    d = generate(ANCHORS, seed)
+    s = _supply_input(d)
+    short, _ = detect(s)
+    ref = _netting(d)
+    assert {(f.material_id, f.order_id) for f in short} == set(ref)
+    for f in short:
+        assert f.short_qty == pytest.approx(min(ref[(f.material_id, f.order_id)], f.short_qty))
+    assert set(naive_rule(s.orders, s.bom, s.stock)) == _naive(d)

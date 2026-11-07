@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: synth demo-stage3 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: eval-shortages synth demo-stage3 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -44,6 +44,10 @@ schemas:
 # Seeded synthetic orders, BOMs and stock on real capacity (stage 4); needs the marts built.
 synth: schemas
 	uv run python -m linecopilot.synth
+
+# Shortage detector and naive rule against the planted truth, on the main database.
+eval-shortages:
+	uv run python -m evals.shortages
 
 dbt: schemas
 	uv run dbt build --project-dir dbt --profiles-dir dbt

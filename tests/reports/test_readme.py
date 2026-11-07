@@ -160,7 +160,7 @@ def test_main_renders_all_sections_and_is_idempotent(tmp_path):
         shutil.copy(RESULTS / f, res / f)
     text = "".join(
         f"<!-- {n}:start -->\n<!-- {n}:end -->\n"
-        for n in ("oee", "copilot-evals", "stop-risk", "safety")
+        for n in ("oee", "copilot-evals", "stop-risk", "safety", "shortages")
     )
     readme = tmp_path / "README.md"
     readme.write_text(text)
@@ -262,3 +262,49 @@ def test_safety_section_reports_the_known_gap_and_exact_db_guards(tmp_path):
         assert phrase.lower() in out.lower(), phrase
     assert "the design" in out.lower() and "the brief" not in out.lower()
     assert "`abc123`" in out and "1 of 5" in out and "weak evidence" in out
+
+
+# ---- stage 4 shortages section ---------------------------------------------------------------
+
+
+def _prf(tp, fp, fn):
+    return {
+        "tp": tp, "fp": fp, "fn": fn,
+        "precision": tp / (tp + fp) if tp + fp else None,
+        "recall": tp / (tp + fn) if tp + fn else None,
+    }  # fmt: skip
+
+
+def shortage_doc():
+    def block(by):
+        return {
+            "overall": _prf(*by["all"]),
+            "by_kind": {k: _prf(*by[k]) for k in ("plain", "timing", "level_two")},
+        }
+
+    det = {"plain": (2, 0, 0), "timing": (2, 0, 0), "level_two": (2, 0, 0), "all": (6, 0, 0)}
+    nai = {"plain": (2, 0, 0), "timing": (0, 2, 2), "level_two": (0, 2, 2), "all": (2, 9, 4)}
+    return {
+        "meta": {
+            "generation_id": 2, "seed": 7, "content_sha256": "a" * 64, "date": "2026-11-07",
+            "git_commit": "abc123", "orders": 46, "planted": 6, "decoys": 4,
+        },
+        "detector": {"pairs": block(det), "materials": block(det), "decoys_flagged": 0,
+                     "decoys": 4, "unplanted_flags": 0},
+        "naive": {"pairs": block(nai), "materials": block(nai), "decoys_flagged": 4,
+                  "decoys": 4, "unplanted_flags": 5},
+    }  # fmt: skip
+
+
+def test_shortages_section_not_run_yet(tmp_path):
+    out = rd.shortages_section(tmp_path)
+    assert "not run yet" in out and "make eval-shortages" in out and "\u2014" not in out
+
+
+def test_shortages_section_labels_synthetic_and_shared_definition(tmp_path):
+    write(tmp_path, "shortages.json", shortage_doc())
+    out = rd.shortages_section(tmp_path)
+    assert "synthetic" in out.lower() and "seed 7" in out and "generation 2" in out
+    assert "share the netting definition" in out
+    assert "| netting detector |" in out and "| naive rule |" in out
+    assert "level_two" in out and "\u2014" not in out

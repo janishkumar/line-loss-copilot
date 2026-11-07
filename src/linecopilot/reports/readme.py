@@ -3,7 +3,8 @@
 Sections: `oee` (stage 1 validation), `copilot-evals` (answer, citation and before/after
 evals, one row per runner and model, never averaged), `stop-risk` (next-hour stop-risk
 models on the test split) and `safety` (approved-actions safety eval, with and without
-guardrails, plus the LLM injection subset). A result file that does not exist yet renders
+guardrails, plus the LLM injection subset) and `shortages` (stage 4 shortage detector against
+the naive rule, on synthetic data). A result file that does not exist yet renders
 as "not run yet"."""
 
 from __future__ import annotations
@@ -482,6 +483,53 @@ def safety_section(results: Path) -> str:
     return "\n".join(L)
 
 
+SHORT_KINDS = ("plain", "timing", "level_two")
+
+
+def shortages_section(results: Path) -> str:
+    path = results / "shortages.json"
+    if not path.exists():
+        return "Shortage results: not run yet (`make synth`, then `make eval-shortages`)."
+    doc = _load(path)
+    m, det, nai = doc["meta"], doc["detector"], doc["naive"]
+
+    def f(x: float | None) -> str:
+        return "n/a" if x is None else f"{x:.2f}"
+
+    L = [
+        "Synthetic orders, BOMs, stock and receipts (generation "
+        f"{m['generation_id']}, seed {m['seed']}, content sha256 `{m['content_sha256'][:12]}`): "
+        f"{m['orders']} orders, {m['planted']} planted shortages and {m['decoys']} decoys. "
+        "Netting by need date traces each shortfall to the order it hits. The naive rule "
+        "flags a material when on hand is below its total gross requirement and flags every "
+        "order that uses it. The detector and the generator share the netting definition, so "
+        "a perfect detector score shows the code implements the definition, not real-world "
+        "accuracy. Planted shortages test the software; they are not real-world results.",
+        "",
+        "| Method | Kind | (material, order) precision | (material, order) recall "
+        "| Material precision | Material recall |",
+        "|---|---|---|---|---|---|",
+    ]
+    for name, d in (("netting detector", det), ("naive rule", nai)):
+        rows = [("all", d["pairs"]["overall"], d["materials"]["overall"])]
+        rows += [(k, d["pairs"]["by_kind"][k], d["materials"]["by_kind"][k]) for k in SHORT_KINDS]
+        for kind, p, mt in rows:
+            L.append(
+                f"| {name} | {kind} | {f(p['precision'])} | {f(p['recall'])} "
+                f"| {f(mt['precision'])} | {f(mt['recall'])} |"
+            )
+    L += [
+        "",
+        f"Decoys flagged: detector {det['decoys_flagged']} of {det['decoys']}, naive rule "
+        f"{nai['decoys_flagged']} of {nai['decoys']}. Flags outside the planted cases: "
+        f"detector {det['unplanted_flags']}, naive rule {nai['unplanted_flags']}. Per-kind "
+        "rows count only that kind's decoys as false positives. Detail: "
+        "[evals/results/shortages.md](evals/results/shortages.md); regenerate with "
+        "`make eval-shortages`, then `make report`.",
+    ]
+    return "\n".join(L)
+
+
 def sections(results: Path = RESULTS) -> dict[str, str]:
     val = _load(results / "oee_validation.json")
     piade = json.loads((results / "piade_oee.json").read_text(encoding="utf-8"))
@@ -491,6 +539,7 @@ def sections(results: Path = RESULTS) -> dict[str, str]:
         "copilot-evals": copilot_evals_section(results),
         "stop-risk": stop_risk_section(_load(risk) if risk.exists() else None),
         "safety": safety_section(results),
+        "shortages": shortages_section(results),
     }
 
 
