@@ -1,0 +1,25 @@
+version: 2
+models:
+  - name: brick_shift_oee
+    description: >
+      Brick line per-shift availability recomputed from the stop log (union of in-OEE stop
+      intervals clipped to the local date) against published planned time, joined to the
+      published per-shift values. Columns ending in _pub or _published are published reference
+      values, not computed output.
+    columns:
+      - name: shift_id
+        data_tests: [unique, not_null]
+      - name: period
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [before, after]}
+      - name: match_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [matched, no_stops, no_published]}
+      - name: stop_s_union
+        data_tests: [not_null]
+      - name: stop_s_sum
+        data_tests: [not_null]

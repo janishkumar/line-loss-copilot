@@ -17,6 +17,8 @@ models:
       +schema: staging
     core:
       +schema: core
+    mart:
+      +schema: mart
 
 seeds:
   linecopilot:

@@ -160,12 +160,18 @@ def _raw(rec: dict) -> dict[str, str]:
 def parse_brick_oee(path: Path, period: Period) -> ParsedFile:
     records, trimmed_cols = _read(path, OEE_COLUMNS[period])
     out = ParsedFile(rows=[], source_rows=[], trimmed_columns=trimmed_cols)
+    seen_dates: set[str] = set()
     for line, rec in enumerate(records, start=1):
         reason = _check_oee(rec)
+        # The line runs one shift per date, so a later row for a date already
+        # accepted is rejected rather than merged or treated as a second shift.
+        if not reason and _iso_date(rec["shift_date"]) in seen_dates:
+            reason = "duplicate_shift"
         if reason:
             out.rejected.append(Rejected(line, reason, _raw(rec)))
             continue
         row: dict[str, str | None] = {"shift_date": _iso_date(rec["shift_date"])}
+        seen_dates.add(row["shift_date"])
         for col in (*OEE_FRACTIONS, *OEE_QUANTITIES):
             row[col] = rec[col]
         row["period"] = period

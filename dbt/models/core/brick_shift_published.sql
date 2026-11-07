@@ -1,5 +1,6 @@
 -- Published per-shift values: reference only, never used as computed output.
--- shift_id repeats where the file has two rows for one date; date_row separates them.
+-- One row per date: the loader rejects a repeated date within a file as duplicate_shift
+-- (docs/data-notes.md). date_row stays as a guard; schema.yml tests shift_id is unique.
 select
     'brick:' || shift_date::text as shift_id,
     row_number() over (partition by shift_date order by source_file, source_row) as date_row,

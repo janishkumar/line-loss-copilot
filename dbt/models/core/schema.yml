@@ -59,5 +59,7 @@ models:
         data_tests: [unique, not_null]
   - name: brick_shift_published
     columns:
+      - name: shift_id
+        data_tests: [unique, not_null]
       - name: source_row
         data_tests: [not_null]

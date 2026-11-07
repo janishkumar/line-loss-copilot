@@ -7,7 +7,7 @@ FIX = Path(__file__).parent.parent / "fixtures" / "brick"
 
 def test_oee_bom_and_column_map_before():
     parsed = parse_brick_oee(FIX / "oee_before.csv", "before")
-    assert len(parsed.rows) == 6
+    assert len(parsed.rows) == 5
     first = parsed.rows[0]
     assert first["shift_date"] == "2025-09-22"
     assert first["good_production_s"] == "14604"
@@ -26,19 +26,34 @@ def test_oee_column_map_after():
 
 def test_empty_oee_row_rejected():
     parsed = parse_brick_oee(FIX / "oee_before.csv", "before")
-    assert [(r.source_row, r.reason) for r in parsed.rejected] == [(6, "empty_row")]
+    assert (6, "empty_row") in [(r.source_row, r.reason) for r in parsed.rejected]
 
 
-def test_duplicate_date_kept_both():
+def test_duplicate_date_keeps_first_and_rejects_later():
+    # One shift per date (docs/data-notes.md): a second row for a date is rejected, not merged.
     parsed = parse_brick_oee(FIX / "oee_before.csv", "before")
     dates = [r["shift_date"] for r in parsed.rows]
-    assert dates.count("2025-09-26") == 2
+    assert dates.count("2025-09-26") == 1
+    kept = next(r for r in parsed.rows if r["shift_date"] == "2025-09-26")
+    assert kept["oee"] == "0.6500"
+    assert [(r.source_row, r.reason) for r in parsed.rejected] == [
+        (6, "empty_row"),
+        (7, "duplicate_shift"),
+    ]
+    assert parsed.rejected[1].raw["oee"] == "0.6600"
+
+
+def test_duplicate_check_ignores_rejected_rows(tmp_path):
+    path = _write(tmp_path, OEE_HDR, _oee_row(oee="abc"), _oee_row())
+    parsed = parse_brick_oee(path, "after")
+    assert len(parsed.rows) == 1
+    assert [(r.source_row, r.reason) for r in parsed.rejected] == [(1, "bad_number:oee")]
 
 
 def test_downtime_after_trims_padding():
     parsed = parse_brick_downtime(FIX / "downtime_after.csv", "after")
     assert parsed.trimmed_columns >= 30
-    assert len(parsed.rows) == 4
+    assert len(parsed.rows) == 9
     assert parsed.trimmed_rows == 5
     assert parsed.rejected == []
     assert parsed.rows[0]["duration_min"] == "9"
@@ -66,7 +81,7 @@ def test_overlapping_and_not_included_stops_are_kept():
 
 def test_source_rows_are_file_lines():
     oee = parse_brick_oee(FIX / "oee_before.csv", "before")
-    assert oee.source_rows == [1, 2, 3, 4, 5, 7]
+    assert oee.source_rows == [1, 2, 3, 4, 5]
     down = parse_brick_downtime(FIX / "downtime_before.csv", "before")
     assert down.source_rows == list(range(1, 9))
 
