@@ -297,9 +297,46 @@ In Claude: "Draft a work order for the repeat jams on machine X." The preview sh
 
 Only demo users and roles (in `demo.*`, `source = 'synthetic'`, badged in the app). Orders, BOMs, stock and lead times arrive in stage 4 under the rules in the brief.
 
-## 10. Stages 4 and 5 (outline, designed in detail later)
+## 10. Stage 4: scheduling and shortages
 
-- **4. Scheduling and shortages:** OR-Tools CP-SAT schedule against synthetic orders, materials and changeovers on real PIADE capacity; compared with first-in-first-out and earliest-due-date under replayed real stops from a later period; BOM explosion and shortfall tracing; precision and recall on planted shortages against a stock-below-demand rule.
+**Decision it supports:** which order runs on which packaging machine and when, and which orders a material shortfall will hit, early enough to act. Demand is synthetic; capacity and disruption are real.
+
+### 10.1 Synthetic data (schema `synthetic`, every table has `source = 'synthetic'`)
+
+A seeded generator in the repo (`make synth`, default seed 7) writes:
+
+- **Products:** 12 SKUs in 4 pack families. Families A to C run on the 6,500 per hour machines (s_2, s_4, s_5), families B to D on the 4,500 per hour machines (s_1, s_3), so B and C can go either way.
+- **Machine rates (real):** the p95 set speed per machine from `mart.piade_ideal_rate` (packages per hour), and a planning availability per machine of 1 minus the stopped share of time in `mart.stop_episode` before 2021-07-01.
+- **Changeovers (anchored):** PIADE records no changeovers, so times come from the brick line's real `SETUPS-CHANGEOVERS` stops: same product 0, same family the p25 (12 min), different family the p75 (19 min). The README says they come from a different process.
+- **Orders:** customer orders over a 14-day horizon with product, quantity (2 to 16 nominal machine hours), release time and due date (release plus processing time times a slack drawn from 1.5 to 4), sized so load is about 90% of planned capacity. A few orders carry a free-text note; three notes hold planted instruction-like text for the safety eval.
+- **BOM and materials:** two levels. Each product uses a printed carton (sub-assembly), film and a label; each printed carton uses board and ink. Stock on hand, open receipts with dates, and supplier lead times per material.
+- **Planted shortages:** the generator plants (material, order) shortfalls of three kinds, plain (stock plus receipts below demand), timing (enough in total, but the receipt lands after the need date) and level two (only visible after netting the carton stock), plus decoys that a naive rule flags but are not shortages (a receipt arrives in time; carton stock covers the board). Ground truth sits in `synthetic.planted_shortage`, read only by the eval.
+
+The generator is anchored to real numbers where they exist and is labelled synthetic everywhere else. Planted shortages test the software; they are not real-world results.
+
+### 10.2 Shortages
+
+MRP-style netting by day over the horizon: requirements by need date (the order's due date minus its processing time), allocated in need-date order; sub-assembly net requirements explode to raw materials after netting carton stock; projected stock = on hand + receipts - allocated requirements. A shortfall is a requirement not covered on its need date; it is traced to the exact orders whose requirement is short, with the quantity and the first short day. Compared with a simple rule: a material is short if stock on hand is below its total gross requirement over the horizon, flagging every order that uses it. Scored as precision and recall on (material, order) pairs and on materials, overall and per planted kind. Because the detector and the generator share the netting definition, a perfect score shows the code implements the definition, not real-world accuracy; the README says so.
+
+### 10.3 Scheduling
+
+- **Model:** OR-Tools CP-SAT. Each order goes to one eligible machine as an interval of `quantity / (rate x availability)`; sequence-dependent changeovers via a circuit per machine; an order cannot start before its release time or its material-ready time (from 10.2; an order whose shortfall has no receipt in the horizon is reported as blocked, not scheduled). Objective: total tardiness in minutes plus 0.1 times changeover minutes. Deterministic: one worker, fixed seed, 20 s time limit; the solver status (optimal or feasible) is recorded.
+- **Baselines:** first in, first out (by release time) and earliest due date, each a list schedule that puts the next order on the eligible machine where it finishes first, with the same changeovers and ready times.
+- **Replay of real stops:** each plan is executed against real PIADE stop episodes from a later period. Eight non-overlapping 14-day windows from 2021-07-01 to 2021-12-31 are cut from `mart.stop_episode` and overlaid on the horizon, machine by machine. The plan's order sequence is kept (no rescheduling); work only progresses when the machine is not stopped, at the nominal rate. Planning availability comes only from data before 2021-07-01, so nothing in a plan sees the stops it is replayed against; a test checks this.
+- **Measures:** late orders, total tardiness and changeover hours, nominal and replayed, for CP-SAT, FIFO and EDD, over 5 order seeds x 8 replay windows, reported as median and interquartile range. Not averaged with any real-data metric.
+
+### 10.4 Copilot, actions and safety
+
+- New read tools: `get_plan` (plan KPIs against the baselines, per-machine sequence), `shortages` (shortfalls with traced orders) and `get_order` (an order with its note returned as quoted data). They are labelled synthetic in their results. The stage 2 answer eval keeps its own pinned list of the original 12 tools so its results stay comparable.
+- Follow-ups gain optional `order_ids`; checks confirm the orders exist and scan their notes for instruction-like text (warn only).
+- The safety eval adds order-text scenarios (scripted and LLM): an order note asks the agent to approve or expedite; judged from the database as before. This closes the order-text item left open in 7.4.
+
+### 10.5 Stage 4 demo
+
+The Plan page shows CP-SAT against FIFO and EDD, nominal and under replayed real stops, with a per-machine sequence. The Shortages page lists shortfalls with the orders they hit. In Claude: "Which orders will the board shortage hit?" answered from `shortages`, then a follow-up drafted for the planner, which lands in the inbox.
+
+## 10b. Stage 5 (outline, designed in detail later)
+
 - **5. Visual inspection:** VisA food subsets, anomaly heatmaps for a reviewer, reviewer decisions as labels, cost-based threshold with a sensitivity table, ONNX export with measured CPU latency, rejected images creating simulated, labelled quality events. To keep both brief rules (synthetic data in its own schema, and one event table the copilot reads), simulated events are stored in `synthetic.quality_event` with a `source` column, and a view `core.event_all` unions them with `core.event` with `is_synthetic` set. The copilot and approval flow read `core.event_all`. `mart` metrics read `core.event` only, so no headline number mixes real and synthetic data.
 
 ## 11. Decided by Janish
