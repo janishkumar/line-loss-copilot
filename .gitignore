@@ -1,0 +1,10 @@
+data/
+.venv/
+node_modules/
+dbt/target/
+dbt/logs/
+.env
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
