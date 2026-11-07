@@ -1,4 +1,4 @@
-// Types mirror src/linecopilot/api/models.py.
+// Types mirror the models in src/linecopilot/tools (re-exported by api/models.py).
 export type Status = "ok" | "insufficient_evidence" | "out_of_scope";
 
 export interface Citation {
@@ -148,6 +148,7 @@ export interface ShiftEvidenceData {
   rows: EvidenceRow[];
   event_count: number;
   truncated: boolean;
+  missing_rows?: { raw_table: string; source_file: string; raw_row_id: number }[];
 }
 
 export const getShiftEvidence = (shiftId: string) =>

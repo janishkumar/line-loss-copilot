@@ -55,10 +55,17 @@ def test_oee_brick_shift_has_citations(client, built):
     assert tables == ["brick_downtime"] * n_stops + ["brick_oee"]
     for c in row["citations"]:
         assert c["source_file"].startswith("brick/") and c["raw_row_id"] >= 1 and c["event_id"]
-    # top level: events in the window, capped, with the true total
+    # top level: the capped union of the returned rows' citations, in row order
     assert 0 < len(body["citations"]) <= CITATION_CAP
-    total = built.execute("SELECT count(*) FROM core.event WHERE line_id = 'brick'").fetchone()[0]
-    assert body["citation_count"] == total
+    union = []
+    for r in body["data"]["rows"]:
+        for c in r["citations"]:
+            k = (c["raw_table"], c["source_file"], c["raw_row_id"])
+            if k not in union:
+                union.append(k)
+    top = [(c["raw_table"], c["source_file"], c["raw_row_id"]) for c in body["citations"]]
+    assert top == union[:CITATION_CAP]
+    assert body["citation_count"] == sum(r["citation_count"] for r in body["data"]["rows"])
     # every shift row's citation count is the DB count of its evidence; a date with only
     # "Not included" stops has none, and that is reported as 0, not hidden
     expected = dict(
@@ -133,10 +140,9 @@ def test_unknown_machine_is_out_of_scope(client):
 
 def test_bad_group_and_window_rejected(client):
     assert client.get("/api/oee", params={"line_id": "s_1", "group": "week"}).status_code == 422
-    r = client.get(
-        "/api/oee", params={"line_id": "s_1", "start": "2020-02-01", "end": "2020-01-01"}
-    )
-    assert r.status_code == 422
+    body = get(client, "/api/oee", line_id="s_1", start="2020-02-01", end="2020-01-01")
+    assert body["status"] == "out_of_scope" and body["missing"] == "end must be after start"
+    assert body["data"] is None
 
 
 def test_piade_shift_rows_match_mart_and_cite_intervals(client, built):

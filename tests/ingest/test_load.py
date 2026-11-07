@@ -20,23 +20,30 @@ LAYOUT = {
 }
 
 
-@pytest.fixture
-def data_dir(tmp_path) -> Path:
+def copy_fixtures(root: Path) -> Path:
     for dest, src in LAYOUT.items():
-        target = tmp_path / "raw" / dest
+        target = root / "raw" / dest
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(FIX / src, target)
-    return tmp_path
+    return root
 
 
 @pytest.fixture
-def conn(db_url):
+def data_dir(tmp_path) -> Path:
+    return copy_fixtures(tmp_path)
+
+
+@pytest.fixture
+def conn(db_url, tmp_path_factory):
     with psycopg.connect(db_url) as c:
         c.execute("DROP SCHEMA IF EXISTS raw CASCADE")
         c.commit()
         yield c
         c.rollback()
+        # Leave raw as the shared `built` fixture loaded it (the same fixture files, so the
+        # same source_row lineage); later tests read raw rows behind core.event.
         c.execute("DROP SCHEMA IF EXISTS raw CASCADE")
+        load_all(c, copy_fixtures(tmp_path_factory.mktemp("restore")))
         c.commit()
 
 
