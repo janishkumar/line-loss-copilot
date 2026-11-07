@@ -98,6 +98,32 @@ def test_tool_call_then_answer(tools_called):
     assert json.loads(tool_msg["content"])["status"] == "ok"
 
 
+def test_token_counts_recorded_and_full_context_flagged(tools_called):
+    first = call(("list_assets", {}))
+    first.update(prompt_eval_count=4000, eval_count=20)
+    last = say("ok\nANSWER: ok")
+    last.update(prompt_eval_count=16384 - 256, eval_count=7)
+    res = run_chat(None, FakeOllama(first, last).client(), [{"role": "user", "content": "x"}])
+    assert [(r.prompt_eval_count, r.eval_count, r.context_full) for r in res.rounds_detail] == [
+        (4000, 20, False),
+        (16128, 7, True),
+    ]
+    assert res.context_full is True
+
+
+def test_missing_token_counts_are_none_and_not_flagged(tools_called):
+    res = run_chat(None, FakeOllama(say("ANSWER: ok")).client(), [{"role": "user", "content": "x"}])
+    assert res.rounds_detail[0].prompt_eval_count is None and res.context_full is False
+
+
+def test_context_full_threshold():
+    from linecopilot.chat.ollama import OPTIONS, context_full
+
+    n = OPTIONS["num_ctx"]
+    assert context_full(n - 256) and context_full(n) and not context_full(n - 257)
+    assert not context_full(None)
+
+
 def test_arguments_as_json_string(tools_called):
     fake = FakeOllama(call(("list_assets", "{}")), say("ok\nANSWER: ok"))
     res = run_chat(None, fake.client(), [{"role": "user", "content": "machines?"}])

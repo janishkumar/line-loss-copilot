@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from linecopilot.chat.ollama import OllamaClient
+from linecopilot.chat.ollama import OllamaClient, context_full
 from linecopilot.chat.prompt import SYSTEM_PROMPT
 from linecopilot.tools.compact import compact_result, dumps
 from linecopilot.tools.envelope import Citation, cap_citations
@@ -40,6 +40,19 @@ class ToolCall(BaseModel):
     missing: str | None = None
 
 
+class RoundStat(BaseModel):
+    prompt_eval_count: int | None = Field(None, description="prompt tokens Ollama read")
+    eval_count: int | None = Field(None, description="tokens Ollama generated")
+    context_full: bool = Field(
+        False, description="prompt_eval_count reached num_ctx - 256: the prompt may be cut"
+    )
+
+
+def _count(reply: Any, key: str) -> int | None:
+    v = reply.get(key) if isinstance(reply, dict) else None
+    return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+
 class ChatResult(BaseModel):
     answer: str
     citations: list[Citation] = Field(description="capped union of the tool results' citations")
@@ -54,6 +67,8 @@ class ChatResult(BaseModel):
     stop_reason: str = Field(
         default="answer", description="answer, rounds, budget or malformed: why the loop ended"
     )
+    rounds_detail: list[RoundStat] = Field(default_factory=list)
+    context_full: bool = Field(False, description="any round filled the model's context")
 
 
 # ---- tool schemas ----------------------------------------------------------------------
@@ -211,6 +226,7 @@ def run_chat(
     answer: str | None = None
     stop = "answer"
     rounds = 0
+    stats: list[RoundStat] = []
     started = clock()
     while answer is None:
         if rounds >= max_rounds:
@@ -229,6 +245,14 @@ def run_chat(
             break
         rounds += 1
         reply = client.chat(convo, tools)
+        pec = _count(reply, "prompt_eval_count")
+        stats.append(
+            RoundStat(
+                prompt_eval_count=pec,
+                eval_count=_count(reply, "eval_count"),
+                context_full=context_full(pec),
+            )
+        )
         msg = reply.get("message") if isinstance(reply, dict) else None
         requested = msg.get("tool_calls") if isinstance(msg, dict) else None
         if not isinstance(msg, dict) or not isinstance(requested, list | None):
@@ -263,4 +287,6 @@ def run_chat(
         model=client.model,
         rounds=rounds,
         stop_reason=stop,
+        rounds_detail=stats,
+        context_full=any(r.context_full for r in stats),
     )

@@ -113,6 +113,8 @@ class OllamaRunner:
             tool_calls=[tc.model_dump(mode="json") for tc in res.tool_calls],
             rounds=res.rounds,
             retries=client.retry_count,
+            rounds_detail=[r.model_dump() for r in res.rounds_detail],
+            context_full=res.context_full,
             # a loop cut off by the budget or round limit is shown apart from wrong answers
             error=res.stop_reason if res.stop_reason in ("budget", "rounds") else None,
         )

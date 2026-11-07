@@ -11,6 +11,13 @@ import httpx
 # reply's length so a model that rambles cannot hold a call for many minutes.
 OPTIONS: dict[str, Any] = {"temperature": 0, "seed": 0, "num_ctx": 16384, "num_predict": 1024}
 TIMEOUT_S = 180.0
+# Ollama cuts a prompt longer than num_ctx without an error. A round whose prompt_eval_count
+# comes within this many tokens of num_ctx is flagged as having filled the context.
+CONTEXT_MARGIN = 256
+
+
+def context_full(prompt_eval_count: int | None, num_ctx: int = OPTIONS["num_ctx"]) -> bool:
+    return prompt_eval_count is not None and prompt_eval_count >= num_ctx - CONTEXT_MARGIN
 
 
 class OllamaError(RuntimeError):

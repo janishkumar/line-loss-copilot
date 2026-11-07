@@ -26,3 +26,7 @@ class Reply:
     rounds: int | None = None
     error: str | None = None
     retries: int = 0
+    # Ollama only: prompt_eval_count / eval_count per model call, and whether any call came
+    # within 256 tokens of num_ctx (where Ollama silently cuts the prompt).
+    rounds_detail: list[dict[str, Any]] = field(default_factory=list)
+    context_full: bool = False

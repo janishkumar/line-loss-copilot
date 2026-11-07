@@ -86,6 +86,8 @@ def _record(q: Question) -> dict[str, Any]:
         "latency_s": 0.0,
         "error": None,
         "retries": 0,
+        "rounds_detail": [],
+        "context_full": False,
     }
 
 
@@ -108,6 +110,8 @@ def evaluate_one(runner: Any, conn: Any, q: Question) -> dict[str, Any]:
             latency_s=round(reply.latency_s, 2),
             error=reply.error,
             retries=reply.retries,
+            rounds_detail=reply.rounds_detail,
+            context_full=reply.context_full,
             format_ok=answer_line(reply.answer) is not None,
         )
         stage = "scoring"
@@ -183,6 +187,8 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
         # loop cut-offs count as incorrect but are reported apart from other errors
         "stopped_on_budget": sum(1 for r in records if r["error"] == "budget"),
         "stopped_on_rounds": sum(1 for r in records if r["error"] == "rounds"),
+        # questions where a model call came within 256 tokens of Ollama's num_ctx
+        "context_full": sum(1 for r in records if r.get("context_full")),
         "median_latency_s": sorted(r["latency_s"] for r in records)[len(records) // 2]
         if records
         else None,
@@ -222,6 +228,8 @@ def run_before_after(runner: Any, conn: Any) -> dict[str, Any]:
         "tool_calls": reply.tool_calls,
         "error": reply.error,
         "retries": reply.retries,
+        "rounds_detail": reply.rounds_detail,
+        "context_full": reply.context_full,
         "truth": truth,
         "score": score,
         "caveats": before_after.CAVEATS,
@@ -261,6 +269,8 @@ def answers_markdown(doc: dict[str, Any]) -> str:
         f"| Errors (answer key, runner, scoring or loop cut-off) | {s['errors']} |",
         f"| Stopped on time budget / round limit (counted wrong) | "
         f"{s['stopped_on_budget']} / {s['stopped_on_rounds']} |",
+        f"| Questions where a model call filled the context (Ollama) | "
+        f"{s.get('context_full', 'n/a')} |",
         "",
         "| Template | Correct |",
         "|---|---|",
