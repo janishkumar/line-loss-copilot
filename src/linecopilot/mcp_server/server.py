@@ -1,8 +1,10 @@
 """MCP server: one read-only tool per registry entry, same names and argument schemas.
 
 Every call opens its own connection and goes through `registry.call_tool`, so the answer is the
-same Result envelope the API and the chat loop return. An internal error is raised, which the SDK
-reports to the client as a tool error without stopping the server."""
+same Result envelope the API and the chat loop return. The envelope is compacted exactly as the
+chat loop compacts it (`tools.compact`), so a client's tool-output cap is not reached; the
+`trimmed` list says what was cut, and the API serves the full envelope. An internal error is
+raised, which the SDK reports to the client as a tool error without stopping the server."""
 
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ from pydantic import ConfigDict, ValidationError
 
 from linecopilot.prompting import BASE_INSTRUCTIONS
 from linecopilot.tools import registry
+from linecopilot.tools.compact import compact_json
 
 SERVER_NAME = "linecopilot"
 
@@ -46,10 +49,10 @@ def _make_tool(spec: registry.ToolSpec, db_url: str) -> Tool:
             spec.args_model.model_validate(kwargs)
         except ValidationError:
             # invalid arguments never touch the database; call_tool builds the envelope
-            return registry.call_tool(None, spec.name, kwargs).model_dump_json()
+            return compact_json(registry.call_tool(None, spec.name, kwargs))
         with psycopg.connect(db_url, autocommit=True) as conn:
             result = registry.call_tool(conn, spec.name, kwargs)
-        return result.model_dump_json()
+        return compact_json(result)
 
     return Tool(
         fn=run,

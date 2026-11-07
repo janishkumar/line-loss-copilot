@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from linecopilot.chat import loop
-from linecopilot.chat.loop import run_chat, tool_schemas, trim_result
+from linecopilot.chat.loop import run_chat, tool_schemas
 from linecopilot.chat.ollama import OllamaClient, OllamaError, OllamaUnreachable
 from linecopilot.chat.prompt import SYSTEM_PROMPT
 from linecopilot.prompting import BASE_INSTRUCTIONS
@@ -293,30 +293,6 @@ def test_tool_schemas_are_flat_and_keep_names():
     assert item["type"] == "object" and "raw_row_id" in item["properties"]
     oee = next(s for s in schemas if s["function"]["name"] == "get_oee")
     assert oee["function"]["parameters"]["properties"]["line_id"]["type"] == "string"
-
-
-def test_trim_result_caps_citations_and_lists():
-    res = Result(
-        status="ok",
-        data={
-            "rows": [{"i": i, "citations": [cite(i).model_dump()] * 8} for i in range(45)],
-            "total": 45,
-        },
-        citations=[cite(i) for i in range(50)],
-        citation_count=120,
-    )
-    out = trim_result(res)
-    assert set(out) >= {"status", "data", "citations", "citation_count", "window", "missing"}
-    assert len(out["citations"]) == 10 and out["citation_count"] == 120
-    assert len(out["data"]["rows"]) == 30 and out["data"]["total"] == 45
-    assert len(out["data"]["rows"][0]["citations"]) == 3
-    assert any("citations" in t for t in out["trimmed"])
-    assert any("data.rows" in t and "45" in t for t in out["trimmed"])
-
-
-def test_trim_result_small_result_has_no_note():
-    out = trim_result(Result(status="ok", data={"rows": [1, 2]}, citations=[cite(1)]))
-    assert "trimmed" not in out and out["data"] == {"rows": [1, 2]}
 
 
 def test_system_prompt_shares_mcp_wording_and_adds_answer_line():

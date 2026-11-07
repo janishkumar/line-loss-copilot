@@ -3,8 +3,8 @@ model answers from the results.
 
 The tools offered are fixed per call (every registry entry, or none for the no-tools
 baseline), so nothing a tool returns can add, remove or change a tool. Tool results reach the
-model only as `tool` messages, compacted by `trim_result`; the full citations are kept for the
-caller."""
+model only as `tool` messages, compacted by `tools.compact.compact_result` (the same text the
+MCP server returns); the full citations are kept for the caller."""
 
 from __future__ import annotations
 
@@ -19,14 +19,12 @@ from pydantic import BaseModel, Field
 
 from linecopilot.chat.ollama import OllamaClient
 from linecopilot.chat.prompt import SYSTEM_PROMPT
-from linecopilot.tools.envelope import Citation, Result, cap_citations
+from linecopilot.tools.compact import compact_result, dumps
+from linecopilot.tools.envelope import Citation, cap_citations
 from linecopilot.tools.registry import TOOLS, call_tool
 
 log = logging.getLogger(__name__)
 
-MODEL_CITATIONS = 10
-MODEL_NESTED_CITATIONS = 3
-MODEL_LIST_ROWS = 30
 # A round can still take the 180 s client timeout: 400 + 180 < the 600 s proxy timeout.
 TIME_BUDGET_S = 400.0
 NO_ANSWER = "The model returned no answer."
@@ -106,56 +104,7 @@ def tool_schemas() -> list[dict[str, Any]]:
     return out
 
 
-# ---- tool results for the model -----------------------------------------------------------
-
-
-def _compact(value: Any, path: str, notes: dict[str, int], nested: list[int]) -> Any:
-    if isinstance(value, dict):
-        out = {}
-        for k, v in value.items():
-            if k == "citations" and isinstance(v, list):
-                if len(v) > MODEL_NESTED_CITATIONS:
-                    nested[0] += 1
-                out[k] = v[:MODEL_NESTED_CITATIONS]
-            else:
-                out[k] = _compact(v, f"{path}.{k}", notes, nested)
-        return out
-    if isinstance(value, list):
-        if len(value) > MODEL_LIST_ROWS:
-            notes[path] = max(notes.get(path, 0), len(value))
-            value = value[:MODEL_LIST_ROWS]
-        return [_compact(x, f"{path}[]", notes, nested) for x in value]
-    if isinstance(value, float):
-        return float(f"{value:.6g}")
-    return value
-
-
-def trim_result(res: Result) -> dict[str, Any]:
-    """The envelope as the model sees it: every key kept, top-level citations cut to 10,
-    citations inside data rows to 3, long lists to 30 items, and a `trimmed` note saying what
-    was cut."""
-    d = res.model_dump(mode="json")
-    notes: dict[str, int] = {}
-    nested = [0]
-    data = _compact(d["data"], "data", notes, nested)
-    count = max(d["citation_count"], len(d["citations"]))
-    out = {
-        "status": d["status"],
-        "data": data,
-        "citations": d["citations"][:MODEL_CITATIONS],
-        "citation_count": count,
-        "window": d["window"],
-        "assumptions": d["assumptions"],
-        "missing": d["missing"],
-    }
-    trimmed = [f"{p}: showing {MODEL_LIST_ROWS} of {n}" for p, n in notes.items()]
-    if len(d["citations"]) > MODEL_CITATIONS:
-        trimmed.append(f"citations: showing {MODEL_CITATIONS} of {count}")
-    if nested[0]:
-        trimmed.append(f"citations inside data: at most {MODEL_NESTED_CITATIONS} per item")
-    if trimmed:
-        out["trimmed"] = trimmed
-    return out
+# ---- tool results ---------------------------------------------------------------------
 
 
 def _event_ids(node: Any, into: set[int]) -> None:
@@ -206,10 +155,6 @@ def _parse_args(raw: Any) -> tuple[dict[str, Any] | str, str | None]:
     return raw, None
 
 
-def _dumps(obj: Any) -> str:
-    return json.dumps(obj, ensure_ascii=False, separators=(",", ":"), default=str)
-
-
 # ---- the loop ------------------------------------------------------------------------------
 
 
@@ -228,7 +173,7 @@ def _tool_payload(conn: Any, tc: Any) -> tuple[str, dict[str, Any] | str, dict[s
     except Exception:
         log.exception("tool %s failed", name)
         return name, args, {"status": "out_of_scope", "missing": f"internal error in {name}"}, None
-    return name, args, trim_result(res), res
+    return name, args, compact_result(res), res
 
 
 def _unique_calls(requested: list) -> list:
@@ -238,7 +183,7 @@ def _unique_calls(requested: list) -> list:
     out = []
     for tc in requested:
         fn = tc.get("function") if isinstance(tc, dict) else None
-        key = _dumps(fn) if isinstance(fn, dict) else repr(tc)
+        key = dumps(fn) if isinstance(fn, dict) else repr(tc)
         if key not in seen:
             seen.add(key)
             out.append(tc)
@@ -305,7 +250,7 @@ def run_chat(
             calls.append(
                 ToolCall(name=name, args=args, status=payload["status"], missing=payload["missing"])
             )
-            convo.append({"role": "tool", "tool_name": name, "content": _dumps(payload)})
+            convo.append({"role": "tool", "tool_name": name, "content": dumps(payload)})
     capped, count = cap_citations(cites)
     ids = cited_ids(answer)
     return ChatResult(
