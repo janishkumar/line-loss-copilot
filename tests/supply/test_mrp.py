@@ -238,3 +238,33 @@ def test_bom_cycle_raises_a_clear_error():
         run([order("O1", 10)], bom, {})
     with pytest.raises(ValueError, match="cycle"):
         naive_rule([order("O1", 10)], bom, {})
+
+
+def test_material_ready_is_first_receipt_after_the_short_allocation():
+    from datetime import datetime, timedelta
+
+    from linecopilot.supply.mrp import (
+        Order,
+        Receipt,
+        SupplyInput,
+        detect,
+        material_ready,
+    )
+
+    t0 = datetime(2026, 1, 5, tzinfo=UTC)
+    s = SupplyInput(
+        orders=[
+            Order("o1", "p", 100, t0, t0 + timedelta(days=2)),
+            Order("o2", "p", 100, t0, t0 + timedelta(days=3)),
+            Order("o3", "q", 10, t0, t0 + timedelta(days=3)),
+        ],
+        bom={"p": [("m", 1.0)], "q": [("z", 1.0)]},
+        kinds={"m": "raw", "z": "raw"},
+        stock={"m": 100.0, "z": 0.0},
+        receipts=[Receipt("m", 100.0, t0 + timedelta(days=4))],
+        best_rate={"p": 100.0, "q": 100.0},
+    )
+    ready = material_ready(*detect(s))
+    assert "o1" not in ready
+    assert ready["o2"] == (t0 + timedelta(days=4), None)
+    assert ready["o3"] == (None, "z")

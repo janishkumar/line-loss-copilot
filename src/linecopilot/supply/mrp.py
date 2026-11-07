@@ -211,3 +211,30 @@ def naive_rule(
     return sorted(
         (m, oid) for m in gross if float(stock.get(m, 0.0)) < gross[m] for oid in users[m]
     )
+
+
+def material_ready(
+    shortfalls: Iterable[Shortfall], projection: Mapping[str, Sequence[ProjectedPoint]]
+) -> dict[str, tuple[datetime | None, str | None]]:
+    """When each short order's materials are covered, from the projected stock.
+
+    For a shortfall, the order's own allocation drove projected stock below zero at its need
+    time; the order is ready at the first later point where projected stock is back at or above
+    zero (a receipt, since allocations only lower it). Per order the latest of its shortfalls
+    wins. Returns order_id -> (ready_at, None), or (None, material_id) when a material is never
+    covered by a receipt. Orders with no shortfall are absent (ready from the start)."""
+    out: dict[str, tuple[datetime | None, str | None]] = {}
+    for sf in sorted(shortfalls, key=lambda s: (s.order_id, s.material_id)):
+        pts = projection.get(sf.material_id, [])
+        mark = f"allocation:{sf.order_id}"
+        idx = next((i for i, p in enumerate(pts) if p.reason == mark), None)
+        ready = None
+        if idx is not None:
+            ready = next((p.at for p in pts[idx + 1 :] if p.projected >= -EPS), None)
+        cur = out.get(sf.order_id)
+        if ready is None:
+            if cur is None or cur[0] is not None:
+                out[sf.order_id] = (None, sf.material_id)
+        elif cur is None or (cur[0] is not None and ready > cur[0]):
+            out[sf.order_id] = (ready, None)
+    return out
