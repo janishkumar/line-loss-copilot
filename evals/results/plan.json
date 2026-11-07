@@ -1,0 +1,2058 @@
+{
+  "meta": {
+    "date": "2026-11-07T16:57:41+00:00",
+    "git_commit": "4f9c91294f4e",
+    "seeds": [
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "seed_meta": {
+      "7": {
+        "content_sha256": "4b0b07cf42cb27e6be715b107a264ea78fff2a4bc680f66b78691380a3cc0651",
+        "orders": 46,
+        "scheduled": 42,
+        "blocked": 4,
+        "load_factor": 0.8999
+      },
+      "8": {
+        "content_sha256": "b643aa2bc516cb2d1a0bf76a9971a8c3e0fbbd250172ce97b8edf64a2f4764e6",
+        "orders": 46,
+        "scheduled": 42,
+        "blocked": 4,
+        "load_factor": 0.9
+      },
+      "9": {
+        "content_sha256": "729172676fc2b463623ec6be6ba82ebc4dbbb56f29d24ca328124f55aa157c37",
+        "orders": 46,
+        "scheduled": 42,
+        "blocked": 4,
+        "load_factor": 0.8999
+      },
+      "10": {
+        "content_sha256": "e41f44b719fcb58655222eab986d93df8c8c239a14c2486e4b33d8b93caa262a",
+        "orders": 46,
+        "scheduled": 42,
+        "blocked": 4,
+        "load_factor": 0.8999
+      },
+      "11": {
+        "content_sha256": "9bbd2fc70bc68c561a35a998f383522682619c427bf2e0356a6a519ae06d1f5b",
+        "orders": 46,
+        "scheduled": 42,
+        "blocked": 4,
+        "load_factor": 0.9
+      }
+    },
+    "n_windows": 8,
+    "windows": [
+      {
+        "start": "2021-07-01T00:00:00+00:00",
+        "end": "2021-07-15T00:00:00+00:00"
+      },
+      {
+        "start": "2021-07-15T00:00:00+00:00",
+        "end": "2021-07-29T00:00:00+00:00"
+      },
+      {
+        "start": "2021-07-29T00:00:00+00:00",
+        "end": "2021-08-12T00:00:00+00:00"
+      },
+      {
+        "start": "2021-08-12T00:00:00+00:00",
+        "end": "2021-08-26T00:00:00+00:00"
+      },
+      {
+        "start": "2021-08-26T00:00:00+00:00",
+        "end": "2021-09-09T00:00:00+00:00"
+      },
+      {
+        "start": "2021-09-09T00:00:00+00:00",
+        "end": "2021-09-23T00:00:00+00:00"
+      },
+      {
+        "start": "2021-09-23T00:00:00+00:00",
+        "end": "2021-10-07T00:00:00+00:00"
+      },
+      {
+        "start": "2021-10-07T00:00:00+00:00",
+        "end": "2021-10-21T00:00:00+00:00"
+      }
+    ],
+    "cpsat_max_deterministic_time": 60.0,
+    "cpsat_wall_cap_s": 120,
+    "seconds": 150.2,
+    "anchors": {
+      "rates": {
+        "s_1": 4600.0,
+        "s_2": 6500.0,
+        "s_3": 4800.0,
+        "s_4": 6500.0,
+        "s_5": 6500.0
+      },
+      "availability": {
+        "s_1": 0.9001885914322116,
+        "s_2": 0.9037645655367496,
+        "s_3": 0.9378187125344218,
+        "s_4": 0.9532058397115263,
+        "s_5": 0.9684365831344065
+      },
+      "changeover_same_family_min": 12,
+      "changeover_cross_family_min": 19,
+      "cutoff": "2021-07-01T00:00:00+00:00"
+    },
+    "synthetic_orders_real_capacity_real_stops": true
+  },
+  "window_stats": [
+    {
+      "s_1": {
+        "stopped_share": 0.16235119047619048,
+        "no_data_share": 0.10754625744047541
+      },
+      "s_2": {
+        "stopped_share": 0.06711309523809524,
+        "no_data_share": 0.48719408564814837
+      },
+      "s_3": {
+        "stopped_share": 0.05213293650793651,
+        "no_data_share": 0.19146857969576658
+      },
+      "s_4": {
+        "stopped_share": 0.03630952380952381,
+        "no_data_share": 0.19487387896825448
+      },
+      "s_5": {
+        "stopped_share": 0.005753968253968254,
+        "no_data_share": 0.7442705291005286
+      }
+    },
+    {
+      "s_1": {
+        "stopped_share": 0.07514880952380952,
+        "no_data_share": 0.4575640401785708
+      },
+      "s_2": {
+        "stopped_share": 0.058234126984126985,
+        "no_data_share": 0.49210287863756674
+      },
+      "s_3": {
+        "stopped_share": 0.06493055555555556,
+        "no_data_share": 0.18427783978174506
+      },
+      "s_4": {
+        "stopped_share": 0.040674603174603176,
+        "no_data_share": 0.2031957986111127
+      },
+      "s_5": {
+        "stopped_share": 0.0,
+        "no_data_share": 1.0
+      }
+    },
+    {
+      "s_1": {
+        "stopped_share": 0.08953373015873016,
+        "no_data_share": 0.11020191220238074
+      },
+      "s_2": {
+        "stopped_share": 0.05808531746031746,
+        "no_data_share": 0.542636215277778
+      },
+      "s_3": {
+        "stopped_share": 0.029861111111111113,
+        "no_data_share": 0.0880829059193119
+      },
+      "s_4": {
+        "stopped_share": 0.05099206349206349,
+        "no_data_share": 0.2608974768518504
+      },
+      "s_5": {
+        "stopped_share": 0.0,
+        "no_data_share": 1.0
+      }
+    },
+    {
+      "s_1": {
+        "stopped_share": 0.11135912698412699,
+        "no_data_share": 0.08442091517856931
+      },
+      "s_2": {
+        "stopped_share": 0.04627976190476191,
+        "no_data_share": 0.5751679869378306
+      },
+      "s_3": {
+        "stopped_share": 0.02703373015873016,
+        "no_data_share": 0.0679974156746026
+      },
+      "s_4": {
+        "stopped_share": 0.03784722222222222,
+        "no_data_share": 0.1935967294973543
+      },
+      "s_5": {
+        "stopped_share": 0.0,
+        "no_data_share": 1.0
+      }
+    },
+    {
+      "s_1": {
+        "stopped_share": 0.09087301587301587,
+        "no_data_share": 0.08168578207671973
+      },
+      "s_2": {
+        "stopped_share": 0.03933531746031746,
+        "no_data_share": 0.5432210226521169
+      },
+      "s_3": {
+        "stopped_share": 0.0996031746031746,
+        "no_data_share": 0.10910163194444533
+      },
+      "s_4": {
+        "stopped_share": 0.029365079365079365,
+        "no_data_share": 0.22070623842592718
+      },
+      "s_5": {
+        "stopped_share": 0.011954365079365079,
+        "no_data_share": 0.7789914079034396
+      }
+    },
+    {
+      "s_1": {
+        "stopped_share": 0.07857142857142857,
+        "no_data_share": 0.09969232969576702
+      },
+      "s_2": {
+        "stopped_share": 0.060267857142857144,
+        "no_data_share": 0.4711240294312169
+      },
+      "s_3": {
+        "stopped_share": 0.0433531746031746,
+        "no_data_share": 0.10945629216269837
+      },
+      "s_4": {
+        "stopped_share": 0.034523809523809526,
+        "no_data_share": 0.15329687334655973
+      },
+      "s_5": {
+        "stopped_share": 0.03244047619047619,
+        "no_data_share": 0.08056169312169337
+      }
+    },
+    {
+      "s_1": {
+        "stopped_share": 0.08239087301587301,
+        "no_data_share": 0.10092042080026309
+      },
+      "s_2": {
+        "stopped_share": 0.03998015873015873,
+        "no_data_share": 0.45824469328703754
+      },
+      "s_3": {
+        "stopped_share": 0.033581349206349205,
+        "no_data_share": 0.06823058697089979
+      },
+      "s_4": {
+        "stopped_share": 0.021726190476190475,
+        "no_data_share": 0.23644926173941982
+      },
+      "s_5": {
+        "stopped_share": 0.025793650793650792,
+        "no_data_share": 0.05240882771164013
+      }
+    },
+    {
+      "s_1": {
+        "stopped_share": 0.05704365079365079,
+        "no_data_share": 0.4802041906415345
+      },
+      "s_2": {
+        "stopped_share": 0.05173611111111111,
+        "no_data_share": 0.5038138417658733
+      },
+      "s_3": {
+        "stopped_share": 0.043154761904761904,
+        "no_data_share": 0.059832412367725185
+      },
+      "s_4": {
+        "stopped_share": 0.03680555555555556,
+        "no_data_share": 0.16974195353836086
+      },
+      "s_5": {
+        "stopped_share": 0.045436507936507935,
+        "no_data_share": 0.02626459821428695
+      }
+    }
+  ],
+  "cases": {
+    "7": {
+      "fifo": {
+        "nominal": {
+          "late_orders": 8,
+          "total_tardiness_min": 17015,
+          "changeover_min": 456,
+          "makespan": 21750,
+          "makespan_over_horizon": 1590,
+          "orders_after_horizon": 2,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 9,
+            "total_tardiness_min": 18975,
+            "changeover_min": 456,
+            "makespan": 21633,
+            "makespan_over_horizon": 1473,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 15363,
+            "changeover_min": 456,
+            "makespan": 21633,
+            "makespan_over_horizon": 1473,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 16722,
+            "changeover_min": 456,
+            "makespan": 21633,
+            "makespan_over_horizon": 1473,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 17106,
+            "changeover_min": 456,
+            "makespan": 21633,
+            "makespan_over_horizon": 1473,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 15450,
+            "changeover_min": 456,
+            "makespan": 21689,
+            "makespan_over_horizon": 1529,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 15727,
+            "changeover_min": 456,
+            "makespan": 21684,
+            "makespan_over_horizon": 1524,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 14971,
+            "changeover_min": 456,
+            "makespan": 21734,
+            "makespan_over_horizon": 1574,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 14876,
+            "changeover_min": 456,
+            "makespan": 21815,
+            "makespan_over_horizon": 1655,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 17060.6,
+        "bound": null
+      },
+      "edd": {
+        "nominal": {
+          "late_orders": 11,
+          "total_tardiness_min": 13301,
+          "changeover_min": 501,
+          "makespan": 21520,
+          "makespan_over_horizon": 1360,
+          "orders_after_horizon": 2,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 11,
+            "total_tardiness_min": 12004,
+            "changeover_min": 501,
+            "makespan": 21392,
+            "makespan_over_horizon": 1232,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 11573,
+            "changeover_min": 501,
+            "makespan": 21376,
+            "makespan_over_horizon": 1216,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 12198,
+            "changeover_min": 501,
+            "makespan": 21522,
+            "makespan_over_horizon": 1362,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 11621,
+            "changeover_min": 501,
+            "makespan": 21356,
+            "makespan_over_horizon": 1196,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 11366,
+            "changeover_min": 501,
+            "makespan": 21249,
+            "makespan_over_horizon": 1089,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 12483,
+            "changeover_min": 501,
+            "makespan": 21340,
+            "makespan_over_horizon": 1180,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 11730,
+            "changeover_min": 501,
+            "makespan": 21222,
+            "makespan_over_horizon": 1062,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 12657,
+            "changeover_min": 501,
+            "makespan": 21330,
+            "makespan_over_horizon": 1170,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 13351.1,
+        "bound": null
+      },
+      "cpsat": {
+        "nominal": {
+          "late_orders": 3,
+          "total_tardiness_min": 3585,
+          "changeover_min": 315,
+          "makespan": 20505,
+          "makespan_over_horizon": 345,
+          "orders_after_horizon": 1,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 5,
+            "total_tardiness_min": 5850,
+            "changeover_min": 315,
+            "makespan": 20351,
+            "makespan_over_horizon": 191,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 3293,
+            "changeover_min": 315,
+            "makespan": 20394,
+            "makespan_over_horizon": 234,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 3378,
+            "changeover_min": 315,
+            "makespan": 20405,
+            "makespan_over_horizon": 245,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 5,
+            "total_tardiness_min": 3787,
+            "changeover_min": 315,
+            "makespan": 20530,
+            "makespan_over_horizon": 370,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 4,
+            "total_tardiness_min": 3670,
+            "changeover_min": 315,
+            "makespan": 20429,
+            "makespan_over_horizon": 269,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 3383,
+            "changeover_min": 315,
+            "makespan": 20387,
+            "makespan_over_horizon": 227,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 3389,
+            "changeover_min": 315,
+            "makespan": 20418,
+            "makespan_over_horizon": 258,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 3646,
+            "changeover_min": 315,
+            "makespan": 20482,
+            "makespan_over_horizon": 322,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "FEASIBLE",
+        "solver_status": "FEASIBLE",
+        "stop_reason": "deterministic_time",
+        "objective": 3616.5,
+        "bound": 3587.4
+      }
+    },
+    "8": {
+      "fifo": {
+        "nominal": {
+          "late_orders": 8,
+          "total_tardiness_min": 9183,
+          "changeover_min": 416,
+          "makespan": 21017,
+          "makespan_over_horizon": 857,
+          "orders_after_horizon": 2,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 9,
+            "total_tardiness_min": 10565,
+            "changeover_min": 416,
+            "makespan": 20801,
+            "makespan_over_horizon": 641,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 8683,
+            "changeover_min": 416,
+            "makespan": 20839,
+            "makespan_over_horizon": 679,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 7618,
+            "changeover_min": 416,
+            "makespan": 20749,
+            "makespan_over_horizon": 589,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 7809,
+            "changeover_min": 416,
+            "makespan": 20751,
+            "makespan_over_horizon": 591,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 10997,
+            "changeover_min": 416,
+            "makespan": 20808,
+            "makespan_over_horizon": 648,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 8683,
+            "changeover_min": 416,
+            "makespan": 20888,
+            "makespan_over_horizon": 728,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 8137,
+            "changeover_min": 416,
+            "makespan": 20781,
+            "makespan_over_horizon": 621,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 7859,
+            "changeover_min": 416,
+            "makespan": 20774,
+            "makespan_over_horizon": 614,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 9224.6,
+        "bound": null
+      },
+      "edd": {
+        "nominal": {
+          "late_orders": 8,
+          "total_tardiness_min": 9468,
+          "changeover_min": 479,
+          "makespan": 22276,
+          "makespan_over_horizon": 2116,
+          "orders_after_horizon": 3,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 9517,
+            "changeover_min": 479,
+            "makespan": 21939,
+            "makespan_over_horizon": 1779,
+            "orders_after_horizon": 4,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 9,
+            "total_tardiness_min": 8693,
+            "changeover_min": 479,
+            "makespan": 21977,
+            "makespan_over_horizon": 1817,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 8270,
+            "changeover_min": 479,
+            "makespan": 21887,
+            "makespan_over_horizon": 1727,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 8365,
+            "changeover_min": 479,
+            "makespan": 21889,
+            "makespan_over_horizon": 1729,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 9,
+            "total_tardiness_min": 10121,
+            "changeover_min": 479,
+            "makespan": 21946,
+            "makespan_over_horizon": 1786,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 8349,
+            "changeover_min": 479,
+            "makespan": 22026,
+            "makespan_over_horizon": 1866,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 8176,
+            "changeover_min": 479,
+            "makespan": 21919,
+            "makespan_over_horizon": 1759,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 7866,
+            "changeover_min": 479,
+            "makespan": 21912,
+            "makespan_over_horizon": 1752,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 9515.9,
+        "bound": null
+      },
+      "cpsat": {
+        "nominal": {
+          "late_orders": 2,
+          "total_tardiness_min": 4353,
+          "changeover_min": 301,
+          "makespan": 20160,
+          "makespan_over_horizon": 0,
+          "orders_after_horizon": 0,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 2,
+            "total_tardiness_min": 5156,
+            "changeover_min": 301,
+            "makespan": 20289,
+            "makespan_over_horizon": 129,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 2,
+            "total_tardiness_min": 4572,
+            "changeover_min": 301,
+            "makespan": 20105,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 2,
+            "total_tardiness_min": 4335,
+            "changeover_min": 301,
+            "makespan": 20105,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 2,
+            "total_tardiness_min": 4251,
+            "changeover_min": 301,
+            "makespan": 20105,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 5404,
+            "changeover_min": 301,
+            "makespan": 20161,
+            "makespan_over_horizon": 1,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 2,
+            "total_tardiness_min": 4263,
+            "changeover_min": 301,
+            "makespan": 20142,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 2,
+            "total_tardiness_min": 4324,
+            "changeover_min": 301,
+            "makespan": 20158,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 4457,
+            "changeover_min": 301,
+            "makespan": 20275,
+            "makespan_over_horizon": 115,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "FEASIBLE",
+        "solver_status": "FEASIBLE",
+        "stop_reason": "deterministic_time",
+        "objective": 4383.1,
+        "bound": 2881.2
+      }
+    },
+    "9": {
+      "fifo": {
+        "nominal": {
+          "late_orders": 10,
+          "total_tardiness_min": 18572,
+          "changeover_min": 373,
+          "makespan": 20017,
+          "makespan_over_horizon": 0,
+          "orders_after_horizon": 0,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 21606,
+            "changeover_min": 373,
+            "makespan": 20566,
+            "makespan_over_horizon": 406,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 17247,
+            "changeover_min": 373,
+            "makespan": 20029,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 17199,
+            "changeover_min": 373,
+            "makespan": 19677,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 11,
+            "total_tardiness_min": 16494,
+            "changeover_min": 373,
+            "makespan": 19609,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 17931,
+            "changeover_min": 373,
+            "makespan": 20728,
+            "makespan_over_horizon": 568,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 17210,
+            "changeover_min": 373,
+            "makespan": 19788,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 9,
+            "total_tardiness_min": 15525,
+            "changeover_min": 373,
+            "makespan": 19624,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 15992,
+            "changeover_min": 373,
+            "makespan": 19711,
+            "makespan_over_horizon": 0,
+            "orders_after_horizon": 0,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 18609.3,
+        "bound": null
+      },
+      "edd": {
+        "nominal": {
+          "late_orders": 14,
+          "total_tardiness_min": 16235,
+          "changeover_min": 444,
+          "makespan": 20647,
+          "makespan_over_horizon": 487,
+          "orders_after_horizon": 3,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 16610,
+            "changeover_min": 444,
+            "makespan": 21000,
+            "makespan_over_horizon": 840,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 12,
+            "total_tardiness_min": 13768,
+            "changeover_min": 444,
+            "makespan": 20598,
+            "makespan_over_horizon": 438,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 12,
+            "total_tardiness_min": 13475,
+            "changeover_min": 444,
+            "makespan": 20248,
+            "makespan_over_horizon": 88,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 11,
+            "total_tardiness_min": 13261,
+            "changeover_min": 444,
+            "makespan": 20180,
+            "makespan_over_horizon": 20,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 15874,
+            "changeover_min": 444,
+            "makespan": 21278,
+            "makespan_over_horizon": 1118,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 13749,
+            "changeover_min": 444,
+            "makespan": 20359,
+            "makespan_over_horizon": 199,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 11,
+            "total_tardiness_min": 12806,
+            "changeover_min": 444,
+            "makespan": 20348,
+            "makespan_over_horizon": 188,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 11,
+            "total_tardiness_min": 12601,
+            "changeover_min": 444,
+            "makespan": 20407,
+            "makespan_over_horizon": 247,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 16279.4,
+        "bound": null
+      },
+      "cpsat": {
+        "nominal": {
+          "late_orders": 9,
+          "total_tardiness_min": 12409,
+          "changeover_min": 387,
+          "makespan": 20647,
+          "makespan_over_horizon": 487,
+          "orders_after_horizon": 1,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 13461,
+            "changeover_min": 387,
+            "makespan": 20270,
+            "makespan_over_horizon": 110,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 12017,
+            "changeover_min": 387,
+            "makespan": 20299,
+            "makespan_over_horizon": 139,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 8,
+            "total_tardiness_min": 11266,
+            "changeover_min": 387,
+            "makespan": 20248,
+            "makespan_over_horizon": 88,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 11147,
+            "changeover_min": 387,
+            "makespan": 20180,
+            "makespan_over_horizon": 20,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 12265,
+            "changeover_min": 387,
+            "makespan": 20232,
+            "makespan_over_horizon": 72,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 11668,
+            "changeover_min": 387,
+            "makespan": 20359,
+            "makespan_over_horizon": 199,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 11231,
+            "changeover_min": 387,
+            "makespan": 20195,
+            "makespan_over_horizon": 35,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 7,
+            "total_tardiness_min": 11548,
+            "changeover_min": 387,
+            "makespan": 20282,
+            "makespan_over_horizon": 122,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "FEASIBLE",
+        "solver_status": "FEASIBLE",
+        "stop_reason": "deterministic_time",
+        "objective": 12447.7,
+        "bound": 2882.4
+      }
+    },
+    "10": {
+      "fifo": {
+        "nominal": {
+          "late_orders": 11,
+          "total_tardiness_min": 19384,
+          "changeover_min": 486,
+          "makespan": 22109,
+          "makespan_over_horizon": 1949,
+          "orders_after_horizon": 5,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 21752,
+            "changeover_min": 486,
+            "makespan": 23110,
+            "makespan_over_horizon": 2950,
+            "orders_after_horizon": 6,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 9,
+            "total_tardiness_min": 17468,
+            "changeover_min": 486,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 9,
+            "total_tardiness_min": 16872,
+            "changeover_min": 486,
+            "makespan": 21816,
+            "makespan_over_horizon": 1656,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 9,
+            "total_tardiness_min": 17665,
+            "changeover_min": 486,
+            "makespan": 22086,
+            "makespan_over_horizon": 1926,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 11,
+            "total_tardiness_min": 21105,
+            "changeover_min": 486,
+            "makespan": 21934,
+            "makespan_over_horizon": 1774,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 17199,
+            "changeover_min": 486,
+            "makespan": 21610,
+            "makespan_over_horizon": 1450,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 16880,
+            "changeover_min": 486,
+            "makespan": 21672,
+            "makespan_over_horizon": 1512,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 9,
+            "total_tardiness_min": 15890,
+            "changeover_min": 486,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 19432.6,
+        "bound": null
+      },
+      "edd": {
+        "nominal": {
+          "late_orders": 4,
+          "total_tardiness_min": 4205,
+          "changeover_min": 406,
+          "makespan": 21600,
+          "makespan_over_horizon": 1440,
+          "orders_after_horizon": 2,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 4,
+            "total_tardiness_min": 4569,
+            "changeover_min": 406,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 3527,
+            "changeover_min": 406,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 3598,
+            "changeover_min": 406,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 4,
+            "total_tardiness_min": 3624,
+            "changeover_min": 406,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 4,
+            "total_tardiness_min": 3610,
+            "changeover_min": 406,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 3616,
+            "changeover_min": 406,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 4,
+            "total_tardiness_min": 3617,
+            "changeover_min": 406,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 4,
+            "total_tardiness_min": 3777,
+            "changeover_min": 406,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 4245.6,
+        "bound": null
+      },
+      "cpsat": {
+        "nominal": {
+          "late_orders": 2,
+          "total_tardiness_min": 2880,
+          "changeover_min": 244,
+          "makespan": 21600,
+          "makespan_over_horizon": 1440,
+          "orders_after_horizon": 1,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 4,
+            "total_tardiness_min": 4724,
+            "changeover_min": 244,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 2728,
+            "changeover_min": 244,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 2747,
+            "changeover_min": 244,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 4,
+            "total_tardiness_min": 3070,
+            "changeover_min": 244,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 4,
+            "total_tardiness_min": 3458,
+            "changeover_min": 244,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 2,
+            "total_tardiness_min": 2701,
+            "changeover_min": 244,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 2759,
+            "changeover_min": 244,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 1,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 3,
+            "total_tardiness_min": 2836,
+            "changeover_min": 244,
+            "makespan": 21434,
+            "makespan_over_horizon": 1274,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "FEASIBLE",
+        "solver_status": "FEASIBLE",
+        "stop_reason": "deterministic_time",
+        "objective": 2904.4,
+        "bound": 2882.4
+      }
+    },
+    "11": {
+      "fifo": {
+        "nominal": {
+          "late_orders": 14,
+          "total_tardiness_min": 23507,
+          "changeover_min": 473,
+          "makespan": 22354,
+          "makespan_over_horizon": 2194,
+          "orders_after_horizon": 4,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 14,
+            "total_tardiness_min": 24099,
+            "changeover_min": 473,
+            "makespan": 22021,
+            "makespan_over_horizon": 1861,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 20903,
+            "changeover_min": 473,
+            "makespan": 22279,
+            "makespan_over_horizon": 2119,
+            "orders_after_horizon": 4,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 14,
+            "total_tardiness_min": 21688,
+            "changeover_min": 473,
+            "makespan": 21783,
+            "makespan_over_horizon": 1623,
+            "orders_after_horizon": 4,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 14,
+            "total_tardiness_min": 21160,
+            "changeover_min": 473,
+            "makespan": 21783,
+            "makespan_over_horizon": 1623,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 14,
+            "total_tardiness_min": 23200,
+            "changeover_min": 473,
+            "makespan": 22978,
+            "makespan_over_horizon": 2818,
+            "orders_after_horizon": 4,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 14,
+            "total_tardiness_min": 21499,
+            "changeover_min": 473,
+            "makespan": 21871,
+            "makespan_over_horizon": 1711,
+            "orders_after_horizon": 4,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 14,
+            "total_tardiness_min": 19593,
+            "changeover_min": 473,
+            "makespan": 21886,
+            "makespan_over_horizon": 1726,
+            "orders_after_horizon": 4,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 20017,
+            "changeover_min": 473,
+            "makespan": 21971,
+            "makespan_over_horizon": 1811,
+            "orders_after_horizon": 4,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 23554.3,
+        "bound": null
+      },
+      "edd": {
+        "nominal": {
+          "late_orders": 13,
+          "total_tardiness_min": 26155,
+          "changeover_min": 435,
+          "makespan": 23618,
+          "makespan_over_horizon": 3458,
+          "orders_after_horizon": 7,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 26498,
+            "changeover_min": 435,
+            "makespan": 23056,
+            "makespan_over_horizon": 2896,
+            "orders_after_horizon": 6,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 23748,
+            "changeover_min": 435,
+            "makespan": 23067,
+            "makespan_over_horizon": 2907,
+            "orders_after_horizon": 6,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 22681,
+            "changeover_min": 435,
+            "makespan": 23034,
+            "makespan_over_horizon": 2874,
+            "orders_after_horizon": 6,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 22864,
+            "changeover_min": 435,
+            "makespan": 22966,
+            "makespan_over_horizon": 2806,
+            "orders_after_horizon": 6,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 27000,
+            "changeover_min": 435,
+            "makespan": 23222,
+            "makespan_over_horizon": 3062,
+            "orders_after_horizon": 7,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 23894,
+            "changeover_min": 435,
+            "makespan": 23129,
+            "makespan_over_horizon": 2969,
+            "orders_after_horizon": 6,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 22524,
+            "changeover_min": 435,
+            "makespan": 22981,
+            "makespan_over_horizon": 2821,
+            "orders_after_horizon": 6,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 13,
+            "total_tardiness_min": 22404,
+            "changeover_min": 435,
+            "makespan": 23068,
+            "makespan_over_horizon": 2908,
+            "orders_after_horizon": 5,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "heuristic",
+        "solver_status": null,
+        "stop_reason": null,
+        "objective": 26198.5,
+        "bound": null
+      },
+      "cpsat": {
+        "nominal": {
+          "late_orders": 10,
+          "total_tardiness_min": 18006,
+          "changeover_min": 380,
+          "makespan": 22407,
+          "makespan_over_horizon": 2247,
+          "orders_after_horizon": 4,
+          "scheduled_orders": 42,
+          "blocked_orders": 4
+        },
+        "replays": [
+          {
+            "late_orders": 11,
+            "total_tardiness_min": 17178,
+            "changeover_min": 380,
+            "makespan": 22121,
+            "makespan_over_horizon": 1961,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 15605,
+            "changeover_min": 380,
+            "makespan": 22551,
+            "makespan_over_horizon": 2391,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 13766,
+            "changeover_min": 380,
+            "makespan": 21760,
+            "makespan_over_horizon": 1600,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 13728,
+            "changeover_min": 380,
+            "makespan": 21774,
+            "makespan_over_horizon": 1614,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 17979,
+            "changeover_min": 380,
+            "makespan": 23234,
+            "makespan_over_horizon": 3074,
+            "orders_after_horizon": 3,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 14621,
+            "changeover_min": 380,
+            "makespan": 22087,
+            "makespan_over_horizon": 1927,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 13571,
+            "changeover_min": 380,
+            "makespan": 21829,
+            "makespan_over_horizon": 1669,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          },
+          {
+            "late_orders": 10,
+            "total_tardiness_min": 13989,
+            "changeover_min": 380,
+            "makespan": 22008,
+            "makespan_over_horizon": 1848,
+            "orders_after_horizon": 2,
+            "scheduled_orders": 42,
+            "blocked_orders": 4
+          }
+        ],
+        "status": "FEASIBLE",
+        "solver_status": "FEASIBLE",
+        "stop_reason": "deterministic_time",
+        "objective": 18044.0,
+        "bound": 2882.4
+      }
+    }
+  },
+  "nominal": {
+    "cpsat": {
+      "late_orders": {
+        "median": 3.0,
+        "q1": 2.0,
+        "q3": 9.0,
+        "iqr": 7.0,
+        "n": 5
+      },
+      "total_tardiness_min": {
+        "median": 4353.0,
+        "q1": 3585.0,
+        "q3": 12409.0,
+        "iqr": 8824.0,
+        "n": 5
+      },
+      "changeover_min": {
+        "median": 315.0,
+        "q1": 301.0,
+        "q3": 380.0,
+        "iqr": 79.0,
+        "n": 5
+      },
+      "orders_after_horizon": {
+        "median": 1.0,
+        "q1": 1.0,
+        "q3": 1.0,
+        "iqr": 0.0,
+        "n": 5
+      }
+    },
+    "edd": {
+      "late_orders": {
+        "median": 11.0,
+        "q1": 8.0,
+        "q3": 13.0,
+        "iqr": 5.0,
+        "n": 5
+      },
+      "total_tardiness_min": {
+        "median": 13301.0,
+        "q1": 9468.0,
+        "q3": 16235.0,
+        "iqr": 6767.0,
+        "n": 5
+      },
+      "changeover_min": {
+        "median": 444.0,
+        "q1": 435.0,
+        "q3": 479.0,
+        "iqr": 44.0,
+        "n": 5
+      },
+      "orders_after_horizon": {
+        "median": 3.0,
+        "q1": 2.0,
+        "q3": 3.0,
+        "iqr": 1.0,
+        "n": 5
+      }
+    },
+    "fifo": {
+      "late_orders": {
+        "median": 10.0,
+        "q1": 8.0,
+        "q3": 11.0,
+        "iqr": 3.0,
+        "n": 5
+      },
+      "total_tardiness_min": {
+        "median": 18572.0,
+        "q1": 17015.0,
+        "q3": 19384.0,
+        "iqr": 2369.0,
+        "n": 5
+      },
+      "changeover_min": {
+        "median": 456.0,
+        "q1": 416.0,
+        "q3": 473.0,
+        "iqr": 57.0,
+        "n": 5
+      },
+      "orders_after_horizon": {
+        "median": 2.0,
+        "q1": 2.0,
+        "q3": 4.0,
+        "iqr": 2.0,
+        "n": 5
+      }
+    }
+  },
+  "replayed": {
+    "cpsat": {
+      "late_orders": {
+        "median": 4.0,
+        "q1": 3.0,
+        "q3": 7.0,
+        "iqr": 4.0,
+        "n": 40
+      },
+      "total_tardiness_min": {
+        "median": 4648.0,
+        "q1": 3440.75,
+        "q3": 12079.0,
+        "iqr": 8638.25,
+        "n": 40
+      },
+      "changeover_min": {
+        "median": 315.0,
+        "q1": 301.0,
+        "q3": 380.0,
+        "iqr": 79.0,
+        "n": 40
+      },
+      "orders_after_horizon": {
+        "median": 1.0,
+        "q1": 1.0,
+        "q3": 2.0,
+        "iqr": 1.0,
+        "n": 40
+      }
+    },
+    "edd": {
+      "late_orders": {
+        "median": 10.0,
+        "q1": 7.75,
+        "q3": 13.0,
+        "iqr": 5.25,
+        "n": 40
+      },
+      "total_tardiness_min": {
+        "median": 11867.0,
+        "q1": 8246.5,
+        "q3": 14294.5,
+        "iqr": 6048.0,
+        "n": 40
+      },
+      "changeover_min": {
+        "median": 444.0,
+        "q1": 435.0,
+        "q3": 479.0,
+        "iqr": 44.0,
+        "n": 40
+      },
+      "orders_after_horizon": {
+        "median": 3.0,
+        "q1": 2.0,
+        "q3": 3.0,
+        "iqr": 1.0,
+        "n": 40
+      }
+    },
+    "fifo": {
+      "late_orders": {
+        "median": 9.0,
+        "q1": 8.0,
+        "q3": 11.0,
+        "iqr": 3.0,
+        "n": 40
+      },
+      "total_tardiness_min": {
+        "median": 16993.0,
+        "q1": 15265.0,
+        "q3": 19699.0,
+        "iqr": 4434.0,
+        "n": 40
+      },
+      "changeover_min": {
+        "median": 456.0,
+        "q1": 416.0,
+        "q3": 473.0,
+        "iqr": 57.0,
+        "n": 40
+      },
+      "orders_after_horizon": {
+        "median": 2.0,
+        "q1": 2.0,
+        "q3": 4.25,
+        "iqr": 2.25,
+        "n": 40
+      }
+    }
+  },
+  "solver": {
+    "status": {
+      "feasible": 5
+    },
+    "stop_reason": {
+      "deterministic_time": 5
+    },
+    "n": 5
+  },
+  "paired": {
+    "cpsat_vs_edd_nominal_total_tardiness_min": {
+      "n": 5,
+      "better": 5,
+      "equal": 0,
+      "worse": 0,
+      "share_better": 1.0,
+      "share_not_worse": 1.0,
+      "median_diff": -5115,
+      "mean_diff": -5626.2
+    },
+    "cpsat_vs_edd_nominal_late_orders": {
+      "n": 5,
+      "better": 5,
+      "equal": 0,
+      "worse": 0,
+      "share_better": 1.0,
+      "share_not_worse": 1.0,
+      "median_diff": -5,
+      "mean_diff": -4.8
+    },
+    "cpsat_vs_edd_replayed_total_tardiness_min": {
+      "n": 40,
+      "better": 39,
+      "equal": 0,
+      "worse": 1,
+      "share_better": 0.975,
+      "share_not_worse": 0.975,
+      "median_diff": -4100.0,
+      "mean_diff": -4786.575
+    },
+    "cpsat_vs_edd_replayed_late_orders": {
+      "n": 40,
+      "better": 35,
+      "equal": 5,
+      "worse": 0,
+      "share_better": 0.875,
+      "share_not_worse": 1.0,
+      "median_diff": -4.0,
+      "mean_diff": -4.075
+    },
+    "cpsat_vs_fifo_nominal_total_tardiness_min": {
+      "n": 5,
+      "better": 5,
+      "equal": 0,
+      "worse": 0,
+      "share_better": 1.0,
+      "share_not_worse": 1.0,
+      "median_diff": -6163,
+      "mean_diff": -9285.6
+    },
+    "cpsat_vs_fifo_nominal_late_orders": {
+      "n": 5,
+      "better": 5,
+      "equal": 0,
+      "worse": 0,
+      "share_better": 1.0,
+      "share_not_worse": 1.0,
+      "median_diff": -5,
+      "mean_diff": -5.0
+    },
+    "cpsat_vs_fifo_replayed_total_tardiness_min": {
+      "n": 40,
+      "better": 40,
+      "equal": 0,
+      "worse": 0,
+      "share_better": 1.0,
+      "share_not_worse": 1.0,
+      "median_diff": -6899.5,
+      "mean_diff": -8712.85
+    },
+    "cpsat_vs_fifo_replayed_late_orders": {
+      "n": 40,
+      "better": 40,
+      "equal": 0,
+      "worse": 0,
+      "share_better": 1.0,
+      "share_not_worse": 1.0,
+      "median_diff": -5.0,
+      "mean_diff": -4.675
+    }
+  }
+}

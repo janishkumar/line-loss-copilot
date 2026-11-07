@@ -614,7 +614,10 @@ def plan_section(results: Path) -> str:
         f"{pe['worse']}, median difference {_pn(pe['median_diff'])} min. Changeover minutes are "
         "work minutes, so replaying leaves them unchanged. A nominal plan is built at rate x "
         "planning availability while the replay runs at the nominal rate with explicit stops, "
-        "so nominal and replayed figures are different quantities, not before and after.",
+        "so nominal and replayed figures are different quantities, not before and after. FEASIBLE "
+        "means CP-SAT stopped at its limit with a solution and no optimality proof. FIFO and EDD "
+        "are greedy list schedules that pick the machine with the earliest finish and ignore "
+        "changeovers when ordering jobs, so part of CP-SAT's lead is a weak baseline.",
         "",
         gap_sentence(doc)
         + " A gap is replayed as no stops, so a machine with gaps looks more reliable than it "

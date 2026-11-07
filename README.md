@@ -231,6 +231,22 @@ Decoys flagged: detector 0 of 4, naive rule 4 of 4. Flags outside the planted ca
 ### Schedule and replay
 
 <!-- plan:start -->
+**Synthetic orders on real capacity and real stops.** Orders, BOMs, stock and receipts are synthetic (seeds 7, 8, 9, 10, 11, regenerated in memory per seed). Machine rates, availability and changeover minutes are anchored to real data from before 2021-07-01. Each plan is then replayed against real PIADE stops in 8 non-overlapping 14-day windows from 2021-07-01: the same machines and sequence, processing at the nominal rate, setup and processing frozen while a machine is stopped. CP-SAT runs one worker with a deterministic limit of 60 and a 120 s wall cap. This compares schedulers on a generator, not what a plant would gain.
+
+| Measure, median (q1 to q3) | Basis | cpsat | edd | fifo |
+|---|---|---|---|---|
+| Late orders | nominal, n=5 | 3 (2 to 9) | 11 (8 to 13) | 10 (8 to 11) |
+| Late orders | replayed, n=40 | 4 (3 to 7) | 10 (7.8 to 13) | 9 (8 to 11) |
+| Total tardiness (min) | nominal, n=5 | 4353 (3585 to 12409) | 13301 (9468 to 16235) | 18572 (17015 to 19384) |
+| Total tardiness (min) | replayed, n=40 | 4648 (3440.8 to 12079) | 11867 (8246.5 to 14294.5) | 16993 (15265 to 19699) |
+| Changeover (min) | nominal, n=5 | 315 (301 to 380) | 444 (435 to 479) | 456 (416 to 473) |
+| Changeover (min) | replayed, n=40 | 315 (301 to 380) | 444 (435 to 479) | 456 (416 to 473) |
+| Orders finishing after the 14-day horizon | nominal, n=5 | 1 (1 to 1) | 3 (2 to 3) | 2 (2 to 4) |
+| Orders finishing after the 14-day horizon | replayed, n=40 | 1 (1 to 2) | 3 (2 to 3) | 2 (2 to 4.2) |
+
+CP-SAT outcome over 5 instances: feasible 5; stopped by deterministic_time 5. Paired CP-SAT minus EDD total tardiness: nominal, lower in 5 of 5 seeds; replayed, lower in 39 of 40 seed x window cases (98%), equal in 0, higher in 1, median difference -4100 min. Changeover minutes are work minutes, so replaying leaves them unchanged. A nominal plan is built at rate x planning availability while the replay runs at the nominal rate with explicit stops, so nominal and replayed figures are different quantities, not before and after. FEASIBLE means CP-SAT stopped at its limit with a solution and no optimality proof. FIFO and EDD are greedy list schedules that pick the machine with the earliest finish and ignore changeovers when ordering jobs, so part of CP-SAT's lead is a weak baseline.
+
+Data gaps matter. Share of a window with no PIADE data: s_1: no data at all in 0 of 8 windows, median no-data share 11%; s_2: no data at all in 0 of 8 windows, median no-data share 50%; s_3: no data at all in 0 of 8 windows, median no-data share 11%; s_4: no data at all in 0 of 8 windows, median no-data share 20%; s_5: no data at all in 3 of 8 windows, median no-data share 78%. A gap is replayed as no stops, so a machine with gaps looks more reliable than it was. The realised stopped share and the no-data share of every window and machine are in [evals/results/plan.md](evals/results/plan.md), next to the stopped share planning used. Regenerate with `make eval-plan`, then `make report`; `make plan` stores the live generation's plans and replays in `plan.*`.
 <!-- plan:end -->
 
 ## Assumptions
