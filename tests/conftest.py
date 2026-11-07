@@ -45,16 +45,27 @@ def dbt_env(url: str) -> dict[str, str]:
     }
 
 
+def copy_fixtures(root: Path) -> Path:
+    """Lay the fixture files out under root/raw as the loader expects; returns root."""
+    for dest, src in LAYOUT.items():
+        target = root / "raw" / dest
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(FIX / src, target)
+    return root
+
+
 @pytest.fixture(scope="session")
-def built(tmp_path_factory):
+def make_data_dir(tmp_path_factory):
+    """Factory: a fresh data dir holding a copy of the fixture files."""
+    return lambda: copy_fixtures(tmp_path_factory.mktemp("data"))
+
+
+@pytest.fixture(scope="session")
+def built(make_data_dir):
     url = os.environ.get("LINECOPILOT_TEST_DB_URL")
     if not url:
         pytest.skip("LINECOPILOT_TEST_DB_URL is not set")
-    data_dir = tmp_path_factory.mktemp("data")
-    for dest, src in LAYOUT.items():
-        target = data_dir / "raw" / dest
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(FIX / src, target)
+    data_dir = make_data_dir()
     with psycopg.connect(url) as conn:
         for schema in ("raw", "core", "staging", "mart"):
             conn.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")

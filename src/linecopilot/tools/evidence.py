@@ -7,7 +7,7 @@ from typing import Any, Self
 import psycopg
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from linecopilot.tools.common import BRICK_EVIDENCE, RAW_TABLES, citations_from_events, rows
+from linecopilot.tools.common import BRICK_EVIDENCE, RAW_TABLES, rows
 from linecopilot.tools.envelope import Citation, CitationRef, Result, cap_citations
 
 EVIDENCE_CAP = 5000  # events per shift; a shift holds far fewer (PIADE: tens to hundreds)
@@ -23,6 +23,9 @@ class SourceData(BaseModel):
     raw_table: str
     source_file: str
     rows: list[dict[str, Any]]
+    missing_rows: list[CitationRef] = Field(
+        default_factory=list, description="the event's raw rows not found in the raw tables"
+    )
 
 
 class EvidenceRow(BaseModel):
@@ -81,6 +84,17 @@ def _ref_text(k: Key) -> str:
     return f"{k[0]} {k[1]} row {k[2]}"
 
 
+def _refs(keys: list[Key]) -> list[CitationRef]:
+    return [CitationRef(raw_table=t, source_file=f, raw_row_id=i) for t, f, i in keys]
+
+
+def _missing_note(lost: list[Key], field: str) -> str:
+    return (
+        f"{len(lost)} cited raw row(s) not found in the raw tables: "
+        f"{'; '.join(_ref_text(k) for k in lost)}. They are listed in data.{field}."
+    )
+
+
 def fetch_raw(conn, keys: list[Key]) -> dict[Key, dict[str, Any]]:
     """Raw rows for the given (raw_table, source_file, source_row) keys, as loaded. Keys on
     a table outside RAW_TABLES are never queried and come back absent."""
@@ -110,29 +124,42 @@ def event_rows(conn, event_ids: list[int]) -> list[dict[str, Any]]:
 
 
 def event_source(conn: psycopg.Connection, event_id: int) -> Result[SourceData]:
-    """One event and its raw rows (route /api/events/{event_id}/source)."""
+    """One event and its raw rows (route /api/events/{event_id}/source). Raw rows the event
+    points at but that are absent are reported in data.missing_rows, never cited."""
     found = event_rows(conn, [event_id])
     if not found:
         return Result(status="out_of_scope", missing=f"no event with id {event_id}")
     ev = found[0]
-    raw = fetch_raw(conn, [(ev["raw_table"], ev["source_file"], i) for i in ev["raw_row_ids"]])
-    if not raw:
-        return Result(
-            status="insufficient_evidence",
-            missing=f"event {event_id} points at rows not found in {ev['raw_table']}",
-        )
+    keys = [(ev["raw_table"], ev["source_file"], i) for i in ev["raw_row_ids"]]
+    raw = fetch_raw(conn, keys)
+    lost = [k for k in keys if k not in raw]
+    assumptions = ["Raw rows are shown as loaded (text columns), with source_row."]
+    if lost:
+        assumptions.append(_missing_note(lost, "missing_rows"))
+    data = SourceData(
+        event_id=ev["event_id"],
+        event_key=ev["event_key"],
+        raw_table=ev["raw_table"],
+        source_file=ev["source_file"],
+        rows=[raw[k] for k in keys if k in raw],
+        missing_rows=_refs(lost),
+    )
+    cites, total = cap_citations(
+        [
+            Citation(raw_table=k[0], source_file=k[1], raw_row_id=k[2], event_id=event_id)
+            for k in keys
+            if k in raw
+        ]
+    )
     return Result(
-        status="ok",
-        data=SourceData(
-            event_id=ev["event_id"],
-            event_key=ev["event_key"],
-            raw_table=ev["raw_table"],
-            source_file=ev["source_file"],
-            rows=[raw[k] for k in sorted(raw, key=lambda k: k[2])],
-        ),
-        citations=citations_from_events([ev]),
-        citation_count=len(raw),
-        assumptions=["Raw rows are shown as loaded (text columns), with source_row."],
+        status="ok" if data.rows else "insufficient_evidence",
+        data=data,
+        citations=cites,
+        citation_count=total,
+        assumptions=assumptions,
+        missing=None
+        if data.rows
+        else f"event {event_id} points at rows not found in {ev['raw_table']}",
     )
 
 
@@ -159,7 +186,7 @@ def get_source_rows(conn: psycopg.Connection, args: GetSourceRowsArgs) -> Result
     lost = [k for k in wanted if k not in raw]
     data = SourceRowsData(
         rows=found,
-        not_found=[CitationRef(raw_table=t, source_file=f, raw_row_id=i) for t, f, i in lost],
+        not_found=_refs(lost),
         not_found_event_ids=lost_events,
     )
     gaps = [_ref_text(k) for k in lost] + [f"event {i}" for i in lost_events]
@@ -233,7 +260,6 @@ def shift_evidence(conn: psycopg.Connection, args: ShiftEvidenceArgs) -> Result[
                 )
             else:
                 lost.append(k)
-    missing_rows = [CitationRef(raw_table=t, source_file=f, raw_row_id=i) for t, f, i in lost]
     assumptions = [
         AS_LOADED,
         (
@@ -246,27 +272,9 @@ def shift_evidence(conn: psycopg.Connection, args: ShiftEvidenceArgs) -> Result[
     if truncated:
         assumptions.append(f"Showing the first {EVIDENCE_CAP} of {n_events} events.")
     if lost:
-        assumptions.append(
-            f"{len(lost)} cited raw row(s) not found in the raw tables: "
-            f"{'; '.join(_ref_text(k) for k in lost)}. They are listed in data.missing_rows."
-        )
-    if not out:
-        return Result(
-            status="insufficient_evidence",
-            assumptions=assumptions,
-            missing=f"the raw rows behind shift {shift_id} were not found",
-        )
-    return Result(
-        status="ok",
-        data=ShiftEvidenceData(
-            shift_id=shift_id,
-            source_system=system,
-            rows=out,
-            event_count=n_events,
-            truncated=truncated,
-            missing_rows=missing_rows,
-        ),
-        citations=[
+        assumptions.append(_missing_note(lost, "missing_rows"))
+    cites, total = cap_citations(
+        [
             Citation(
                 raw_table=r.raw_table,
                 source_file=r.source_file,
@@ -274,7 +282,20 @@ def shift_evidence(conn: psycopg.Connection, args: ShiftEvidenceArgs) -> Result[
                 event_id=r.event_id,
             )
             for r in out
-        ],
-        citation_count=n_events,
+        ]
+    )
+    return Result(
+        status="ok" if out else "insufficient_evidence",
+        data=ShiftEvidenceData(
+            shift_id=shift_id,
+            source_system=system,
+            rows=out,
+            event_count=n_events,
+            truncated=truncated,
+            missing_rows=_refs(lost),
+        ),
+        citations=cites,
+        citation_count=total,
         assumptions=assumptions,
+        missing=None if out else f"the raw rows behind shift {shift_id} were not found",
     )

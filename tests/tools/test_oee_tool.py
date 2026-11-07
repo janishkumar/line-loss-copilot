@@ -118,3 +118,55 @@ def test_get_oee_empty_window_insufficient(built):
     assert r.status == "insufficient_evidence" and r.data is None
     assert "2020-01-02" in r.missing and "coverage is" in r.missing
     assert r.window.machine_id == "s_3" and r.window.group == "shift"
+
+
+def test_default_window_keeps_first_shift(built):
+    # s_1's first event (12:00) falls inside the 06:00 shift; a default window must start at
+    # that shift's start, not at the first event, or the shift is dropped.
+    (first_shift,) = built.execute(
+        "SELECT s.shift_id FROM core.shift s JOIN core.line l USING (line_id)"
+        " WHERE l.line_id = 's_1' AND s.shift_start <= l.first_ts AND l.first_ts < s.shift_end"
+    ).fetchone()
+    r = get_oee(built, GetOeeArgs(machine_id="s_1"))
+    assert first_shift in {row.key for row in r.data.rows}
+    (lo,) = built.execute(
+        "SELECT min(shift_start) FROM core.shift WHERE line_id = 's_1'"
+    ).fetchone()
+    assert r.window.start == lo
+    day = get_oee(built, GetOeeArgs(machine_id="s_1", group="day"))
+    month = get_oee(built, GetOeeArgs(machine_id="s_1", group="month"))
+    assert day.citation_count == month.citation_count == r.citation_count
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {"line_id": "brick"},
+        {"line_id": "brick", "group": "month"},
+        {"machine_id": "s_1", "group": "day"},
+        {"machine_id": "s_3", "group": "month"},
+    ],
+)
+def test_citation_count_is_distinct_raw_rows(built, args):
+    r = get_oee(built, GetOeeArgs(**args))
+    brick = args.get("line_id") == "brick"
+    extra = (
+        " AND (e.event_type = 'production_count' OR e.stop_type <> 'Planned - Not included in OEE')"
+        if brick
+        else ""
+    )
+    events = built.execute(
+        "SELECT event_id FROM core.event e WHERE e.event_id = ANY(%s)",
+        ([c.event_id for row in r.data.rows for c in row.citations],),
+    ).fetchall()
+    assert events
+    # every row's shifts, recovered from its cited events, give the distinct raw-row total
+    (n,) = built.execute(
+        "SELECT count(DISTINCT (e.raw_table, e.source_file, rid)) FROM core.event e,"
+        " unnest(e.raw_row_ids) rid WHERE e.shift_id IN (SELECT shift_id FROM core.event"
+        f" WHERE event_id = ANY(%s)){extra}",
+        ([c.event_id for row in r.data.rows for c in row.citations],),
+    ).fetchone()
+    assert r.citation_count == n
+    assert r.citation_count == sum(row.citation_count for row in r.data.rows)
+    assert r.citation_count >= len(r.citations)

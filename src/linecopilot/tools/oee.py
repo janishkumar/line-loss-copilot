@@ -37,8 +37,8 @@ ASSUME_WINDOW = (
 )
 ASSUME_CITES = (
     "Each row cites the evidence events of the shifts in it (capped per row); top-level "
-    "citations are the capped union of the returned rows' citations, and citation_count sums "
-    "the rows' event counts."
+    "citations are the capped union of the returned rows' citations; citation_count is the "
+    "number of distinct raw rows behind the returned rows."
 )
 
 
@@ -61,7 +61,7 @@ class OeeRow(BaseModel):
     metrics: dict[str, float | None]
     details: dict[str, str | int | None] = Field(default_factory=dict)
     citations: list[Citation] = Field(default_factory=list)
-    citation_count: int = 0
+    citation_count: int = Field(default=0, description="distinct raw rows behind this row")
 
 
 class OeeData(BaseModel):
@@ -107,7 +107,9 @@ def get_oee(conn: psycopg.Connection, args: GetOeeArgs) -> Result[OeeData]:
                 f"{scope.first_ts.isoformat()} to {scope.last_ts.isoformat()}"
             ),
         )
-    cites = group_citations(conn, [(r.key, shift_ids.get(r.key, [])) for r in data.rows], brick)
+    cites, n_raw = group_citations(
+        conn, [(r.key, shift_ids.get(r.key, [])) for r in data.rows], brick
+    )
     for r in data.rows:
         r.citations, r.citation_count = cites.get(r.key, ([], 0))
     if brick:
@@ -123,7 +125,7 @@ def get_oee(conn: psycopg.Connection, args: GetOeeArgs) -> Result[OeeData]:
         status="ok",
         data=data,
         citations=top,
-        citation_count=sum(r.citation_count for r in data.rows),
+        citation_count=n_raw,
         window=win,
         assumptions=assumptions,
     )

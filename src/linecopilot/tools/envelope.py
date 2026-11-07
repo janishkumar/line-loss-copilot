@@ -42,8 +42,12 @@ class Window(BaseModel):
 class Result[T](BaseModel):
     status: Status
     data: T | None = None
-    citations: list[Citation] = Field(default_factory=list)
-    citation_count: int = 0
+    citations: list[Citation] = Field(
+        default_factory=list, description=f"at most {CITATION_CAP} of the cited raw rows"
+    )
+    citation_count: int = Field(
+        default=0, description="distinct raw rows behind the result (citations is capped)"
+    )
     window: Window | None = None
     assumptions: list[str] = Field(default_factory=list)
     missing: str | None = None

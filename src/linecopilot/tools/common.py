@@ -138,7 +138,13 @@ def resolve_scope(
     line = lines[0]
     if line["source_system"] == "piade":
         machine_id = machine_id or line["line_id"]
-    lo = lo or line["first_ts"]
+    if lo is None:
+        # The earliest shift start, not the first event: a shift belongs to a window by its
+        # start, so starting at the first event would drop the shift that contains it.
+        (first_shift,) = conn.execute(
+            "SELECT min(shift_start) FROM core.shift WHERE line_id = %s", (line["line_id"],)
+        ).fetchone()
+        lo = min(x for x in (first_shift, line["first_ts"]) if x is not None)
     hi = hi or line["last_ts"] + timedelta(microseconds=1)
     if hi <= lo:
         win = Window(start=lo, end=hi, line_id=line["line_id"], machine_id=machine_id)
@@ -156,44 +162,58 @@ def resolve_scope(
 
 def group_citations(
     conn, groups: list[tuple[str, list[str]]], brick: bool
-) -> dict[str, tuple[list[Citation], int]]:
-    """Evidence per group of shifts, capped per group at CITATION_CAP, with the true event
-    count. Events are ordered by the group's shift order, then (brick) the production_count
-    event first, then event_id. Brick evidence is the production_count event plus the stops
-    that count in OEE; PIADE evidence is the interval events in the shifts (R16)."""
+) -> tuple[dict[str, tuple[list[Citation], int]], int]:
+    """Evidence per group of shifts, capped per group at CITATION_CAP, with the number of
+    distinct raw rows behind each group and behind all groups together.
+
+    Events are ordered by the group's shift order, then (brick) the production_count event
+    first, then event_id. Brick evidence is the production_count event plus the stops that
+    count in OEE; PIADE evidence is the interval events in the shifts (R16)."""
     keys = [k for k, sids in groups for _ in sids]
     sids = [s for _, ss in groups for s in ss]
     if not sids:
-        return {}
+        return {}, 0
     ords = [i for _, ss in groups for i in range(len(ss))]
     extra = BRICK_EVIDENCE if brick else ""
+    p = {"keys": keys, "sids": sids, "ords": ords, "cap": CITATION_CAP}
+    ev_sql = f"""SELECT g.key, g.ord, e.event_id, e.event_type, e.raw_table, e.source_file,
+                        e.raw_row_ids
+                 FROM unnest(%(keys)s::text[], %(sids)s::text[], %(ords)s::int[])
+                      AS g(key, shift_id, ord)
+                 JOIN core.event e ON e.shift_id = g.shift_id
+                 WHERE true {extra}"""
     ev = rows(
         conn,
         f"""SELECT * FROM (
-                SELECT g.key, e.event_id, e.raw_table, e.source_file, e.raw_row_ids,
-                       row_number() OVER (
-                           PARTITION BY g.key
-                           ORDER BY g.ord, (e.event_type = 'production_count') DESC,
-                                    e.event_id) AS rn,
-                       count(*) OVER (PARTITION BY g.key) AS n
-                FROM unnest(%(keys)s::text[], %(sids)s::text[], %(ords)s::int[])
-                     AS g(key, shift_id, ord)
-                JOIN core.event e ON e.shift_id = g.shift_id
-                WHERE true {extra}
+                SELECT ev.*, row_number() OVER (
+                           PARTITION BY key
+                           ORDER BY ord, (event_type = 'production_count') DESC, event_id) AS rn
+                FROM ({ev_sql}) ev
             ) x WHERE rn <= %(cap)s ORDER BY key, rn""",
-        {"keys": keys, "sids": sids, "ords": ords, "cap": CITATION_CAP},
+        p,
     )
+    # GROUPING SETS: one count per key plus the overall count (key null).
+    counts = {
+        k: int(n)
+        for k, n in conn.execute(
+            f"""SELECT ev.key, count(DISTINCT (ev.raw_table, ev.source_file, rid))
+                FROM ({ev_sql}) ev, unnest(ev.raw_row_ids) AS rid
+                GROUP BY GROUPING SETS ((ev.key), ())""",
+            p,
+        ).fetchall()
+    }
     by_key: dict[str, list[dict[str, Any]]] = {}
     for e in ev:
         by_key.setdefault(e["key"], []).append(e)
-    return {
-        k: (cap_citations(citations_from_events(mine))[0], int(mine[0]["n"]))
+    per_key = {
+        k: (cap_citations(citations_from_events(mine))[0], counts.get(k, 0))
         for k, mine in by_key.items()
     }
+    return per_key, counts.get(None, 0)
 
 
 def shift_citations(
     conn, shift_ids: list[str], brick: bool
 ) -> dict[str, tuple[list[Citation], int]]:
-    """Per-shift evidence, capped per shift, with the true count."""
-    return group_citations(conn, [(s, [s]) for s in shift_ids], brick)
+    """Per-shift evidence, capped per shift, with the distinct raw-row count."""
+    return group_citations(conn, [(s, [s]) for s in shift_ids], brick)[0]

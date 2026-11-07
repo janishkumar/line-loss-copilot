@@ -9,6 +9,7 @@ from linecopilot.tools.envelope import CitationRef
 from linecopilot.tools.evidence import (
     GetSourceRowsArgs,
     ShiftEvidenceArgs,
+    event_source,
     get_source_rows,
     shift_evidence,
 )
@@ -73,3 +74,48 @@ def test_get_source_rows_by_event_and_none_found(built):
     bad_table = CitationRef(raw_table="pg_user", source_file="x", raw_row_id=1)
     none = get_source_rows(built, GetSourceRowsArgs(citations=[bad_table]))
     assert none.status == "insufficient_evidence" and none.data.not_found == [bad_table]
+
+
+def test_shift_evidence_counts_cited_rows_and_all_missing(built):
+    with psycopg.connect(os.environ["LINECOPILOT_TEST_DB_URL"]) as conn:
+        before = shift_evidence(conn, ShiftEvidenceArgs(shift_id="brick:2026-02-02"))
+        assert before.citation_count == len(before.data.rows) == len(before.citations)
+        gone = before.data.rows[-1]
+        conn.execute(
+            f"DELETE FROM raw.{gone.raw_table} WHERE source_file = %s AND source_row = %s",
+            (gone.source_file, gone.source_row),
+        )
+        one = shift_evidence(conn, ShiftEvidenceArgs(shift_id="brick:2026-02-02"))
+        for r in before.data.rows:
+            conn.execute(
+                f"DELETE FROM raw.{r.raw_table} WHERE source_file = %s AND source_row = %s",
+                (r.source_file, r.source_row),
+            )
+        none = shift_evidence(conn, ShiftEvidenceArgs(shift_id="brick:2026-02-02"))
+        conn.rollback()
+    assert one.citation_count == len(before.data.rows) - 1 == len(one.citations)
+    assert none.status == "insufficient_evidence"
+    assert none.data is not None and none.data.rows == []
+    assert len(none.data.missing_rows) == len(before.data.rows)
+    assert none.citations == [] and none.citation_count == 0
+    assert any("not found" in a for a in none.assumptions)
+
+
+def test_event_source_reports_missing_rows(built):
+    eid, table, file, rid = built.execute(
+        "SELECT event_id, raw_table, source_file, raw_row_ids[1] FROM core.event "
+        "WHERE raw_table = 'brick_downtime' ORDER BY event_id LIMIT 1"
+    ).fetchone()
+    with psycopg.connect(os.environ["LINECOPILOT_TEST_DB_URL"]) as conn:
+        ok = event_source(conn, eid)
+        conn.execute(
+            f"DELETE FROM raw.{table} WHERE source_file = %s AND source_row = %s", (file, rid)
+        )
+        gone = event_source(conn, eid)
+        conn.rollback()
+    assert ok.status == "ok" and ok.data.missing_rows == [] and ok.citation_count == 1
+    ref = CitationRef(raw_table=table, source_file=file, raw_row_id=rid)
+    assert gone.status == "insufficient_evidence"
+    assert gone.data.rows == [] and gone.data.missing_rows == [ref]
+    assert gone.citations == [] and gone.citation_count == 0
+    assert any(str(rid) in a and "not found" in a for a in gone.assumptions)

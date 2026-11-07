@@ -1,6 +1,5 @@
 import hashlib
 import json
-import shutil
 from pathlib import Path
 
 import psycopg
@@ -10,31 +9,14 @@ from linecopilot.ingest.load import ChecksumMismatch, load_all
 
 pytestmark = pytest.mark.db
 
-FIX = Path(__file__).parent.parent / "fixtures"
-LAYOUT = {
-    "brick/OEEdataset.csv": "brick/oee_before.csv",
-    "brick/OEEdataset_afterLSS.csv": "brick/oee_after.csv",
-    "brick/DowntimeDataset.csv": "brick/downtime_before.csv",
-    "brick/DowntimeDataset_afterLSS.csv": "brick/downtime_after.csv",
-    "piade/raw_data.csv": "piade/raw_small.csv",
-}
 
-
-def copy_fixtures(root: Path) -> Path:
-    for dest, src in LAYOUT.items():
-        target = root / "raw" / dest
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(FIX / src, target)
-    return root
+@pytest.fixture
+def data_dir(make_data_dir) -> Path:
+    return make_data_dir()
 
 
 @pytest.fixture
-def data_dir(tmp_path) -> Path:
-    return copy_fixtures(tmp_path)
-
-
-@pytest.fixture
-def conn(db_url, tmp_path_factory):
+def conn(db_url, make_data_dir):
     with psycopg.connect(db_url) as c:
         c.execute("DROP SCHEMA IF EXISTS raw CASCADE")
         c.commit()
@@ -43,7 +25,7 @@ def conn(db_url, tmp_path_factory):
         # Leave raw as the shared `built` fixture loaded it (the same fixture files, so the
         # same source_row lineage); later tests read raw rows behind core.event.
         c.execute("DROP SCHEMA IF EXISTS raw CASCADE")
-        load_all(c, copy_fixtures(tmp_path_factory.mktemp("restore")))
+        load_all(c, make_data_dir())
         c.commit()
 
 
@@ -113,9 +95,11 @@ def test_lineage_points_to_file_line(conn, data_dir):
 
 def test_sha256_is_of_loaded_file(conn, data_dir):
     load_all(conn, data_dir)
-    for dest in LAYOUT:
-        filename = dest.split("/")[1]
-        want = hashlib.sha256((data_dir / "raw" / dest).read_bytes()).hexdigest()
+    files = sorted((data_dir / "raw").rglob("*.csv"))
+    assert len(files) == 5
+    for path in files:
+        filename = path.name
+        want = hashlib.sha256(path.read_bytes()).hexdigest()
         got = conn.execute("SELECT sha256 FROM raw.load WHERE filename = %s", (filename,))
         assert got.fetchone()[0] == want
 
