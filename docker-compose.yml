@@ -26,5 +26,12 @@ services:
       db:
         condition: service_healthy
 
+  web:
+    build: ./web
+    ports:
+      - "${LINECOPILOT_WEB_PORT:-8080}:8080"
+    depends_on:
+      - api
+
 volumes:
   pgdata:
