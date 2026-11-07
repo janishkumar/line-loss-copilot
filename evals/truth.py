@@ -360,12 +360,40 @@ RATIOS = ("availability", "performance", "quality", "oee")
 TOTALS = ("stop_time", "stop_count")
 RATIO_MIN_DELTA = 0.01  # one percentage point
 REL_MIN_DELTA = 0.05
+# A brick day whose published planned time exceeds published production plus published stops
+# by more than this has planned time that neither the production nor the stop columns account
+# for (the October 2025 block in docs/data-notes.md). On live data the excess is 2.9 to 8.2 h
+# on those 13 days and at most 0.03 h on every other day, so any cut-off from about 0.1 h to
+# 2.8 h picks the same 13 days; 1 h sits in that gap.
+PLANNED_GAP_S = 3600
+PLANNED_GAP = """(p.planned_s - p.good_production_s - p.slow_production_s
+                   - p.planned_stops_s - p.unplanned_stops_s) > %(gap)s"""
+EX_READING = "ex_planned_gap"
 
 
-def _brick_window(conn, lo: str, hi: str) -> tuple[dict[str, float], dict[str, float]]:
+def planned_gap_days(conn, lo: str, hi: str) -> list[str]:
+    """Brick shift dates in [lo, hi) whose published planned time is not accounted for by
+    published production plus stops (PLANNED_GAP_S)."""
+    rows = _rows(
+        conn,
+        f"""SELECT p.shift_date::text AS d FROM core.brick_shift_published p
+            JOIN core.shift s USING (shift_id)
+            WHERE s.shift_start >= %(lo)s::timestamptz AND s.shift_start < %(hi)s::timestamptz
+              AND {PLANNED_GAP}
+            ORDER BY 1""",
+        {"lo": lo, "hi": hi, "gap": PLANNED_GAP_S},
+    )
+    return [r["d"] for r in rows]
+
+
+def _brick_window(
+    conn, lo: str, hi: str, *, ex_planned_gap: bool = False
+) -> tuple[dict[str, float], dict[str, float]]:
     """Brick metrics and lost seconds per stop group for shifts / stops starting in [lo, hi)
-    (UTC dates)."""
-    p = {"lo": lo, "hi": hi}
+    (UTC dates). With ex_planned_gap, the shift-level sums (planned, stop union, quantities)
+    leave out the days picked by PLANNED_GAP; stop episodes are unaffected."""
+    p = {"lo": lo, "hi": hi, "gap": PLANNED_GAP_S}
+    ex = f"AND NOT coalesce({PLANNED_GAP}, false)" if ex_planned_gap else ""
     oee = _rows(
         conn,
         """SELECT count(*) AS shifts, sum(m.planned_s_published)::float8 AS planned,
@@ -375,7 +403,9 @@ def _brick_window(conn, lo: str, hi: str) -> tuple[dict[str, float], dict[str, f
                   sum(p.ideal_qty)::float8 AS ideal
            FROM mart.brick_shift_oee m JOIN core.shift s USING (shift_id)
            LEFT JOIN core.brick_shift_published p USING (shift_id)
-           WHERE s.shift_start >= %(lo)s::timestamptz AND s.shift_start < %(hi)s::timestamptz""",
+           WHERE s.shift_start >= %(lo)s::timestamptz AND s.shift_start < %(hi)s::timestamptz
+           """
+        + ex,
         p,
     )[0]
     eps = _rows(
@@ -420,12 +450,23 @@ def _direction(kind: str, before: float, after: float) -> str:
     return "up" if delta > 0 else "down"
 
 
-def _fact(metric: str, kind: str, b: float, a: float, shifts: tuple[float, float]) -> dict:
-    """One fact with a direction per reading. Totals are read as totals and per shift; the
-    fact is scored only when every reading gives the same up/down direction."""
+def _fact(
+    metric: str,
+    kind: str,
+    b: float,
+    a: float,
+    shifts: tuple[float, float],
+    ex: tuple[float, float] | None = None,
+) -> dict:
+    """One fact with a direction per reading. Totals are read as totals and per shift; ratios
+    given `ex` are also read without the planned-time gap days. The fact is scored only when
+    every reading gives the same up/down direction."""
     out: dict[str, Any] = {"metric": metric, "kind": kind, "before": b, "after": a}
     out["delta"] = a - b
     readings = {"value": _direction(kind, b, a)}
+    if ex is not None:
+        out[f"before_{EX_READING}"], out[f"after_{EX_READING}"] = ex
+        readings[EX_READING] = _direction(kind, *ex)
     if kind == "total":
         pb, pa = b / shifts[0], a / shifts[1]
         out["before_per_shift"], out["after_per_shift"] = pb, pa
@@ -445,15 +486,21 @@ def _fact(metric: str, kind: str, b: float, a: float, shifts: tuple[float, float
 def before_after_facts(conn) -> dict[str, Any]:
     """Facts on what changed on the brick line, before -> after: each OEE component (ratio),
     MTTR (a mean), stop time and stop count (totals, also read per shift), and the lost time
-    of the stop groups with the largest absolute change. Only `scored` facts count; `flat`
-    (below the minimum effect size) and `ambiguous` (totals and per-shift disagree) facts are
-    listed but not scored. `status` covers every metric and stop group, so any claim can be
-    judged."""
+    of the stop groups with the largest absolute change. Ratios are also read without the
+    days whose published planned time is not accounted for (planned_gap_days). Only `scored`
+    facts count; `flat` (below the minimum effect size) and `ambiguous` (readings disagree)
+    facts are listed but not scored. `status` covers every metric and stop group, so any
+    claim can be judged."""
     mb, rb = _brick_window(conn, *BEFORE)
     ma, ra = _brick_window(conn, *AFTER)
+    xb, _ = _brick_window(conn, *BEFORE, ex_planned_gap=True)
+    xa, _ = _brick_window(conn, *AFTER, ex_planned_gap=True)
     shifts = (mb.pop("shifts"), ma.pop("shifts"))
     kinds = {k: "ratio" for k in RATIOS} | {k: "total" for k in TOTALS} | {"mttr": "mean"}
-    metric_facts = [_fact(k, kinds[k], mb[k], ma[k], shifts) for k in mb]
+    metric_facts = [
+        _fact(k, kinds[k], mb[k], ma[k], shifts, (xb[k], xa[k]) if k in RATIOS else None)
+        for k in mb
+    ]
     reason_facts = [
         _fact(f"reason:{r}", "total", rb.get(r, 0.0), ra.get(r, 0.0), shifts)
         for r in sorted(set(rb) | set(ra))
@@ -464,6 +511,12 @@ def before_after_facts(conn) -> dict[str, Any]:
         "before_window": list(BEFORE),
         "after_window": list(AFTER),
         "shifts": {"before": shifts[0], "after": shifts[1]},
+        "planned_gap_days": {
+            "rule": f"published planned_s - production - published stops > {PLANNED_GAP_S} s",
+            "before": planned_gap_days(conn, *BEFORE),
+            "after": planned_gap_days(conn, *AFTER),
+            "shifts_ex": {"before": xb["shifts"], "after": xa["shifts"]},
+        },
         "min_effect": {"ratio_abs": RATIO_MIN_DELTA, "other_rel": REL_MIN_DELTA},
         "facts": facts,
         "status": {

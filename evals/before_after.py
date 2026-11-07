@@ -5,7 +5,9 @@ dataset's own write-up is in the prompt, the tool descriptions or the tool outpu
 truth is evals.truth.before_after_facts.
 
 Only `scored` facts count: past the minimum effect size (1 percentage point for ratios, 5%
-relative otherwise) and, for totals, the same direction as a total and per shift. A fact is
+relative otherwise), for totals the same direction as a total and per shift, and for ratios
+the same direction with and without the October days whose published planned time is not
+accounted for. A fact is
 found when a claim names its metric with its direction. A claim is wrong when it contradicts
 a scored fact or names a metric that is not recognised; a claim on a flat or ambiguous
 metric is neither found nor wrong. The claimed value is recorded but not scored."""
@@ -34,10 +36,12 @@ PROMPT = (
     "last line 'ANSWER: <one-sentence summary>'."
 )
 CAVEATS = [
-    "In the before period, 13 days in October 2025 have a published planned time 7 to 8 hours "
-    "larger than production plus stops (docs/data-notes.md). Availability recomputed from "
-    "the stop log is inflated on those days, so the before availability and OEE facts carry "
-    "that error. The facts are what the data says; nothing is corrected.",
+    "In the before period, 13 days in October 2025 have a published planned time 2.9 to 8.2 "
+    "hours larger than published production plus stops (docs/data-notes.md). Availability "
+    "recomputed from the stop log is inflated on those days. Each ratio fact (availability, "
+    "performance, quality, oee) is therefore also read without the days picked by that rule "
+    "(truth.planned_gap_days); where the two readings disagree the fact is ambiguous and not "
+    "scored. Both values are kept in the facts.",
     "Brick performance and quality are the published per-shift values (no independent "
     "source); oee here is recomputed availability times published performance and quality.",
     "stop_time, stop_count and reason:<group> are totals over windows with different numbers "

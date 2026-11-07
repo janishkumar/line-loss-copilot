@@ -3,6 +3,7 @@ on the same definitions (the tools are only used here, never by evals/truth.py).
 
 from datetime import UTC, datetime
 
+import psycopg
 import pytest
 
 from evals import truth
@@ -115,12 +116,53 @@ def test_before_after_facts(built):
             assert dirs == {"flat"} and f["direction"] is None
         else:
             assert len(dirs) > 1 and f["direction"] is None
-        assert set(f["readings"]) == ({"total", "per_shift"} if f["kind"] == "total" else {"value"})
+        expected = {"ratio": {"value", truth.EX_READING}, "total": {"total", "per_shift"}}
+        assert set(f["readings"]) == expected.get(f["kind"], {"value"})
     sc = by["stop_count"]
     assert sc["before"] == truth.stop_count(built, "brick", "2025-09").expected
     assert sc["before_per_shift"] == pytest.approx(sc["before"] / facts["shifts"]["before"])
     reasons = [m for m in facts["facts"] if m["metric"].startswith("reason:")]
     assert len(reasons) <= truth.TOP_REASON_FACTS
+
+
+def test_before_after_planned_gap_days_make_ratios_ambiguous(built):
+    # Fixture: no planned-time gap, so both availability readings agree (down by ~1 pt).
+    base = truth.before_after_facts(built)
+    assert base["planned_gap_days"]["before"] == [] and base["planned_gap_days"]["after"] == []
+    av = {f["metric"]: f for f in base["facts"]}["availability"]
+    assert av["readings"] == {"value": "down", truth.EX_READING: "down"}
+    assert av["before_ex_planned_gap"] == pytest.approx(av["before"])
+    # Give two zero-stop before days 5 h of planned time that neither production nor the
+    # stop columns account for (as in October 2025), inside a rolled-back transaction.
+    days = ("brick:2025-09-24", "brick:2025-09-25")
+    with built.transaction():  # psycopg.Rollback below is caught by the block
+        built.execute(
+            "UPDATE core.brick_shift_published SET planned_s = planned_s + 18000 "
+            "WHERE shift_id = ANY(%s)",
+            [list(days)],
+        )
+        built.execute(
+            "UPDATE mart.brick_shift_oee SET planned_s_published = planned_s_published + 18000 "
+            "WHERE shift_id = ANY(%s)",
+            [list(days)],
+        )
+        facts = truth.before_after_facts(built)
+        raise psycopg.Rollback
+    assert facts["planned_gap_days"]["before"] == ["2025-09-24", "2025-09-25"]
+    assert facts["planned_gap_days"]["shifts_ex"]["before"] == facts["shifts"]["before"] - 2
+    by = {f["metric"]: f for f in facts["facts"]}
+    av = by["availability"]
+    # all days: 1 - 4200/166384 = 0.975 > after 0.957 (down); without the two days:
+    # 1 - 4200/74584 = 0.944 < after (up). The readings disagree, so it is not scored.
+    assert av["before"] == pytest.approx(1 - 4200 / 166384)
+    assert av["before_ex_planned_gap"] == pytest.approx(1 - 4200 / 74584)
+    assert av["readings"] == {"value": "down", truth.EX_READING: "up"}
+    assert av["status"] == "ambiguous" and av["direction"] is None
+    assert facts["status"]["availability"] == "ambiguous"
+    # stop totals are not read twice
+    assert truth.EX_READING not in by["stop_count"]["readings"]
+    # the rollback left the fixture as it was
+    assert truth.before_after_facts(built)["planned_gap_days"]["before"] == []
 
 
 def test_effect_size_and_ambiguity():
@@ -135,6 +177,12 @@ def test_effect_size_and_ambiguity():
     f = truth._fact("stop_time", "total", 100.0, 40.0, shifts)
     assert f["status"] == "scored" and f["direction"] == "down"
     assert truth._fact("reason:X", "total", 0.0, 0.0, shifts)["status"] == "flat"
+    # a ratio read with and without the planned-time gap days
+    f = truth._fact("availability", "ratio", 0.736, 0.700, shifts, (0.676, 0.700))
+    assert f["readings"] == {"value": "down", truth.EX_READING: "up"}
+    assert f["status"] == "ambiguous" and f["before_ex_planned_gap"] == 0.676
+    f = truth._fact("quality", "ratio", 0.985, 0.968, shifts, (0.984, 0.968))
+    assert f["status"] == "scored" and f["direction"] == "down"
 
 
 def test_check_reports_missing_truth_on_fixture(built):
