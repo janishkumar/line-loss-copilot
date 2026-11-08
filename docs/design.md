@@ -335,9 +335,35 @@ MRP-style netting by day over the horizon: requirements by need date (the order'
 
 The Plan page shows CP-SAT against FIFO and EDD, nominal and under replayed real stops, with a per-machine sequence. The Shortages page lists shortfalls with the orders they hit. In Claude: "Which orders will the board shortage hit?" answered from `shortages`, then a follow-up drafted for the planner, which lands in the inbox.
 
-## 10b. Stage 5 (outline, designed in detail later)
+## 10b. Stage 5: visual inspection
 
-- **5. Visual inspection:** VisA food subsets, anomaly heatmaps for a reviewer, reviewer decisions as labels, cost-based threshold with a sensitivity table, ONNX export with measured CPU latency, rejected images creating simulated, labelled quality events. To keep both brief rules (synthetic data in its own schema, and one event table the copilot reads), simulated events are stored in `synthetic.quality_event` with a `source` column, and a view `core.event_all` unions them with `core.event` with `is_synthetic` set. The copilot and approval flow read `core.event_all`. `mart` metrics read `core.event` only, so no headline number mixes real and synthetic data.
+**Decision it supports:** which product images to pass, which to reject, and which to send to a person, at a threshold set by what a false reject and an escaped defect each cost. Images are real (VisA); their link to a production line is simulated and labelled.
+
+### 10b.1 Data
+
+- VisA (CC BY 4.0) from its public S3 archive (`VisA_20220922.tar`, 1.93 GB) into `data/raw/visa/` with a checksum manifest, plus the official `split_csv/1cls.csv` from the VisA repository. Only the six food subsets are extracted: cashew, chewinggum, fryum, pipe_fryum, macaroni1, macaroni2.
+- The official one-class split is kept: train on its normal training images only. Its test images (50 or 100 normal plus 100 anomalous per subset) are split once, stratified, with a fixed seed into validation (threshold choice) and test (reported numbers). Image AUROC and pixel AUPRO are also reported on the full official test split, so they can be compared with published results.
+
+### 10b.2 Model
+
+- PatchCore, implemented in the repo (no extra training framework): a frozen ImageNet-pretrained `wide_resnet50_2` from torchvision, mid-level features (layers 2 and 3) pooled over a 3x3 neighbourhood, a greedy coreset memory bank per subset (capped, with a random projection for selection), nearest-neighbour patch distances as the anomaly map (upsampled and smoothed) and its maximum as the image score. Images resized to 256 and centre-cropped to 224.
+- The backbone weights are torchvision's ImageNet weights, used for a non-commercial portfolio project; the README says so. Tests never download weights: the backbone is injectable and tests use a tiny randomly initialised network on generated images.
+
+### 10b.3 Evaluation and threshold
+
+- Image AUROC, pixel AUROC and pixel AUPRO (integrated to a false positive rate of 0.3, normal images included, as in the VisA metrics code) per subset, with bootstrap 95% intervals on the test split. Compared with published PatchCore results on the same split, cited with their source; if a figure cannot be traced to a source it is left out.
+- Threshold from cost: with the cost of a false reject set to 1 and an escaped defect costing r, the threshold minimises expected cost on validation, then cost, false reject rate and escape rate are reported on test. A sensitivity table covers r = 5, 10, 20, 50, 100 (default 20, stated as an assumption) in relative units, never as one money figure.
+- A review band sends images between a lower and the cost threshold to a person instead of deciding automatically; its width is set on validation so that a stated share of images goes to review.
+
+### 10b.4 Deployment
+
+- The full scorer (backbone, pooling, memory-bank distances, map) exports to one ONNX graph per subset. Parity with PyTorch is checked (score difference within a stated tolerance). CPU latency per image is measured with ONNX Runtime on this machine (batch 1, 1 and 4 threads, p50 and p95, warm-up excluded), with the CPU named.
+
+### 10b.5 Review, labels and quality events
+
+- `make inspect` scores a simulated stream of test images: above the threshold is rejected, inside the review band goes to a review queue, below passes. Heatmap overlays are written as PNG files the app serves. The API does not load PyTorch.
+- A reviewer accepts or rejects queued images in the app; each decision is stored as a label (`vision.review`: image, decision, reviewer, time), with the model's score kept beside it.
+- Each rejected image (automatic or by review) creates a simulated quality event in `synthetic.quality_event` (with `source = 'synthetic'`) on a simulated inspection station per subset (`synthetic.sim_asset`, labelled). The view `core.event_all` unions it with `core.event` and sets `is_synthetic`. The copilot's quality-event tool and the approval flow's evidence and asset checks read `core.event_all` and the simulated assets, so a quality hold can be drafted from a rejected image and approved in the inbox. `mart` reads `core.event` only.
 
 ## 11. Decided by Janish
 
