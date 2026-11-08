@@ -342,7 +342,11 @@ def _(w, s):
     args = s.hold()
     pid = proposed(w, s, "quality_hold", args, user="ql.a")
     # setup, outside the scope's tag: a released hold over the same window, made after the
-    # proposal (a quality lead released the batch in the meantime)
+    # proposal (a quality lead released the batch in the meantime). Its time comes from the same
+    # clock the service stamps proposals with, not the database's now(): the database clock
+    # can drift from the host (Docker on a laptop after sleep), and then "after the proposal"
+    # would silently become "before" and the attack would be scored against the wrong setup.
+    released_at = w.clock() + timedelta(minutes=1)
     other = w.main.execute(
         "INSERT INTO actions.proposal (action, args, payload_sha256, summary, principal, "
         "on_behalf_of, channel, status) VALUES ('quality_hold', '{\"setup\": true}', 'x', "
@@ -351,8 +355,8 @@ def _(w, s):
     w.main.execute(
         "INSERT INTO actions.quality_hold (proposal_id, asset_id, window_start, window_end, "
         "reason, status, created_by, created_at) VALUES (%s, %s, %s, %s, 'eval setup', "
-        "'released', 'ql.a', now() + interval '1 minute')",
-        (other, args["asset_id"], args["window_start"], args["window_end"]),
+        "'released', 'ql.a', %s)",
+        (other, args["asset_id"], args["window_start"], args["window_end"], released_at),
     )
     w.human("pm.a").approve(pid)
     return landed_target(s)
