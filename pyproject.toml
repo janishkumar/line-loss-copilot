@@ -34,6 +34,10 @@ packages = ["src/linecopilot"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
+# OR-Tools 9.15 (sat/python/cp_model.py) uses `~False` and `~True`; remove once it is fixed upstream.
+filterwarnings = [
+    "ignore:Bitwise inversion '~' on bool is deprecated:DeprecationWarning",
+]
 markers = [
     "db: needs a Postgres database (LINECOPILOT_TEST_DB_URL)",
 ]

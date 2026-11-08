@@ -403,12 +403,18 @@ export interface LinkedNote {
   translation: string | null;
   translation_model: string | null;
 }
+export interface LinkedOrderNote {
+  order_id: string;
+  text: string;
+  synthetic: boolean;
+}
 export interface ProposalDetail extends ProposalRow {
   args: Record<string, unknown>;
   checks: CheckResult[];
   warnings: CheckResult[];
   evidence: EvidenceLink[];
   notes: LinkedNote[];
+  order_notes: LinkedOrderNote[];
   decision_note: string | null;
 }
 export interface AuditRow {

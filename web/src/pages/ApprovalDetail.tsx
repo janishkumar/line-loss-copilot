@@ -126,6 +126,23 @@ export default function ApprovalDetail() {
         </>
       )}
 
+      {(p.order_notes ?? []).length > 0 && (
+        <>
+          <h3>Linked order notes <span className="badge">free text, shown as data</span></h3>
+          <ul className="notes">
+            {p.order_notes.map((n) => (
+              <li key={n.order_id}>
+                {n.synthetic && (
+                  <span className="badge" title="Synthetic demo data, not a real customer order">Synthetic order note</span>
+                )}{" "}
+                <Link to={`/orders/${n.order_id}`}>{n.order_id}</Link>
+                <div className="note-text">{n.text}</div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       <h3>Decision</h3>
       {outcome && <OutcomeNotice outcome={outcome} />}
       {p.status === "pending" ? (

@@ -103,3 +103,16 @@ def test_edd_batch_schedules_everything_respecting_release_ready_and_eligibility
     for m in ("M1", "M2"):
         rows = sorted((a for a in plan.assignments if a.machine_id == m), key=lambda a: a.start)
         assert all(b.start >= a.end + b.setup_before for a, b in zip(rows, rows[1:], strict=False))
+
+
+def test_edd_batch_picks_the_same_machine_as_edd_when_batching_changes_nothing():
+    # M2 is faster, so the earliest-finish rule puts every job there; a first-free rule would
+    # start on M1 (both are free at 0) and finish later
+    ms = (
+        Machine("M1", 30, 1.0, frozenset({"A"})),
+        Machine("M2", 120, 1.0, frozenset({"A"})),
+    )
+    jobs = [Job("o1", "p1", "A", 120, 0, 100), Job("o2", "p2", "A", 120, 0, 900)]
+    e = {a.order_id: a.machine_id for a in dispatch.edd(prob(jobs, ms)).assignments}
+    b = {a.order_id: a.machine_id for a in dispatch.edd_batch(prob(jobs, ms)).assignments}
+    assert b == e and b["o1"] == "M2"

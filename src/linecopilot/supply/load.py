@@ -22,6 +22,7 @@ def load_supply(conn: psycopg.Connection) -> SupplyInput:
         for m, rate, avail in conn.execute(
             "SELECT machine_id, rate_per_hour, availability FROM synthetic.machine_rate"
         )
+        if float(rate) > 0 and float(avail) > 0  # same eligibility as the planner
     }
     best_by_family = {
         fam: max(eff[m] for m in machines if m in eff)

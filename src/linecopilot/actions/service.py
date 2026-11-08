@@ -724,7 +724,7 @@ class ActionService:
         if live.level == "warn" and not any(w["name"] == live.name for w in warnings):
             warnings.append(live.to_dict())
         order_notes = [
-            {"order_id": o.order_id, "text": o.note, "synthetic": True}
+            {"order_id": o.order_id, "text": _cap(o.note), "synthetic": True}
             for o in snap.orders
             if o.note
         ]

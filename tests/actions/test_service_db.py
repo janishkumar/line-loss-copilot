@@ -664,6 +664,20 @@ def test_follow_up_with_injected_order_note_warns_and_changes_nothing(
     ).fetchone()
 
 
+def test_get_proposal_caps_long_order_notes(service, agent, built, orders, cleanup):
+    built.execute(
+        "UPDATE synthetic.customer_order SET note = %s WHERE order_id = %s",
+        ("x" * 5000, orders[1]),
+    )
+    raw = fu_args(order_ids=[orders[1]])
+    pv = service.preview(agent, AGENT_FOR_A, "follow_up", raw)
+    out = service.propose(agent, AGENT_FOR_A, "follow_up", raw, pv.code)
+    cleanup.append(out.proposal_id)
+    detail = service.get_proposal(built, out.proposal_id)
+    text = detail["order_notes"][0]["text"]
+    assert len(text) <= 603 and text.endswith("...")
+
+
 def test_approval_rechecks_that_the_linked_order_still_exists(
     service, agent, built, orders, cleanup
 ):

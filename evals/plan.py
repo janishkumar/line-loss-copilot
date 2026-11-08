@@ -258,9 +258,11 @@ def markdown(doc: dict[str, Any]) -> str:
         "start on or after the PIADE cutoff",
         "",
         "Orders, BOMs, stock and receipts are synthetic; capacity and the replayed stops are "
-        "real PIADE data. `edd_batch` is EDD with family batching (window "
-        f"{dispatch.BATCH_SLACK_MIN} min). The numbers say how the schedulers compare on this "
-        "generator, not what a plant would gain.",
+        "real PIADE data. `edd_batch` is EDD with the same earliest-finish "
+        "machine rule and a changeover-aware job order (family batching, window "
+        f"{dispatch.BATCH_SLACK_MIN} min). The comparison to read first is CP-SAT against plain "
+        "EDD; `edd_batch` isolates what batching alone changes. The numbers say how the "
+        "schedulers compare on this generator, not what a plant would gain.",
         "",
         "Nominal: the plan as the planner sees it (processing at rate x planning availability). "
         "Replayed: the same job-to-machine assignment and sequence executed against the real "

@@ -666,8 +666,8 @@ def plan_section(results: Path) -> str:
         + "; ".join(
             paired_text(b, name)
             for b, name in (
-                ("edd_batch", "EDD with family batching (`edd_batch`)"),
                 ("edd", "plain EDD"),
+                ("edd_batch", "EDD with family batching (`edd_batch`)"),
             )
             if f"cpsat_vs_{b}_replayed_total_tardiness_min" in doc["paired"]
         )
@@ -677,11 +677,12 @@ def plan_section(results: Path) -> str:
         "so nominal and replayed figures are different quantities, not before and after. FEASIBLE "
         "means CP-SAT stopped at its limit with a solution and no optimality proof. FIFO and EDD "
         "are greedy list schedules that ignore changeovers when ordering jobs; `edd_batch` is a "
-        f"stronger dispatch rule that, among jobs due within {BATCH_SLACK_MIN // 60} h of the "
-        "earliest due one, prefers the family the machine just ran. It cuts changeover minutes "
-        "but waits longer on due dates, so read it against both measures; CP-SAT's paired "
-        "lead over it is stated above. Jobs that finish after the 14-day horizon replay with no "
-        "stops there (the stops end with the window).",
+        "changeover-aware dispatch rule: it picks machines like EDD (earliest finish) and differs "
+        f"only in job order, where among jobs due within {BATCH_SLACK_MIN // 60} h of the "
+        "earliest due one it prefers the family the machine just ran. It cuts changeover minutes "
+        "against EDD, with a different tardiness profile, so read it against every measure; "
+        "CP-SAT's paired lead over it is stated above. Jobs that finish after the 14-day horizon "
+        "replay with no stops there (the stops end with the window).",
         "",
         stop_sentence(doc)
         + " "
