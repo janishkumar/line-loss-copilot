@@ -160,13 +160,13 @@ def test_main_renders_all_sections_and_is_idempotent(tmp_path):
         shutil.copy(RESULTS / f, res / f)
     text = "".join(
         f"<!-- {n}:start -->\n<!-- {n}:end -->\n"
-        for n in ("oee", "copilot-evals", "stop-risk", "safety", "shortages", "plan")
+        for n in ("oee", "copilot-evals", "stop-risk", "safety", "shortages", "plan", "vision")
     )
     readme = tmp_path / "README.md"
     readme.write_text(text)
     rd.main(readme, res)
     once = readme.read_text()
-    assert "not run yet (`make train-risk`)" in once and once.count("not run yet") >= 6
+    assert "not run yet (`make train-risk`)" in once and once.count("not run yet") >= 7
     rd.main(readme, res)
     assert readme.read_text() == once
 
@@ -384,3 +384,48 @@ def test_gap_sentence_uses_the_true_median():
     stats = [{"s_2": {"no_data_share": x}} for x in (0.1, 0.2, 0.3, 0.4)]
     out = rd.gap_sentence({"window_stats": stats})
     assert "median no-data share 25%" in out and "no data at all in 0 of 4" in out
+
+
+def test_vision_section_not_run_and_rendered(tmp_path):
+    assert "not run yet" in rd.vision_section(tmp_path)
+    from evals import vision as ev
+
+    sub = {
+        "default_r": 20,
+        "test": {
+            "n": 8,
+            "n_normal": 4,
+            "n_anomalous": 4,
+            "image_auroc": {"value": 0.9, "ci95": [0.7, 1.0]},
+            "pixel_auroc": {"value": 0.95, "ci95": [0.9, 0.98]},
+            "aupro": {"value": 0.8, "ci95": [0.6, 0.9]},
+        },
+        "official_test": {
+            "n": 16,
+            "n_anomalous": 8,
+            "image_auroc": 0.91,
+            "pixel_auroc": 0.96,
+            "aupro": 0.81,
+        },
+        "sensitivity": [
+            {
+                "r": 20,
+                "threshold": 1.2,
+                "test": {"cost_per_1000": 250, "false_reject_rate": 0.0, "escape_rate": 0.25},
+            }
+        ],
+        "review_band": {
+            "test": {"share_to_review": 0.1, "escapes_avoided": 1, "escapes_before": 1}
+        },
+    }
+    doc = {
+        "date": "2026-01-01",
+        "commit": "abc",
+        "assumptions": ev.ASSUMPTIONS,
+        "published": ev.PUBLISHED,
+        "subsets": {"cashew": sub},
+    }
+    (tmp_path / "vision.json").write_text(json.dumps(doc))
+    out = rd.vision_section(tmp_path)
+    assert "cashew" in out and "0.900 (0.700 to 1.000)" in out and "CCAD" in out
+    assert "Table 8" in out and "not a like for like" in out

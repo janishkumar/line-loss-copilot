@@ -270,6 +270,11 @@ CP-SAT outcome over 5 instances: feasible 5; stopped by deterministic_time 5. Pa
 Realised stopped time over time with data (the planning availability's denominator), median over windows, against the planning stopped share: s_1 10.5% against 10.0%; s_2 11.1% against 9.6%; s_3 4.7% against 6.2%; s_4 4.5% against 4.7%; s_5 3.5% against 3.2%. Realised is higher than planning on 3 of 5 machines. Data gaps matter. Share of a window with no PIADE data: s_1: no data at all in 0 of 8 windows, median no-data share 10%; s_2: no data at all in 0 of 8 windows, median no-data share 50%; s_3: no data at all in 0 of 8 windows, median no-data share 10%; s_4: no data at all in 0 of 8 windows, median no-data share 20%; s_5: no data at all in 3 of 8 windows, median no-data share 76%. A gap is replayed as no stops, so a machine with gaps is stopped less over the whole window than its share of covered time suggests. Both figures, per window and machine, are in [evals/results/plan.md](evals/results/plan.md). Regenerate with `make eval-plan`, then `make report`; `make plan` stores the live generation's plans and replays in `plan.*`.
 <!-- plan:end -->
 
+## Stage 5 results (visual inspection on VisA)
+
+<!-- vision:start -->
+<!-- vision:end -->
+
 ## Assumptions
 
 - PIADE has no stated ideal rate. Performance rests on an estimate (a percentile of the set `speed` per machine), shown at p90, p95 and p99.
@@ -289,7 +294,7 @@ All three datasets are licensed CC BY 4.0. Raw files are not in this repository;
 |---|---|---|
 | PIADE: industrial packaging machines (5 machines, 2020 to early 2022) | [Zenodo record 7071747](https://zenodo.org/records/7071747), CC BY 4.0 | Machine state, alarms and counters; OEE per machine |
 | Heavy clay brick line: OEE and downtime, before and after a Lean Six Sigma program | [Zenodo record 17855209](https://zenodo.org/records/17855209), CC BY 4.0 | Published per-shift OEE and stop log; validation |
-| VisA (Visual Anomaly) | [github.com/amazon-science/spot-diff](https://github.com/amazon-science/spot-diff), CC BY 4.0 | Visual inspection in stage 5; not used yet |
+| VisA (Visual Anomaly) | [github.com/amazon-science/spot-diff](https://github.com/amazon-science/spot-diff), CC BY 4.0 | Visual inspection in stage 5 (six food subsets) |
 
 ## Real vs synthetic
 

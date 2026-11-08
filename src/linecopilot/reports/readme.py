@@ -696,6 +696,96 @@ def plan_section(results: Path) -> str:
     return "\n".join(L)
 
 
+def _vci(x: dict[str, Any]) -> str:
+    lo, hi = x["ci95"]
+    return f"{x['value']:.3f} ({lo:.3f} to {hi:.3f})"
+
+
+def vision_section(results: Path) -> str:
+    path = results / "vision.json"
+    if not path.exists():
+        return "Vision results: not run yet (`make data-visa`, `make train-vision`, then `make eval-vision`)."  # noqa: E501
+    doc = _load(path)
+    subs, pub = doc["subsets"], doc["published"]
+    L = [
+        "**PatchCore on six VisA food subsets** (real product images, simulated link to a line). "
+        "Trained on the official one-class train normals only; the official test images are split "
+        "once, stratified with seed 0, into validation (threshold and review band) and test "
+        "(every number below). Train and eval images were checked for overlap by path and by "
+        f"content hash before scoring. Run {doc['date']}, commit `{doc['commit']}`. Intervals are "
+        "95% bootstrap over images (1000 resamples, seed 0).",
+        "",
+        "| Subset | Test images (anomalous) | Image AUROC | Pixel AUROC | Pixel AUPRO (to FPR 0.3) |",  # noqa: E501
+        "|---|---|---|---|---|",
+    ]
+    for s, r in subs.items():
+        t = r["test"]
+        L.append(
+            f"| {s} | {t['n']} ({t['n_anomalous']}) | {_vci(t['image_auroc'])} "
+            f"| {_vci(t['pixel_auroc'])} | {_vci(t['aupro'])} |"
+        )
+    L += [
+        "",
+        "Cost threshold, chosen on validation with a false reject costing 1 and an escaped "
+        "defect costing r = 20 (an assumption; relative units only). Test results, with a review "
+        "band holding 10% of validation images just below the threshold:",
+        "",
+        "| Subset | Cost per 1000 images | False reject rate | Escape rate | Sent to review | Escapes avoided by review |",  # noqa: E501
+        "|---|---|---|---|---|---|",
+    ]
+    for s, r in subs.items():
+        row = next(x for x in r["sensitivity"] if x["r"] == r["default_r"])["test"]
+        b = r["review_band"]["test"]
+        L.append(
+            f"| {s} | {row['cost_per_1000']:.0f} | {row['false_reject_rate']:.3f} "
+            f"| {row['escape_rate']:.3f} | {b['share_to_review']:.1%} "
+            f"| {b['escapes_avoided']} of {b['escapes_before']} |"
+        )
+    L += [
+        "",
+        "Sensitivity of the test cost per 1000 images to r (threshold re-chosen on validation "
+        "for each r):",
+        "",
+    ]
+    rs = [x["r"] for x in next(iter(subs.values()))["sensitivity"]] if subs else []
+    L += ["| Subset | " + " | ".join(f"r = {r}" for r in rs) + " |", "|---|" + "---|" * len(rs)]
+    for s, r in subs.items():
+        L.append(
+            f"| {s} | "
+            + " | ".join(f"{x['test']['cost_per_1000']:.0f}" for x in r["sensitivity"])
+            + " |"
+        )
+    L += [
+        "",
+        "Full official test split (for comparison with published work), against the one "
+        f"figure found ({pub['source']}, {pub['url']}, {pub['table']}):",
+        "",
+        "| Subset | Image AUROC (ours) | Image AUROC (published) | Pixel AUROC (ours) | Pixel AUROC (published) | Pixel AUPRO (ours) |",  # noqa: E501
+        "|---|---|---|---|---|---|",
+    ]
+    for s, r in subs.items():
+        o, v = r["official_test"], pub["per_subset"][s]
+        L.append(
+            f"| {s} | {o['image_auroc']:.3f} | {v['image_auroc']:.3f} | {o['pixel_auroc']:.3f} "
+            f"| {v['pixel_auroc']:.3f} | {o['aupro']:.3f} |"
+        )
+    L += [
+        "",
+        "**Published comparison is not a like for like.** " + pub["setup"] + " " + pub["note"],
+        "",
+        "**Caveats.**",
+        "",
+    ]
+    L += [f"- {a}" for a in doc["assumptions"]]
+    L += [
+        "- ImageNet weights from torchvision are used for a non-commercial portfolio project.",
+        "",
+        "Detail: [evals/results/vision.md](evals/results/vision.md); regenerate with "
+        "`make eval-vision`, then `make report`.",
+    ]
+    return "\n".join(L)
+
+
 def sections(results: Path = RESULTS) -> dict[str, str]:
     val = _load(results / "oee_validation.json")
     piade = json.loads((results / "piade_oee.json").read_text(encoding="utf-8"))
@@ -707,6 +797,7 @@ def sections(results: Path = RESULTS) -> dict[str, str]:
         "safety": safety_section(results),
         "shortages": shortages_section(results),
         "plan": plan_section(results),
+        "vision": vision_section(results),
     }
 
 
