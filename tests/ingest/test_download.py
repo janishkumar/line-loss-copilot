@@ -65,3 +65,13 @@ def test_mismatch_raises_and_removes_file(tmp_path, monkeypatch):
 def test_user_agent_has_no_email():
     assert dl.request_headers() == {"User-Agent": "line-loss-copilot/0.1"}
     assert callable(http_fetch)
+
+
+def test_manifest_keeps_entries_from_other_downloaders(tmp_path, one_source):
+    (tmp_path / "checksums.json").write_text(
+        json.dumps({"files": [{"dataset": "visa", "filename": "x.tar"}, {"dataset": "ds"}]})
+    )
+    download_all(tmp_path, fetch=_fake([]))
+    files = json.loads((tmp_path / "checksums.json").read_text())["files"]
+    assert {"dataset": "visa", "filename": "x.tar"} in files
+    assert sum(e["dataset"] == "ds" for e in files) == 1

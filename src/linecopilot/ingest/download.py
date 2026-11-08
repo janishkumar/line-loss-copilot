@@ -90,7 +90,14 @@ def download_all(
             }
         )
     data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "checksums.json").write_text(json.dumps({"files": manifest.files}, indent=2) + "\n")
+    path = data_dir / "checksums.json"
+    ours = {src.dataset for src in SOURCES}
+    others: list[dict] = []
+    if path.exists():  # keep entries other downloaders wrote (for example the VisA images)
+        others = [
+            e for e in json.loads(path.read_text()).get("files", []) if e.get("dataset") not in ours
+        ]
+    path.write_text(json.dumps({"files": manifest.files + others}, indent=2) + "\n")
     return manifest
 
 

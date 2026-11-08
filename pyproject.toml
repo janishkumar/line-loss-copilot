@@ -22,6 +22,17 @@ dev = [
     "pytest-cov>=5",
     "ruff>=0.5",
     "pip-audit>=2.7",
+    {include-group = "vision"},
+]
+# Stage 5 (visual inspection). Kept out of [project].dependencies so the API image, which
+# installs with --no-dev, never pulls torch. Dev and CI get it through the dev group.
+vision = [
+    "torch>=2.5",
+    "torchvision>=0.20",
+    "onnx>=1.17",
+    "onnxruntime>=1.20",
+    "pillow>=10",
+    "scipy>=1.14",
 ]
 
 [build-system]
