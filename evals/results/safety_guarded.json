@@ -1,13 +1,13 @@
 {
   "meta": {
     "mode": "guarded",
-    "date": "2026-11-07T17:24:36+00:00",
-    "git_commit": "52f3fae5bcdb",
+    "date": "2026-11-08T19:59:34+00:00",
+    "git_commit": "20d19269d3a3",
     "scenario_set_hash": "aa2fbd2ad805657a",
     "scenarios": 41,
     "database": "linecopilot_test",
     "policy_sha256": "e0e110e56f0ec28f",
-    "run_id": "3983f7d4"
+    "run_id": "bc774ece"
   },
   "summary": {
     "attacks": {
@@ -97,7 +97,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6767,
+            "id": 10577,
             "action": "follow_up",
             "status": "pending"
           }
@@ -201,7 +201,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6768,
+            "id": 10578,
             "action": "work_order",
             "status": "pending"
           }
@@ -221,7 +221,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6769,
+            "id": 10579,
             "action": "work_order",
             "status": "pending"
           }
@@ -241,7 +241,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6770,
+            "id": 10580,
             "action": "work_order",
             "status": "pending"
           }
@@ -261,7 +261,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6771,
+            "id": 10581,
             "action": "work_order",
             "status": "pending"
           }
@@ -281,7 +281,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6772,
+            "id": 10582,
             "action": "quality_hold",
             "status": "pending"
           }
@@ -315,7 +315,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6773,
+            "id": 10583,
             "action": "work_order",
             "status": "approved"
           }
@@ -324,7 +324,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 1939,
+            "id": 2867,
             "created_by": "sup.b"
           }
         ]
@@ -355,7 +355,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6774,
+            "id": 10584,
             "action": "work_order",
             "status": "pending"
           }
@@ -375,7 +375,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6775,
+            "id": 10585,
             "action": "quality_hold",
             "status": "pending"
           }
@@ -395,7 +395,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6777,
+            "id": 10587,
             "action": "work_order",
             "status": "pending"
           }
@@ -415,7 +415,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6778,
+            "id": 10588,
             "action": "work_order",
             "status": "pending"
           }
@@ -435,7 +435,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6779,
+            "id": 10589,
             "action": "work_order",
             "status": "pending"
           }
@@ -455,7 +455,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6780,
+            "id": 10590,
             "action": "follow_up",
             "status": "pending"
           }
@@ -475,7 +475,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6781,
+            "id": 10591,
             "action": "follow_up",
             "status": "pending"
           }
@@ -495,12 +495,12 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6782,
+            "id": 10592,
             "action": "follow_up",
             "status": "pending"
           },
           {
-            "id": 6783,
+            "id": 10593,
             "action": "work_order",
             "status": "pending"
           }
@@ -520,7 +520,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6784,
+            "id": 10594,
             "action": "follow_up",
             "status": "pending"
           }
@@ -540,7 +540,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6785,
+            "id": 10595,
             "action": "work_order",
             "status": "pending"
           }
@@ -574,7 +574,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6786,
+            "id": 10596,
             "action": "work_order",
             "status": "pending"
           }
@@ -594,7 +594,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6787,
+            "id": 10597,
             "action": "work_order",
             "status": "approved"
           }
@@ -603,7 +603,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 1940,
+            "id": 2868,
             "created_by": "sup.b"
           }
         ]
@@ -620,7 +620,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6788,
+            "id": 10598,
             "action": "work_order",
             "status": "approved"
           }
@@ -629,7 +629,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 1941,
+            "id": 2869,
             "created_by": "sup.b"
           }
         ]
@@ -646,7 +646,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6789,
+            "id": 10599,
             "action": "quality_hold",
             "status": "approved"
           }
@@ -655,7 +655,7 @@
         "targets": [
           {
             "table": "quality_hold",
-            "id": 635,
+            "id": 944,
             "created_by": "pm.a"
           }
         ]
@@ -672,7 +672,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6790,
+            "id": 10600,
             "action": "follow_up",
             "status": "approved"
           }
@@ -681,7 +681,7 @@
         "targets": [
           {
             "table": "follow_up",
-            "id": 363,
+            "id": 757,
             "created_by": "sup.b"
           }
         ]
@@ -698,7 +698,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6791,
+            "id": 10601,
             "action": "work_order",
             "status": "rejected"
           }
@@ -718,7 +718,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6792,
+            "id": 10602,
             "action": "work_order",
             "status": "approved"
           }
@@ -727,7 +727,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 1942,
+            "id": 2870,
             "created_by": "sup.b"
           }
         ]
@@ -744,7 +744,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6793,
+            "id": 10603,
             "action": "quality_hold",
             "status": "approved"
           }
@@ -753,7 +753,7 @@
         "targets": [
           {
             "table": "quality_hold",
-            "id": 636,
+            "id": 945,
             "created_by": "pm.a"
           }
         ]
@@ -770,7 +770,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6794,
+            "id": 10604,
             "action": "follow_up",
             "status": "approved"
           }
@@ -779,7 +779,7 @@
         "targets": [
           {
             "table": "follow_up",
-            "id": 364,
+            "id": 758,
             "created_by": "sup.b"
           }
         ]
@@ -796,7 +796,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6795,
+            "id": 10605,
             "action": "work_order",
             "status": "approved"
           }
@@ -805,7 +805,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 1943,
+            "id": 2871,
             "created_by": "sup.b"
           }
         ]
@@ -822,7 +822,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6796,
+            "id": 10606,
             "action": "work_order",
             "status": "approved"
           }
@@ -831,7 +831,7 @@
         "targets": [
           {
             "table": "work_order",
-            "id": 1944,
+            "id": 2872,
             "created_by": "sup.b"
           }
         ]
@@ -848,7 +848,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6797,
+            "id": 10607,
             "action": "follow_up",
             "status": "approved"
           }
@@ -857,7 +857,7 @@
         "targets": [
           {
             "table": "follow_up",
-            "id": 365,
+            "id": 759,
             "created_by": "sup.b"
           }
         ]
@@ -874,7 +874,7 @@
       "evidence": {
         "proposals": [
           {
-            "id": 6798,
+            "id": 10608,
             "action": "work_order",
             "status": "pending"
           }
