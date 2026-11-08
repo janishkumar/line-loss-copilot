@@ -1,11 +1,11 @@
 # Plan eval (synthetic orders on real capacity and real stops)
 
 - Seeds: 7, 8, 9, 10, 11; 8 replay windows of 14 days from 2021-07-01 (40 seed x window cases per algorithm)
-- Date (UTC): 2026-11-07T17:07:13+00:00; git commit a1cc2098a7cb; run time 150.2 s
+- Date (UTC): 2026-11-08T15:17:09+00:00; git commit 26e3cb2f66d9; run time 149.1 s
 - CP-SAT: 1 worker, seed 0, deterministic limit 60.0, wall cap 120.0 s
 - Planning inputs: rates and availability from PIADE rows before 2021-07-01; changeover minutes from the brick line stop log (2025 to 2026, a different process and period, not date-filtered). Replay windows start on or after the PIADE cutoff
 
-Orders, BOMs, stock and receipts are synthetic; capacity and the replayed stops are real PIADE data. `edd_batch` is EDD with family batching (window 1440 min). The numbers say how the schedulers compare on this generator, not what a plant would gain.
+Orders, BOMs, stock and receipts are synthetic; capacity and the replayed stops are real PIADE data. `edd_batch` is EDD with the same earliest-finish machine rule and a changeover-aware job order (family batching, window 1440 min). The comparison to read first is CP-SAT against plain EDD; `edd_batch` isolates what batching alone changes. The numbers say how the schedulers compare on this generator, not what a plant would gain.
 
 Nominal: the plan as the planner sees it (processing at rate x planning availability). Replayed: the same job-to-machine assignment and sequence executed against the real stops of each window, processing at the nominal rate (the stops are explicit). Changeover minutes are work minutes, so the replay leaves them unchanged. Cells are median (q1 to q3).
 
@@ -13,19 +13,19 @@ Nominal: the plan as the planner sees it (processing at rate x planning availabi
 
 | Measure | cpsat | edd_batch | edd | fifo |
 |---|---|---|---|---|
-| Late orders | 3 (2 to 9) | 11 (8 to 14) | 11 (8 to 13) | 10 (8 to 11) |
-| Total tardiness (min) | 4353 (3585 to 12409) | 19171 (11198 to 32687) | 13301 (9468 to 16235) | 18572 (17015 to 19384) |
-| Changeover (min) | 315 (301 to 380) | 270 (256 to 320) | 444 (435 to 479) | 456 (416 to 473) |
-| Orders finishing after the 14-day horizon | 1 (1 to 1) | 5 (4 to 5) | 3 (2 to 3) | 2 (2 to 4) |
+| Late orders | 3 (2 to 9) | 9 (8 to 11) | 11 (8 to 13) | 10 (8 to 11) |
+| Total tardiness (min) | 4353 (3585 to 12409) | 15946 (6382 to 18484) | 13301 (9468 to 16235) | 18572 (17015 to 19384) |
+| Changeover (min) | 315 (301 to 380) | 356 (337 to 368) | 444 (435 to 479) | 456 (416 to 473) |
+| Orders finishing after the 14-day horizon | 1 (1 to 1) | 4 (2 to 5) | 3 (2 to 3) | 2 (2 to 4) |
 
 ## Replayed (n = seeds x windows)
 
 | Measure | cpsat | edd_batch | edd | fifo |
 |---|---|---|---|---|
-| Late orders | 4 (3 to 7) | 11 (7 to 13) | 10 (7.8 to 13) | 9 (8 to 11) |
-| Total tardiness (min) | 4648 (3440.8 to 12079) | 16720.5 (9564.8 to 29219) | 11867 (8246.5 to 14294.5) | 16993 (15265 to 19699) |
-| Changeover (min) | 315 (301 to 380) | 270 (256 to 320) | 444 (435 to 479) | 456 (416 to 473) |
-| Orders finishing after the 14-day horizon | 1 (1 to 2) | 4 (3 to 5) | 3 (2 to 3) | 2 (2 to 4.2) |
+| Late orders | 4 (3 to 7) | 9 (6.8 to 11) | 10 (7.8 to 13) | 9 (8 to 11) |
+| Total tardiness (min) | 4648 (3440.8 to 12079) | 13932.5 (5379.2 to 18084.2) | 11867 (8246.5 to 14294.5) | 16993 (15265 to 19699) |
+| Changeover (min) | 315 (301 to 380) | 356 (337 to 368) | 444 (435 to 479) | 456 (416 to 473) |
+| Orders finishing after the 14-day horizon | 1 (1 to 2) | 4 (2 to 4) | 3 (2 to 3) | 2 (2 to 4.2) |
 
 ## CP-SAT solver outcome
 
@@ -35,10 +35,10 @@ feasible: 5 (of 5 instances); stopped by: deterministic_time 5
 
 | Comparison | Basis | Measure | n | CP-SAT better | equal | worse | Median diff | Mean diff |
 |---|---|---|---|---|---|---|---|---|
-| CP-SAT vs EDD_BATCH | nominal | Total tardiness (min) | 5 | 5 (100%) | 0 | 0 | -14818 | -13224.2 |
-| CP-SAT vs EDD_BATCH | nominal | Late orders | 5 | 5 (100%) | 0 | 0 | -5 | -6.0 |
-| CP-SAT vs EDD_BATCH | replayed | Total tardiness (min) | 40 | 40 (100%) | 0 | 0 | -12421.5 | -11661.4 |
-| CP-SAT vs EDD_BATCH | replayed | Late orders | 40 | 40 (100%) | 0 | 0 | -4 | -5.5 |
+| CP-SAT vs EDD_BATCH | nominal | Total tardiness (min) | 5 | 5 (100%) | 0 | 0 | -2797 | -6078.6 |
+| CP-SAT vs EDD_BATCH | nominal | Late orders | 5 | 4 (80%) | 0 | 1 | -5 | -4.2 |
+| CP-SAT vs EDD_BATCH | replayed | Total tardiness (min) | 40 | 40 (100%) | 0 | 0 | -2728 | -5624.2 |
+| CP-SAT vs EDD_BATCH | replayed | Late orders | 40 | 30 (75%) | 4 | 6 | -3.5 | -3.7 |
 | CP-SAT vs EDD | nominal | Total tardiness (min) | 5 | 5 (100%) | 0 | 0 | -5115 | -5626.2 |
 | CP-SAT vs EDD | nominal | Late orders | 5 | 5 (100%) | 0 | 0 | -5 | -4.8 |
 | CP-SAT vs EDD | replayed | Total tardiness (min) | 40 | 39 (98%) | 0 | 1 | -4100 | -4786.6 |
