@@ -59,3 +59,14 @@ src = ["src", "tests", "."]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+# CPU-only torch on Linux (CI): the default Linux wheels pull about 40 CUDA packages. macOS
+# keeps the PyPI wheels, which already run on CPU and Apple silicon.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]

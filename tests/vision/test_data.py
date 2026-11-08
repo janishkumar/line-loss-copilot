@@ -16,6 +16,7 @@ from linecopilot.vision.data import (
     download_visa,
     extract_subsets,
     load_split,
+    overlap,
     val_test_split,
 )
 
@@ -228,3 +229,56 @@ def test_download_visa_changed_file_fails_verification(tmp_path, monkeypatch):
     (tmp_path / "raw" / "visa" / "VisA_20220922.tar").write_bytes(b"abce")  # same size, corrupted
     with pytest.raises(vd.ChecksumMismatch):
         download_visa(tmp_path, fetch=fetch)
+
+
+def test_overlap_finds_path_and_hash_duplicates_on_val_and_test(tree):
+    train = load_split(tree, "cashew", split="train")
+    test = load_split(tree, "cashew", split="test")
+    val, tst = val_test_split(test, seed=0)
+    dup = next(s for s in test if content_hash(s.image_path) == content_hash(train[0].image_path))
+    found = overlap(train, test)
+    assert [s.image_id for s in found] == [dup.image_id]
+    assert [s.image_id for s in overlap(train, [dup])] == [dup.image_id]
+    # each partition is checked on its own; only the one holding the duplicate trips
+    assert len(overlap(train, val)) + len(overlap(train, tst)) == 1
+    assert overlap(train, [s for s in test if s is not dup]) == []
+
+
+def test_overlap_by_path_even_when_bytes_differ(tree):
+    train = load_split(tree, "cashew", split="train")
+    same_path = Sample("cashew", "test", 0, train[0].image_path, None, train[0].image_id)
+    assert overlap(train, [same_path]) == [same_path]
+
+
+def test_load_split_rejects_escaping_csv_paths(tree):
+    text = (tree / "1cls.csv").read_text().replace("cashew/Data/Images/Normal/0000.JPG", "../x.JPG")
+    (tree / "1cls.csv").write_text(text)
+    with pytest.raises(ValueError):
+        load_split(tree, "cashew")
+
+
+def test_extract_ignores_absolute_symlink_hardlink_and_collisions(tmp_path):
+    tar = tmp_path / "v.tar"
+    with tarfile.open(tar, "w") as tf:
+        link = tarfile.TarInfo("cashew/Data/link")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "/etc/passwd"
+        tf.addfile(link)
+        hard = tarfile.TarInfo("cashew/Data/hard")
+        hard.type = tarfile.LNKTYPE
+        hard.linkname = "cashew/Data/ok"
+        tf.addfile(hard)
+        for name, data in (
+            ("/cashew/Data/abs.txt", b"a"),
+            ("cashew", b"file"),
+            ("cashew/Data/ok", b"o"),
+        ):
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tf.addfile(info, io.BytesIO(data))
+    out = tmp_path / "out"
+    extract_subsets(tar, out)  # must not raise on the file-vs-directory collision
+    assert not (out / "cashew/Data/link").exists() and not (out / "cashew/Data/hard").exists()
+    assert (out / "cashew/Data/abs.txt").read_bytes() == b"a"
+    assert (out / "cashew/Data/ok").read_bytes() == b"o"
+    assert not Path("/cashew").exists()

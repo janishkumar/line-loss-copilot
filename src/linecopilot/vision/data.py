@@ -12,6 +12,7 @@ import random
 import shutil
 import sys
 import tarfile
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -56,6 +57,28 @@ def content_hash(path: Path) -> str:
     return sha.hexdigest()
 
 
+def _safe_rel(rel: str) -> str:
+    parts = rel.replace("\\", "/").split("/")
+    if not rel or rel.startswith("/") or ".." in parts:
+        raise ValueError(f"unsafe path in {VISA_CSV_NAME}: {rel!r}")
+    return rel
+
+
+def overlap(train: list[Sample], others: list[Sample]) -> list[Sample]:
+    """Samples in `others` that also appear in `train`, by relative path or by content hash.
+
+    Call it on every validation and test partition before fitting or fixing a threshold;
+    a non-empty result means leakage.
+    """
+    paths = {s.image_id for s in train} | {str(s.image_path) for s in train}
+    hashes = {content_hash(s.image_path) for s in train}
+    return [
+        s
+        for s in others
+        if s.image_id in paths or str(s.image_path) in paths or content_hash(s.image_path) in hashes
+    ]
+
+
 def load_split(root: Path, subset: str, split: str | None = None) -> list[Sample]:
     """Samples of one subset from <root>/1cls.csv; images and masks live under <root>."""
     root = Path(root)
@@ -64,12 +87,12 @@ def load_split(root: Path, subset: str, split: str | None = None) -> list[Sample
         for row in csv.DictReader(fh):
             if row["object"] != subset or (split is not None and row["split"] != split):
                 continue
-            image = root / row["image"]
+            image = root / _safe_rel(row["image"])
             if not image.exists():
                 raise FileNotFoundError(f"{image} listed in {VISA_CSV_NAME} is missing")
             mask = None
             if row["label"] == "anomaly" and row["mask"]:
-                mask = root / row["mask"]
+                mask = root / _safe_rel(row["mask"])
                 if not mask.exists():
                     raise FileNotFoundError(f"{mask} listed in {VISA_CSV_NAME} is missing")
             out.append(
@@ -124,7 +147,7 @@ def extract_subsets(
             if not member.isfile():
                 continue
             parts = _member_target(member.name)
-            if parts is None:
+            if parts is None or len(parts) < 2:  # a subset is a directory, never a file
                 continue
             dest = out_dir.joinpath(*parts)
             if dest.exists() and dest.stat().st_size == member.size:
@@ -164,10 +187,7 @@ def http_fetch_resumable(url: str, dest: Path, retries: int = 5) -> None:
         except (urllib.error.URLError, TimeoutError, ConnectionError):
             if attempt == retries - 1:
                 raise
-
-
-def _sha256(path: Path) -> str:
-    return content_hash(path)
+            time.sleep(2**attempt)
 
 
 def _merge_manifest(data_dir: Path, entries: list[dict]) -> None:
@@ -209,7 +229,7 @@ def download_visa(
         dest.parent.mkdir(parents=True, exist_ok=True)
         recorded = _recorded_sha(data_dir, name)
         if dest.exists() and (size is None or dest.stat().st_size == size) and recorded:
-            sha = _sha256(dest)
+            sha = content_hash(dest)
             if sha != recorded:
                 raise ChecksumMismatch(f"visa/{name}: sha256 {sha} != recorded {recorded}")
             stamp = datetime.fromtimestamp(dest.stat().st_mtime, UTC).isoformat(timespec="seconds")
@@ -223,7 +243,7 @@ def download_visa(
                 got = tmp.stat().st_size
                 tmp.unlink(missing_ok=True)
                 raise SizeError(f"visa/{name}: {got} bytes, expected {size}")
-            sha = _sha256(tmp)
+            sha = content_hash(tmp)
             tmp.replace(dest)
             stamp = datetime.now(UTC).isoformat(timespec="seconds")
             log(f"visa/{name}: ok (downloaded)")

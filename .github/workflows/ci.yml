@@ -44,7 +44,7 @@ jobs:
         run: uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=80
       - name: pip-audit
         run: |
-          uv export --quiet --frozen --no-dev --no-emit-project --no-hashes -o requirements-audit.txt
+          uv export --quiet --frozen --no-dev --group vision --no-emit-project --no-hashes -o requirements-audit.txt
           uvx pip-audit==2.9.0 -r requirements-audit.txt --no-deps --disable-pip
 
   web:
