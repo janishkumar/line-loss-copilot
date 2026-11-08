@@ -10,21 +10,13 @@ import time
 from pathlib import Path
 
 import torch
-from PIL import Image
 from torch import nn
 
 from linecopilot.config import get_settings
 from linecopilot.vision.data import SUBSETS, Sample, content_hash, load_split, overlap
-from linecopilot.vision.patchcore import (
-    IMAGENET_MEAN,
-    IMAGENET_STD,
-    FeatureExtractor,
-    PatchCore,
-    default_backbone,
-)
+from linecopilot.vision.patchcore import FeatureExtractor, PatchCore, default_backbone
+from linecopilot.vision.preprocess import CROP, RESIZE, preprocess_image
 
-RESIZE = 256
-CROP = 224
 SEED = 0
 
 
@@ -32,21 +24,7 @@ class LeakageError(RuntimeError):
     pass
 
 
-def preprocess(path: Path) -> torch.Tensor:
-    """Resize the short side to 256, centre-crop 224, ImageNet-normalise: [3, 224, 224]."""
-    with Image.open(path) as im:
-        im = im.convert("RGB")
-        w, h = im.size
-        scale = RESIZE / min(w, h)
-        im = im.resize((max(round(w * scale), CROP), max(round(h * scale), CROP)), Image.BICUBIC)
-        w, h = im.size
-        left, top = (w - CROP) // 2, (h - CROP) // 2
-        im = im.crop((left, top, left + CROP, top + CROP))
-        data = torch.frombuffer(bytearray(im.tobytes()), dtype=torch.uint8)
-    x = data.view(CROP, CROP, 3).permute(2, 0, 1).float() / 255.0
-    mean = torch.tensor(IMAGENET_MEAN).view(3, 1, 1)
-    std = torch.tensor(IMAGENET_STD).view(3, 1, 1)
-    return (x - mean) / std
+preprocess = preprocess_image  # kept for callers that import it from here
 
 
 class Trained:
@@ -64,6 +42,9 @@ def train_subset(
     out_dim: int | None = 1024,
     device: str = "cpu",
 ) -> Trained:
+    bad = [s.image_id for s in train if s.split != "train" or s.label != 0]
+    if bad:
+        raise ValueError(f"{subset}: training takes official train normals only, got {bad[:3]}")
     leaks = overlap(train, held_out)
     if leaks:
         raise LeakageError(f"{subset}: {len(leaks)} validation/test images are in the train set")
@@ -72,7 +53,7 @@ def train_subset(
     extractor.to(device)
     model = PatchCore(extractor, seed=SEED, device=device)
     model.fit(
-        (preprocess(s.image_path) for s in train),
+        (preprocess_image(s.image_path) for s in train),
         meta={
             "subset": subset,
             "train_ids": [s.image_id for s in train],

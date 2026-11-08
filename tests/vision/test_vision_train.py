@@ -53,3 +53,26 @@ def test_train_refuses_on_overlap(tmp_path):
 def test_preprocess_resizes_and_crops(tmp_path):
     t = vt.preprocess(_img(tmp_path / "a.png", 128))
     assert t.shape == (3, 224, 224)
+
+
+def test_train_refuses_non_train_or_anomalous_samples(tmp_path):
+    good = [_sample(tmp_path, f"t{i}.png", "train", 100 + i) for i in range(3)]
+    bad_split = good + [_sample(tmp_path, "s.png", "test", 50)]
+    bad_label = good + [_sample(tmp_path, "a.png", "train", 60, 1)]
+    for train in (bad_split, bad_label):
+        with pytest.raises(ValueError):
+            vt.train_subset("cashew", train, [], tmp_path / "m", backbone=TinyNet(), out_dim=8)
+    assert not (tmp_path / "m" / "cashew.pt").exists()
+
+
+def test_shared_preprocess_module(tmp_path):
+    from linecopilot.vision import preprocess as vp
+
+    assert vt.preprocess is vp.preprocess_image
+    mask = Image.new("L", (300, 200), 0)
+    mask.paste(255, (125, 75, 175, 125))
+    mp = tmp_path / "m.png"
+    mask.save(mp)
+    m = vp.preprocess_mask(mp)
+    assert m.shape == (224, 224) and m.dtype == bool and m.any()
+    assert vp.preprocess_mask(None).shape == (224, 224) and not vp.preprocess_mask(None).any()

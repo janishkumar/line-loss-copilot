@@ -7,7 +7,8 @@ projection) as the memory bank -> distance to the nearest bank patch per locatio
 upsampled to the input size and Gaussian-smoothed -> image score is the map maximum.
 
 Deviations from the paper, on purpose: no re-weighting of the image score by neighbour
-density; feature aggregation is plain 3x3 average pooling on each layer (the reference
+density; one seeded random start point for the k-center greedy (the reference averages
+several); feature aggregation is plain 3x3 average pooling on each layer (the reference
 adaptive-pools each layer to the embedding size first, here only the concatenation is
 reduced). Everything after feature extraction is plain torch so it can be exported to ONNX.
 """
@@ -31,12 +32,14 @@ CORESET_FRACTION = 0.10
 PROJECTION_DIM = 128
 
 
-class _Stop(Exception):
-    """Raised from the last hook so layers after it are never computed."""
-
-
 class FeatureExtractor(nn.Module):
-    """Pooled, concatenated, channel-reduced patch features from a frozen backbone."""
+    """Pooled, concatenated, channel-reduced patch features from a frozen backbone.
+
+    No hooks: the backbone's direct children are called in order and the walk stops after the
+    last requested layer, so layers after it never run and several extractors (and models) can
+    share one backbone instance. This matches torchvision ResNets, whose children are the
+    stem, layer1..layer4, avgpool and fc in forward order.
+    """
 
     def __init__(
         self,
@@ -50,28 +53,22 @@ class FeatureExtractor(nn.Module):
             p.requires_grad_(False)
         self.layers = tuple(layers)
         self.out_dim = out_dim
-        self._grabbed: dict[str, torch.Tensor] = {}
-        modules = dict(self.backbone.named_modules())
-        for name in self.layers:
-            modules[name].register_forward_hook(self._hook(name))
-
-    def _hook(self, name: str):
-        def hook(_m, _inp, out):
-            self._grabbed[name] = out
-            if name == self.layers[-1]:
-                raise _Stop
-
-        return hook
+        order = [n for n, _ in self.backbone.named_children()]
+        missing = [n for n in self.layers if n not in order]
+        if missing or [n for n in order if n in self.layers] != list(self.layers):
+            raise ValueError(f"layers {self.layers} must exist and be in network order {order}")
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, tuple[int, int]]:
         """Returns (patches [B*h*w, D], (h, w)) for a normalised batch [B, 3, H, W]."""
-        self._grabbed = {}
-        try:
-            self.backbone(x)
-        except _Stop:
-            pass
-        maps = [F.avg_pool2d(self._grabbed[n], 3, stride=1, padding=1) for n in self.layers]
+        grabbed: dict[str, torch.Tensor] = {}
+        for name, module in self.backbone.named_children():
+            x = module(x)
+            if name in self.layers:
+                grabbed[name] = x
+                if name == self.layers[-1]:
+                    break
+        maps = [F.avg_pool2d(grabbed[n], 3, stride=1, padding=1) for n in self.layers]
         h, w = maps[0].shape[-2:]
         maps = [
             m
@@ -125,10 +122,9 @@ def smooth(maps: torch.Tensor, sigma: float = SIGMA) -> torch.Tensor:
     """Separable Gaussian blur of [B, 1, H, W] with reflect padding."""
     k = gaussian_kernel(sigma).to(maps)
     r = k.numel() // 2
-    pad = min(r, maps.shape[-1] - 1, maps.shape[-2] - 1)
-    x = F.pad(maps, (pad, pad, pad, pad), mode="reflect") if pad else maps
-    if pad != r:  # image smaller than the kernel: fall back to replicate padding
-        x = F.pad(maps, (r, r, r, r), mode="replicate")
+    # reflect padding needs the pad to be smaller than the image; tiny maps use replicate
+    small = r >= min(maps.shape[-2:])
+    x = F.pad(maps, (r, r, r, r), mode="replicate" if small else "reflect")
     x = F.conv2d(x, k.view(1, 1, 1, -1))
     return F.conv2d(x, k.view(1, 1, -1, 1))
 
@@ -220,7 +216,7 @@ class PatchCore:
     def load(
         cls, path: Path, backbone: nn.Module | None = None, device: str = "cpu"
     ) -> "PatchCore":
-        art = torch.load(path, map_location="cpu", weights_only=False)
+        art = torch.load(path, map_location="cpu", weights_only=True)
         cfg = art["config"]
         if backbone is None:
             backbone = default_backbone()

@@ -89,3 +89,42 @@ def test_save_load_round_trip(tmp_path):
 def test_score_before_fit_raises():
     with pytest.raises(RuntimeError):
         _model().score(_anomaly())
+
+
+def test_two_extractors_share_one_backbone():
+    bb = TinyNet()
+    e1 = FeatureExtractor(bb, ("layer2", "layer3"), out_dim=12)
+    e2 = FeatureExtractor(bb, ("layer2", "layer3"), out_dim=12)
+    x = torch.randn(2, 3, 64, 64)
+    f1, _ = e1(x)
+    f2, _ = e2(x)
+    assert torch.equal(f1, f2)
+    assert not bb._forward_hooks and all(not m._forward_hooks for m in bb.modules())
+    assert bb(x).shape[1] == 4  # plain forward still runs layer4
+
+
+def test_six_models_load_on_one_backbone(tmp_path):
+    bb = TinyNet()
+    paths = []
+    for i in range(6):
+        m = PatchCore(FeatureExtractor(bb, out_dim=12), seed=i).fit(_normals(4, seed=i))
+        paths.append((tmp_path / f"s{i}.pt", m.score(_anomaly())[0]))
+        m.save(paths[-1][0])
+    loaded = [PatchCore.load(p, backbone=bb) for p, _ in paths]
+    for model, (_, expected) in zip(loaded, paths, strict=True):
+        assert model.score(_anomaly())[0] == expected
+
+
+def test_layers_must_be_in_network_order():
+    with pytest.raises(ValueError):
+        FeatureExtractor(TinyNet(), ("layer3", "layer2"))
+    with pytest.raises(ValueError):
+        FeatureExtractor(TinyNet(), ("layer2", "nope"))
+
+
+def test_smooth_handles_image_smaller_than_kernel():
+    from linecopilot.vision.patchcore import smooth
+
+    out = smooth(torch.ones(1, 1, 8, 8))
+    assert out.shape == (1, 1, 8, 8)
+    assert torch.allclose(out, torch.ones_like(out), atol=1e-5)
