@@ -279,7 +279,7 @@ def main(argv: list[str] | None = None) -> int:
         pt, onnx_path = models / f"{sub}.pt", models / f"{sub}.onnx"
         sha = file_sha(pt)
         prev = doc["subsets"].get(sub)
-        if prev and prev["model_sha256"] == sha and onnx_path.exists():
+        if prev and prev["model_sha256"] == sha and onnx_path.exists() and "commit" in prev:
             print(f"{sub}: export unchanged, kept", flush=True)
             continue
         print(sub, flush=True)
