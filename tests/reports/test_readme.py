@@ -442,3 +442,34 @@ def test_vision_section_not_run_and_rendered(tmp_path):
     assert "cashew" in out and "0.900 (0.700 to 1.000)" in out
     assert "Table 6" in out and "92.4" in out and "centre crop" in out
     assert "2512.21459" not in out
+
+
+def _latency_doc():
+    def rows(a, b):
+        return [
+            {"threads": 1, "p50_ms": a, "p95_ms": a + 1},
+            {"threads": 4, "p50_ms": b, "p95_ms": b + 1},
+        ]
+
+    return {
+        "machine": {"cpu": "Test CPU", "cpu_count": 8, "onnxruntime": "1.31.1", "torch": "2.15"},
+        "protocol": {"runs": 200, "warmup": 20, "threads": [1, 4]},
+        "subsets": {
+            "cashew": {
+                "model_mb": 70.0,
+                "parity": {"max_rel_score_diff": 2e-6, "max_abs_map_diff": 1e-5},
+                "onnx": rows(100.0, 40.0),
+                "torch": rows(200.0, 80.0),
+                "preprocess": {"p50_ms": 12.0, "p95_ms": 15.0},
+            }
+        },
+    }
+
+
+def test_vision_latency_lines(tmp_path):
+    assert rd.vision_latency_lines(tmp_path) == []
+    (tmp_path / "vision_latency.json").write_text(json.dumps(_latency_doc()))
+    out = "\n".join(rd.vision_latency_lines(tmp_path))
+    assert "Test CPU" in out and "1.31.1" in out
+    assert "| cashew | 70.0 MB | 100.0 / 101.0 | 40.0 / 41.0 |" in out
+    assert "vision_latency.md" in out

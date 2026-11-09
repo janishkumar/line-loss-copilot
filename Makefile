@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: data-visa train-vision eval-vision plan eval-plan eval-shortages synth demo-stage3 demo-stage4 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: data-visa train-vision eval-vision export-vision plan eval-plan eval-shortages synth demo-stage3 demo-stage4 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -47,6 +47,11 @@ train-vision:
 # Vision metrics, cost threshold and published comparison -> evals/results/vision.*.
 eval-vision:
 	uv run python -m evals.vision
+
+# ONNX export per subset, parity with PyTorch, CPU latency -> data/models/vision/*.onnx and
+# evals/results/vision_latency.*. Resumes if interrupted.
+export-vision:
+	uv run python -m evals.vision_latency
 
 # Schemas and grants outside dbt (enrich, ml, demo, actions); idempotent. dbt rebuilds core
 # and mart tables and drops their grants, so `dbt` applies this again after the build.

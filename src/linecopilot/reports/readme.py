@@ -701,6 +701,46 @@ def _vci(x: dict[str, Any]) -> str:
     return f"{x['value']:.3f} ({lo:.3f} to {hi:.3f})"
 
 
+def vision_latency_lines(results: Path) -> list[str]:
+    path = results / "vision_latency.json"
+    if not path.exists():
+        return []
+    doc = _load(path)
+    m, prot = doc["machine"], doc["protocol"]
+    L = [
+        "",
+        "**ONNX export and CPU latency.** One graph per subset (preprocessing outside it, "
+        "memory bank embedded), run with onnxruntime CPUExecutionProvider at batch 1 on "
+        f"{m['cpu']} ({m['cpu_count']} cores, onnxruntime {m['onnxruntime']}); "
+        f"{prot['warmup']} warm-up runs excluded, {prot['runs']} timed runs, p50 / p95 in ms. "
+        "PyTorch CPU with the same protocol is shown for context. Parity with PyTorch is "
+        "checked on real test images and the export fails above 1e-3 relative score "
+        "difference.",
+        "",
+        "| Subset | Model size | ONNX 1 thread | ONNX 4 threads | PyTorch 1 thread "
+        "| PyTorch 4 threads | Max rel. score diff |",
+        "|---|---|---|---|---|---|---|",
+    ]
+
+    def pp(d: dict) -> str:
+        return f"{d['p50_ms']:.1f} / {d['p95_ms']:.1f}"
+
+    for s, r in doc["subsets"].items():
+        o = {x["threads"]: x for x in r["onnx"]}
+        t = {x["threads"]: x for x in r["torch"]}
+        L.append(
+            f"| {s} | {r['model_mb']:.1f} MB | {pp(o[1])} | {pp(o[4])} | {pp(t[1])} "
+            f"| {pp(t[4])} | {r['parity']['max_rel_score_diff']:.1e} |"
+        )
+    L += [
+        "",
+        "Detail, including preprocessing time: "
+        "[evals/results/vision_latency.md](evals/results/vision_latency.md); regenerate with "
+        "`make export-vision`, then `make report`.",
+    ]
+    return L
+
+
 def vision_section(results: Path) -> str:
     path = results / "vision.json"
     if not path.exists():
@@ -822,6 +862,7 @@ def vision_section(results: Path) -> str:
         "Detail: [evals/results/vision.md](evals/results/vision.md); regenerate with "
         "`make eval-vision`, then `make report`.",
     ]
+    L += vision_latency_lines(results)
     return "\n".join(L)
 
 
