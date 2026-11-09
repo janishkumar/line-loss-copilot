@@ -133,10 +133,15 @@ class PixelStats:
 
 
 def bootstrap_ci(
-    stat: Callable[[np.ndarray], float], n_items: int, n: int = 1000, seed: int = 0
-) -> tuple[float, float]:
+    stat: Callable[[np.ndarray], float],
+    n_items: int,
+    n: int = 1000,
+    seed: int = 0,
+    return_skipped: bool = False,
+) -> tuple[float, float] | tuple[float, float, int]:
     """95% percentile interval of stat(indices) over n resamples of range(n_items) with
-    replacement. Resamples where the statistic is undefined (ValueError) are skipped."""
+    replacement. Resamples where the statistic is undefined (ValueError) are skipped; with
+    `return_skipped` their count is returned as a third value."""
     rng = np.random.default_rng(seed)
     vals = []
     for _ in range(n):
@@ -147,4 +152,6 @@ def bootstrap_ci(
     if not vals:
         raise ValueError("statistic undefined on every resample")
     lo, hi = np.percentile(vals, [2.5, 97.5])
+    if return_skipped:
+        return float(lo), float(hi), n - len(vals)
     return float(lo), float(hi)

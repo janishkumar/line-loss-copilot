@@ -346,14 +346,14 @@ The Plan page shows CP-SAT against FIFO and EDD, nominal and under replayed real
 
 ### 10b.2 Model
 
-- PatchCore, implemented in the repo (no extra training framework): a frozen ImageNet-pretrained `wide_resnet50_2` from torchvision, mid-level features (layers 2 and 3) pooled over a 3x3 neighbourhood, a greedy coreset memory bank per subset (capped, with a random projection for selection), nearest-neighbour patch distances as the anomaly map (upsampled and smoothed) and its maximum as the image score. Images resized to 256 and centre-cropped to 224.
+- PatchCore, implemented in the repo (no extra training framework): a frozen ImageNet-pretrained `wide_resnet50_2` from torchvision, mid-level features (layers 2 and 3) pooled over a 3x3 neighbourhood, a greedy coreset memory bank per subset (capped, with a random projection for selection), nearest-neighbour patch distances as the anomaly map (upsampled and smoothed) and its maximum as the image score. Each image is resized to 224 by 224 without cropping (the aspect ratio changes, nothing is cut off, so a defect near an edge stays in view); masks are resized the same way with nearest-neighbour. A first version used a centre crop, which cut the defect out of 18 of 100 macaroni2 images, so it was dropped.
 - The backbone weights are torchvision's ImageNet weights, used for a non-commercial portfolio project; the README says so. Tests never download weights: the backbone is injectable and tests use a tiny randomly initialised network on generated images.
 
 ### 10b.3 Evaluation and threshold
 
 - Image AUROC, pixel AUROC and pixel AUPRO (integrated to a false positive rate of 0.3, normal images included, as in the VisA metrics code) per subset, with bootstrap 95% intervals on the test split. Compared with published PatchCore results on the same split, cited with their source; if a figure cannot be traced to a source it is left out.
-- Threshold from cost: with the cost of a false reject set to 1 and an escaped defect costing r, the threshold minimises expected cost on validation, then cost, false reject rate and escape rate are reported on test. A sensitivity table covers r = 5, 10, 20, 50, 100 (default 20, stated as an assumption) in relative units, never as one money figure.
-- A review band sends images between a lower and the cost threshold to a person instead of deciding automatically; its width is set on validation so that a stated share of images goes to review.
+- Threshold from cost: a false reject costs 1 and an escaped defect costs r. Because VisA's test mix (two thirds anomalous) is unlike a plant's, the expected cost per item is built from per-class rates and a stated defect prevalence p: (1 - p) x false reject rate + p x r x escape rate. The threshold minimises it on validation; cost per 1000 items, false reject rate and escape rate are reported on test. A sensitivity grid covers r = 5, 10, 20, 50, 100 and p = 0.5%, 1%, 2%, 5% (defaults r = 20 and p = 2%, both stated as assumptions) in relative units, never as one money figure.
+- A review band sends images between a lower and the cost threshold to a person instead of deciding automatically; its width is set on validation so that a stated share of items (10%, weighted by p in the same way as the cost) goes to review.
 
 ### 10b.4 Deployment
 

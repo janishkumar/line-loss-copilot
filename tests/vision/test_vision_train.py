@@ -50,9 +50,28 @@ def test_train_refuses_on_overlap(tmp_path):
     assert not (tmp_path / "m" / "cashew.pt").exists()
 
 
-def test_preprocess_resizes_and_crops(tmp_path):
+def test_preprocess_resizes_whole_image(tmp_path):
     t = vt.preprocess(_img(tmp_path / "a.png", 128))
     assert t.shape == (3, 224, 224)
+
+
+def test_wide_image_is_not_cropped(tmp_path):
+    """A 300x200 image with a marker at its far left edge keeps the marker (no centre crop)."""
+    from linecopilot.vision import preprocess as vp
+
+    im = Image.new("RGB", (300, 200), (0, 0, 0))
+    im.paste((255, 255, 255), (0, 80, 20, 120))
+    ip = tmp_path / "wide.png"
+    im.save(ip)
+    x = vp.preprocess_image(ip)
+    assert x[:, :, :10].max() > 1.0  # white strip survives at the left edge
+    mask = Image.new("L", (300, 200), 0)
+    mask.paste(255, (0, 80, 20, 120))
+    mp = tmp_path / "wm.png"
+    mask.save(mp)
+    m = vp.preprocess_mask(mp)
+    assert m[:, :10].any() and m.sum() > 100
+    assert not hasattr(vp, "CROP")
 
 
 def test_train_refuses_non_train_or_anomalous_samples(tmp_path):

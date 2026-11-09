@@ -90,7 +90,7 @@ def test_binned_stats_match_exact():
     stats = m.PixelStats(mk, sc, bins=2000)
     w = np.ones(8)
     assert stats.pixel_auroc(w) == pytest.approx(m.pixel_auroc(mk, sc), abs=5e-3)
-    assert stats.aupro(w) == pytest.approx(m.aupro(list(mk), list(sc), 0.3), abs=2e-2)
+    assert stats.aupro(w) == pytest.approx(m.aupro(list(mk), list(sc), 0.3), abs=1e-2)
 
 
 def test_bootstrap_ci_is_deterministic_and_brackets():
@@ -102,3 +102,20 @@ def test_bootstrap_ci_is_deterministic_and_brackets():
     assert a == b
     lo, hi = a
     assert lo < roc_auc_score(y, s) < hi
+    lo2, hi2, skipped = m.bootstrap_ci(
+        lambda idx: roc_auc_score(y[idx], s[idx]), 80, n=200, seed=0, return_skipped=True
+    )
+    assert (lo2, hi2) == (lo, hi) and skipped == 0
+
+
+def test_bootstrap_counts_undefined_resamples():
+    calls = {"n": 0}
+
+    def stat(idx):
+        calls["n"] += 1
+        if calls["n"] % 2:
+            raise ValueError("undefined")
+        return 1.0
+
+    lo, hi, skipped = m.bootstrap_ci(stat, 10, n=10, seed=0, return_skipped=True)
+    assert skipped == 5 and lo == hi == 1.0

@@ -273,62 +273,7 @@ Realised stopped time over time with data (the planning availability's denominat
 ## Stage 5 results (visual inspection on VisA)
 
 <!-- vision:start -->
-**PatchCore on six VisA food subsets** (real product images, simulated link to a line). Trained on the official one-class train normals only; the official test images are split once, stratified with seed 0, into validation (threshold and review band) and test (every number below). Train and eval images were checked for overlap by path and by content hash before scoring. Run 2026-11-08, commit `d876e4b15245`. Intervals are 95% bootstrap over images (1000 resamples, seed 0).
-
-| Subset | Test images (anomalous) | Image AUROC | Pixel AUROC | Pixel AUPRO (to FPR 0.3) |
-|---|---|---|---|---|
-| cashew | 75 (50) | 0.983 (0.958 to 0.999) | 0.990 (0.979 to 0.993) | 0.922 (0.884 to 0.953) |
-| chewinggum | 75 (50) | 0.996 (0.986 to 1.000) | 0.988 (0.979 to 0.995) | 0.884 (0.826 to 0.933) |
-| fryum | 75 (50) | 0.947 (0.888 to 0.987) | 0.926 (0.895 to 0.960) | 0.788 (0.684 to 0.873) |
-| pipe_fryum | 75 (50) | 0.995 (0.983 to 1.000) | 0.992 (0.988 to 0.996) | 0.912 (0.872 to 0.957) |
-| macaroni1 | 100 (50) | 0.965 (0.928 to 0.991) | 0.989 (0.977 to 0.995) | 0.949 (0.909 to 0.976) |
-| macaroni2 | 100 (50) | 0.695 (0.584 to 0.794) | 0.956 (0.926 to 0.978) | 0.847 (0.736 to 0.927) |
-
-Cost threshold, chosen on validation with a false reject costing 1 and an escaped defect costing r = 20 (an assumption; relative units only). Test results, with a review band holding 10% of validation images just below the threshold:
-
-| Subset | Cost per 1000 images | False reject rate | Escape rate | Sent to review | Escapes avoided by review |
-|---|---|---|---|---|---|
-| cashew | 133 | 0.400 | 0.000 | 2.7% | 0 of 0 |
-| chewinggum | 200 | 0.600 | 0.000 | 5.3% | 0 of 0 |
-| fryum | 240 | 0.720 | 0.000 | 6.7% | 0 of 0 |
-| pipe_fryum | 80 | 0.240 | 0.000 | 9.3% | 0 of 0 |
-| macaroni1 | 420 | 0.440 | 0.020 | 4.0% | 0 of 1 |
-| macaroni2 | 630 | 0.860 | 0.020 | 7.0% | 1 of 1 |
-
-Sensitivity of the test cost per 1000 images to r (threshold re-chosen on validation for each r):
-
-| Subset | r = 5 | r = 10 | r = 20 | r = 50 | r = 100 |
-|---|---|---|---|---|---|
-| cashew | 133 | 133 | 133 | 133 | 133 |
-| chewinggum | 200 | 200 | 200 | 200 | 200 |
-| fryum | 253 | 240 | 240 | 240 | 240 |
-| pipe_fryum | 80 | 80 | 80 | 80 | 80 |
-| macaroni1 | 180 | 320 | 420 | 720 | 1220 |
-| macaroni2 | 480 | 530 | 630 | 930 | 1430 |
-
-Full official test split (for comparison with published work), against the one figure found (CCAD: Compressed Global Feature Conditioned Anomaly Detection, https://arxiv.org/html/2512.21459, Table 8 (Appendix D.2, VisA), 'AUROC (Class-level; Pixel-level) comparison with SOTA methods on VisA', column PatchCore, single-class setting):
-
-| Subset | Image AUROC (ours) | Image AUROC (published) | Pixel AUROC (ours) | Pixel AUROC (published) | Pixel AUPRO (ours) |
-|---|---|---|---|---|---|
-| cashew | 0.981 | 0.851 | 0.991 | 0.777 | 0.917 |
-| chewinggum | 0.991 | 0.925 | 0.983 | 0.921 | 0.826 |
-| fryum | 0.934 | 0.769 | 0.932 | 0.885 | 0.793 |
-| pipe_fryum | 0.993 | 0.901 | 0.992 | 0.920 | 0.924 |
-| macaroni1 | 0.965 | 0.785 | 0.991 | 0.944 | 0.954 |
-| macaroni2 | 0.725 | 0.472 | 0.945 | 0.936 | 0.813 |
-
-**Published comparison is not a like for like.** Third-party re-run of PatchCore using an LDM (AutoEncoderKL) encoder, 256 x 256 input and a 1000-sample memory bank (the paper's Table 22). Ours: wide_resnet50_2 IMAGENET1K_V1, resize 256, centre crop 224, layers 2 and 3, coreset up to 10% or 16,384 patches. Backbone, crop and coreset differ, so this is a loose reference, not a like for like comparison. Several of its figures (macaroni2 image AUROC 0.472) look weak against other PatchCore reports, which I could not verify from a fetched table. The VisA paper (arXiv 2207.14315) does not report PatchCore, so no AUPRO figure for PatchCore on VisA was found in a source I could fetch and read.
-
-**Caveats.**
-
-- Costs are relative: a false reject costs 1 and an escaped defect costs r. r = 20 is an assumption, not a measured plant figure; the sensitivity table shows r = 5 to 100.
-- Validation and test are 50/50 halves of the official test split; each half holds only dozens of images per class, so intervals are wide and the threshold is noisy.
-- The test halves are two thirds anomalous (VisA's official test mix), far above a plant's defect rate. False reject rate and escape rate are per class and transfer; cost per 1000 images and the cost-optimal threshold do not, and at a real defect rate the cost would be dominated by false rejects.
-- Images are VisA product photos, not images from the plant; their link to a line is simulated elsewhere in this project and labelled.
-- The review band assumes a reviewer decides every image in it correctly and ignores review effort.
-- ImageNet weights from torchvision are used for a non-commercial portfolio project.
-
-Detail: [evals/results/vision.md](evals/results/vision.md); regenerate with `make eval-vision`, then `make report`.
+Vision results: not run yet (`make data-visa`, `make train-vision`, then `make eval-vision`).
 <!-- vision:end -->
 
 ## Assumptions

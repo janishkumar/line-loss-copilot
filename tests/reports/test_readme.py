@@ -390,8 +390,17 @@ def test_vision_section_not_run_and_rendered(tmp_path):
     assert "not run yet" in rd.vision_section(tmp_path)
     from evals import vision as ev
 
+    def row(r, p, cost):
+        return {
+            "r": r,
+            "p": p,
+            "threshold": 1.2,
+            "test": {"cost_per_1000": cost, "false_reject_rate": 0.1, "escape_rate": 0.25},
+        }
+
     sub = {
         "default_r": 20,
+        "default_p": 0.02,
         "test": {
             "n": 8,
             "n_normal": 4,
@@ -408,14 +417,16 @@ def test_vision_section_not_run_and_rendered(tmp_path):
             "aupro": 0.81,
         },
         "sensitivity": [
-            {
-                "r": 20,
-                "threshold": 1.2,
-                "test": {"cost_per_1000": 250, "false_reject_rate": 0.0, "escape_rate": 0.25},
-            }
+            row(r, p, 100 * r * p) for r in (5, 10, 20, 50, 100) for p in (0.005, 0.01, 0.02, 0.05)
         ],
         "review_band": {
-            "test": {"share_to_review": 0.1, "escapes_avoided": 1, "escapes_before": 1}
+            "test": {
+                "review_per_1000": 98.0,
+                "escape_rate_before": 0.25,
+                "escape_rate_after": 0.0,
+                "escapes_avoided": 1,
+                "escapes_before": 1,
+            }
         },
     }
     doc = {
@@ -423,9 +434,11 @@ def test_vision_section_not_run_and_rendered(tmp_path):
         "commit": "abc",
         "assumptions": ev.ASSUMPTIONS,
         "published": ev.PUBLISHED,
+        "first_run": ev.FIRST_RUN_CENTRE_CROP,
         "subsets": {"cashew": sub},
     }
     (tmp_path / "vision.json").write_text(json.dumps(doc))
     out = rd.vision_section(tmp_path)
-    assert "cashew" in out and "0.900 (0.700 to 1.000)" in out and "CCAD" in out
-    assert "Table 8" in out and "not a like for like" in out
+    assert "cashew" in out and "0.900 (0.700 to 1.000)" in out
+    assert "Table 6" in out and "92.4" in out and "centre crop" in out
+    assert "2512.21459" not in out

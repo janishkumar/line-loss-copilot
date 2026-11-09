@@ -704,16 +704,24 @@ def _vci(x: dict[str, Any]) -> str:
 def vision_section(results: Path) -> str:
     path = results / "vision.json"
     if not path.exists():
-        return "Vision results: not run yet (`make data-visa`, `make train-vision`, then `make eval-vision`)."  # noqa: E501
+        return (
+            "Vision results: not run yet "
+            "(`make data-visa`, `make train-vision`, then `make eval-vision`)."
+        )
     doc = _load(path)
-    subs, pub = doc["subsets"], doc["published"]
+    subs, pub, first = doc["subsets"], doc["published"], doc["first_run"]
+    prim, sec = pub["primary"], pub["secondary"]
+    mean_i = statistics.fmean(r["official_test"]["image_auroc"] for r in subs.values())
+    mean_p = statistics.fmean(r["official_test"]["pixel_auroc"] for r in subs.values())
     L = [
-        "**PatchCore on six VisA food subsets** (real product images, simulated link to a line). "
-        "Trained on the official one-class train normals only; the official test images are split "
-        "once, stratified with seed 0, into validation (threshold and review band) and test "
-        "(every number below). Train and eval images were checked for overlap by path and by "
-        f"content hash before scoring. Run {doc['date']}, commit `{doc['commit']}`. Intervals are "
-        "95% bootstrap over images (1000 resamples, seed 0).",
+        "**PatchCore on six VisA food subsets** (real product images; their link to a line is "
+        "simulated). Each image is resized whole to 224 x 224 with no crop. Trained on the "
+        "official one-class train normals only; the official test images are split once, "
+        "stratified with seed 0, into validation (threshold and review band) and test (every "
+        "number below). Train and eval images were checked for overlap by path and by content "
+        f"hash before scoring. Run {doc['date']}, commit `{doc['commit']}`. Intervals are 95% "
+        "bootstrap over images (1000 resamples, seed 0). Pixel metrics are computed on the "
+        "224 x 224 maps, not at the original resolution.",
         "",
         "| Subset | Test images (anomalous) | Image AUROC | Pixel AUROC | Pixel AUPRO (to FPR 0.3) |",  # noqa: E501
         "|---|---|---|---|---|",
@@ -726,56 +734,87 @@ def vision_section(results: Path) -> str:
         )
     L += [
         "",
-        "Cost threshold, chosen on validation with a false reject costing 1 and an escaped "
-        "defect costing r = 20 (an assumption; relative units only). Test results, with a review "
-        "band holding 10% of validation images just below the threshold:",
+        "**Threshold and cost (assumptions: r = 20, p = 2%).** A false reject costs 1 and an "
+        "escaped defect costs r = 20, with defects assumed to be p = 2% of items. VisA's test "
+        "mix is two thirds anomalous, so the cost is built from per-class rates: cost = (1 - p) "
+        "x false reject rate + p x r x escape rate, minimised on validation, then reported on "
+        "test per 1000 items. Both numbers are assumptions, not plant figures, and the relative "
+        "units are not money. The review band holds 10% of items (weighted by p) just below the "
+        "threshold and assumes reviewers decide correctly.",
         "",
-        "| Subset | Cost per 1000 images | False reject rate | Escape rate | Sent to review | Escapes avoided by review |",  # noqa: E501
+        "| Subset | Cost per 1000 items | False reject rate | Escape rate | Items to review per 1000 | Escape rate with review |",  # noqa: E501
         "|---|---|---|---|---|---|",
     ]
     for s, r in subs.items():
-        row = next(x for x in r["sensitivity"] if x["r"] == r["default_r"])["test"]
+        row = next(
+            x for x in r["sensitivity"] if x["r"] == r["default_r"] and x["p"] == r["default_p"]
+        )["test"]
         b = r["review_band"]["test"]
         L.append(
-            f"| {s} | {row['cost_per_1000']:.0f} | {row['false_reject_rate']:.3f} "
-            f"| {row['escape_rate']:.3f} | {b['share_to_review']:.1%} "
-            f"| {b['escapes_avoided']} of {b['escapes_before']} |"
+            f"| {s} | {row['cost_per_1000']:.1f} | {row['false_reject_rate']:.3f} "
+            f"| {row['escape_rate']:.3f} | {b['review_per_1000']:.0f} "
+            f"| {b['escape_rate_after']:.3f} |"
         )
+    first_subset = next(iter(subs.values()))
+    rs = sorted({x["r"] for x in first_subset["sensitivity"]})
+    ps = sorted({x["p"] for x in first_subset["sensitivity"]})
     L += [
         "",
-        "Sensitivity of the test cost per 1000 images to r (threshold re-chosen on validation "
-        "for each r):",
+        "Test cost per 1000 items for each r and p (threshold re-chosen on validation for each "
+        "pair; false reject and escape rates for every pair are in "
+        "[evals/results/vision.md](evals/results/vision.md)):",
         "",
+        "| Subset | p | " + " | ".join(f"r = {r}" for r in rs) + " |",
+        "|---|---|" + "---|" * len(rs),
     ]
-    rs = [x["r"] for x in next(iter(subs.values()))["sensitivity"]] if subs else []
-    L += ["| Subset | " + " | ".join(f"r = {r}" for r in rs) + " |", "|---|" + "---|" * len(rs)]
     for s, r in subs.items():
-        L.append(
-            f"| {s} | "
-            + " | ".join(f"{x['test']['cost_per_1000']:.0f}" for x in r["sensitivity"])
-            + " |"
-        )
+        for p in ps:
+            cells = {x["r"]: x for x in r["sensitivity"] if x["p"] == p}
+            L.append(
+                f"| {s} | {p:.1%} | "
+                + " | ".join(f"{cells[k]['test']['cost_per_1000']:.1f}" for k in rs)
+                + " |"
+            )
     L += [
         "",
-        "Full official test split (for comparison with published work), against the one "
-        f"figure found ({pub['source']}, {pub['url']}, {pub['table']}):",
+        f"**Published comparison.** {prim['source']} ({prim['url']}, {prim['table']}) reports "
+        f"PatchCore on VisA with a Wide ResNet50, one model per class: average image AUROC "
+        f"{prim['average_image_auroc'] * 100:.1f}, pixel AUROC "
+        f"{prim['average_pixel_auroc'] * 100:.1f}, averaged over its 12 classes. Ours, averaged "
+        f"over the six food subsets on the full official test split: image AUROC "
+        f"{mean_i * 100:.1f}, pixel AUROC {mean_p * 100:.1f}. The two averages cover different "
+        "sets of classes, and the published table does not state its input resolution or report "
+        "AUPRO, so this is an indicative comparison, not a like for like. "
+        f"Per-class reference ({sec['source']}, {sec['url']}, {sec['table']}); {sec['caveat']}",
         "",
-        "| Subset | Image AUROC (ours) | Image AUROC (published) | Pixel AUROC (ours) | Pixel AUROC (published) | Pixel AUPRO (ours) |",  # noqa: E501
+        "| Subset | Image AUROC (ours, full official test) | Image AUROC (published) | Pixel AUROC (ours) | Pixel AUROC (published) | Pixel AUPRO (ours) |",  # noqa: E501
         "|---|---|---|---|---|---|",
     ]
-    for s, r in subs.items():
-        o, v = r["official_test"], pub["per_subset"][s]
+    for s, v in sec["per_subset"].items():
+        if s not in subs:
+            continue
+        o = subs[s]["official_test"]
         L.append(
             f"| {s} | {o['image_auroc']:.3f} | {v['image_auroc']:.3f} | {o['pixel_auroc']:.3f} "
             f"| {v['pixel_auroc']:.3f} | {o['aupro']:.3f} |"
         )
     L += [
         "",
-        "**Published comparison is not a like for like.** " + pub["setup"] + " " + pub["note"],
+        "**What changed after the first run.** " + first["note"] + " Image AUROC / pixel AUROC "
+        "/ pixel AUPRO on the full official test split, before and after:",
         "",
-        "**Caveats.**",
-        "",
+        "| Subset | Before (centre crop) | After (whole image) |",
+        "|---|---|---|",
     ]
+    for s, v in first["per_subset"].items():
+        if s not in subs:
+            continue
+        o, b = subs[s]["official_test"], v["official"]
+        L.append(
+            f"| {s} | {b[0]:.3f} / {b[1]:.3f} / {b[2]:.3f} "
+            f"| {o['image_auroc']:.3f} / {o['pixel_auroc']:.3f} / {o['aupro']:.3f} |"
+        )
+    L += ["", "**Caveats.**", ""]
     L += [f"- {a}" for a in doc["assumptions"]]
     L += [
         "- ImageNet weights from torchvision are used for a non-commercial portfolio project.",

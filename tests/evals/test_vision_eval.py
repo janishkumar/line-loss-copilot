@@ -42,11 +42,15 @@ def test_evaluate_subset_structure(monkeypatch):
     assert t["n"] == 8 and res["validation"]["n"] == 8 and res["official_test"]["n"] == 16
     for key in ("image_auroc", "pixel_auroc", "aupro"):
         lo, hi = t[key]["ci95"]
-        assert lo <= t[key]["value"] <= hi or lo <= hi
+        assert 0.0 <= lo <= hi <= 1.0
         assert 0.0 <= t[key]["value"] <= 1.0
+        assert t[key]["bootstrap_skipped"] >= 0
     assert res["official_test"]["image_auroc"] > 0.9
-    assert [r["r"] for r in res["sensitivity"]] == [5, 10, 20, 50, 100]
-    assert res["default_r"] == 20 and "lower" in res["review_band"]["validation"]
+    grid = {(r["r"], r["p"]) for r in res["sensitivity"]}
+    assert grid == {(r, p) for r in (5, 10, 20, 50, 100) for p in (0.005, 0.01, 0.02, 0.05)}
+    assert res["default_r"] == 20 and res["default_p"] == 0.02
+    assert "lower" in res["review_band"]["validation"]
+    assert "review_per_1000" in res["review_band"]["test"]
     assert res["leakage"] == {"train_vs_eval_overlap": 0}
     ids = res["split"]
     assert set(ids["validation_ids"]).isdisjoint(ids["test_ids"])
@@ -62,14 +66,19 @@ def test_leakage_stops_the_eval(monkeypatch):
 def test_thresholds_entry():
     monkey = {
         "default_r": 20,
-        "sensitivity": [{"r": 20, "threshold": 1.5}],
+        "default_p": 0.02,
+        "sensitivity": [
+            {"r": 20, "p": 0.02, "threshold": 1.5},
+            {"r": 20, "p": 0.05, "threshold": 0.5},
+        ],
         "review_band": {"validation": {"lower": 1.0, "target_share": 0.1}},
     }
     e = ev.threshold_entry(monkey)
     assert e["threshold"] == 1.5 and e["review_lower"] == 1.0 and e["r"] == 20
+    assert e["p"] == 0.02
 
 
-def test_markdown_and_published_have_citation():
+def test_markdown_and_published_have_citations():
     doc = {
         "date": "2026-01-01",
         "commit": "abc",
@@ -77,7 +86,12 @@ def test_markdown_and_published_have_citation():
         "assumptions": ev.ASSUMPTIONS,
         "subsets": {},
         "published": ev.PUBLISHED,
+        "first_run": ev.FIRST_RUN_CENTRE_CROP,
     }
     md = ev.markdown(doc)
-    assert "arxiv.org/html/2512.21459" in md and "Table 8" in md
-    assert ev.PUBLISHED["matches_our_setup"] is False
+    assert "arxiv.org/html/2207.14315" in md and "Table 6" in md
+    assert "arxiv.org/html/2412.20870" in md and "Table 3" in md
+    assert "2512.21459" not in md
+    assert ev.PUBLISHED["primary"]["average_image_auroc"] == 0.924
+    assert ev.PUBLISHED["primary"]["average_pixel_auroc"] == 0.984
+    assert " I " not in md.replace("\n", " ")

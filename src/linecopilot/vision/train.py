@@ -15,7 +15,7 @@ from torch import nn
 from linecopilot.config import get_settings
 from linecopilot.vision.data import SUBSETS, Sample, content_hash, load_split, overlap
 from linecopilot.vision.patchcore import FeatureExtractor, PatchCore, default_backbone
-from linecopilot.vision.preprocess import CROP, RESIZE, preprocess_image
+from linecopilot.vision.preprocess import SIZE, preprocess_image
 
 SEED = 0
 
@@ -59,8 +59,8 @@ def train_subset(
             "train_ids": [s.image_id for s in train],
             "train_hashes": hashes,
             "backbone": "wide_resnet50_2 IMAGENET1K_V1" if backbone is None else "injected",
-            "resize": RESIZE,
-            "crop": CROP,
+            "input_size": SIZE,
+            "crop": None,
         },
     )
     path = Path(out_dir) / f"{subset}.pt"
