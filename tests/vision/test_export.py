@@ -60,3 +60,20 @@ def test_benchmark_structure(tmp_path):
 def test_machine_info_fields():
     info = E.machine_info()
     assert info["onnxruntime"] and info["cpu_count"] >= 1 and "cpu" in info
+
+
+def test_parity_gates_map_difference(tmp_path):
+    m = _fitted()
+    path = tmp_path / "m.onnx"
+    E.export_onnx(m, path, size=64)
+    with pytest.raises(E.ParityError):
+        E.parity(m, path, [_anomaly()], map_tol=0.0)
+
+
+def test_benchmark_preprocess(tmp_path):
+    from PIL import Image
+
+    p = tmp_path / "a.png"
+    Image.new("RGB", (40, 30), (10, 20, 30)).save(p)
+    r = E.benchmark_preprocess([p], runs=3)
+    assert r["runs"] == 3 and 0 < r["p50_ms"] <= r["p95_ms"]

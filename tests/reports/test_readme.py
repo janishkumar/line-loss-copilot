@@ -445,24 +445,23 @@ def test_vision_section_not_run_and_rendered(tmp_path):
 
 
 def _latency_doc():
-    def rows(a, b):
-        return [
-            {"threads": 1, "p50_ms": a, "p95_ms": a + 1},
-            {"threads": 4, "p50_ms": b, "p95_ms": b + 1},
-        ]
+    def blk(p, r):
+        return {"round": r, "p50_ms": p, "p95_ms": p + 5, "load": 1.0, "date": "d", "commit": "c"}
 
+    cfg = {"onnx-1": 100.0, "onnx-4": 60.0, "torch-1": 90.0, "torch-4": 50.0}
     return {
         "machine": {"cpu": "Test CPU", "cpu_count": 8, "onnxruntime": "1.31.1", "torch": "2.15"},
-        "protocol": {"runs": 200, "warmup": 20, "threads": [1, 4]},
+        "protocol": {"rounds": 2, "runs": 40, "warmup": 20, "load_limit": 2.0},
         "subsets": {
             "cashew": {
-                "model_mb": 70.0,
+                "model_mb": 172.9,
+                "bank_mb": 67.1,
+                "backbone_mb": 105.8,
                 "parity": {"max_rel_score_diff": 2e-6, "max_abs_map_diff": 1e-5},
-                "onnx": rows(100.0, 40.0),
-                "torch": rows(200.0, 80.0),
                 "preprocess": {"p50_ms": 12.0, "p95_ms": 15.0},
             }
         },
+        "blocks": {"cashew": {c: [blk(v, 0), blk(v + 2, 1)] for c, v in cfg.items()}},
     }
 
 
@@ -470,6 +469,9 @@ def test_vision_latency_lines(tmp_path):
     assert rd.vision_latency_lines(tmp_path) == []
     (tmp_path / "vision_latency.json").write_text(json.dumps(_latency_doc()))
     out = "\n".join(rd.vision_latency_lines(tmp_path))
-    assert "Test CPU" in out and "1.31.1" in out
-    assert "| cashew | 70.0 MB | 100.0 / 101.0 | 40.0 / 41.0 |" in out
+    assert "Test CPU" in out and "1.31.1" in out and "below 2.0" in out
+    assert "| ONNX Runtime | 101.0 (100.0 to 102.0) | 61.0 (60.0 to 62.0) |" in out
+    assert "not faster than PyTorch" in out
+    assert "about 67 MB is the memory bank" in out and "about 106 MB the backbone" in out
+    assert "not demonstrated" in out and "Apple M4 laptop" in out
     assert "vision_latency.md" in out

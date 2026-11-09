@@ -5,6 +5,9 @@ normalisation stay outside the graph and come from `vision.preprocess`, so train
 inference share one geometry). Outputs: (score [], map [1, 1, S, S]). The memory bank is a
 constant initializer.
 
+The export uses the legacy TorchScript exporter (`dynamo=False`), which torch 2.15 (the pinned
+version) still ships; a later torch may require porting to the dynamo exporter.
+
 The graph is the same scorer as `PatchCore.score_maps`, with two exact rewrites so it exports:
 - channel reduction (adaptive average pooling over channels) becomes a fixed matrix, built by
   applying the same adaptive pool to an identity matrix;
@@ -16,7 +19,6 @@ The Gaussian blur is `patchcore.smooth`, a fixed separable conv, shared by both 
 
 from __future__ import annotations
 
-import json
 import os
 import platform
 import statistics
@@ -36,6 +38,7 @@ from linecopilot.vision.preprocess import SIZE
 
 OPSET = 17
 PARITY_TOL = 1e-3
+MAP_TOL = 1e-3  # absolute, on the anomaly map
 
 
 class ParityError(AssertionError):
@@ -52,8 +55,9 @@ def _reduction_matrix(c: int, out_dim: int | None) -> torch.Tensor | None:
 class Scorer(nn.Module):
     """The PatchCore scoring path as one exportable module."""
 
-    def __init__(self, model: PatchCore) -> None:
+    def __init__(self, model: PatchCore, size: int = SIZE) -> None:
         super().__init__()
+        self.size = size
         if model.bank is None:
             raise RuntimeError("model is not fitted")
         ex = model.extractor
@@ -91,19 +95,15 @@ class Scorer(nn.Module):
         d2 = (flat * flat).sum(1, keepdim=True) - 2.0 * (flat @ self.bank_t) + self.bank_sq
         mins = d2.min(dim=1).values.clamp_min(0.0).sqrt()
         amap = mins.reshape(1, 1, h, w)
-        size = self._size
-        amap = F.interpolate(amap, (size, size), mode="bilinear", align_corners=False)
+        amap = F.interpolate(amap, (self.size, self.size), mode="bilinear", align_corners=False)
         amap = smooth(amap)
         return amap.max(), amap
-
-    _size = SIZE
 
 
 @torch.no_grad()
 def export_onnx(model: PatchCore, path: Path, size: int = SIZE) -> Path:
     """Write the full scorer to `path`; preprocessing stays outside the graph."""
-    scorer = Scorer(model).eval()
-    scorer._size = size
+    scorer = Scorer(model, size).eval()
     dummy = torch.zeros(1, 3, size, size)
     scorer.set_channels(_concat_channels(model, dummy))
     path = Path(path)
@@ -143,7 +143,12 @@ def _session(path: Path, threads: int = 1):
     return ort.InferenceSession(str(path), opts, providers=["CPUExecutionProvider"])
 
 
-def parity(model: PatchCore, onnx_path: Path, images: Sequence[torch.Tensor]) -> dict[str, Any]:
+def parity(
+    model: PatchCore,
+    onnx_path: Path,
+    images: Sequence[torch.Tensor],
+    map_tol: float = MAP_TOL,
+) -> dict[str, Any]:
     """Compare PyTorch and ONNX score and map on real preprocessed images; raise if off."""
     sess = _session(onnx_path)
     rel, mdiff, srel_abs = [], [], []
@@ -160,8 +165,9 @@ def parity(model: PatchCore, onnx_path: Path, images: Sequence[torch.Tensor]) ->
         "max_abs_score_diff": max(srel_abs),
         "max_abs_map_diff": max(mdiff),
         "tolerance": PARITY_TOL,
+        "map_tolerance": map_tol,
     }
-    if out["max_rel_score_diff"] > PARITY_TOL:
+    if out["max_rel_score_diff"] > PARITY_TOL or out["max_abs_map_diff"] > map_tol:
         raise ParityError(f"ONNX score differs from PyTorch: {out}")
     return out
 
@@ -180,7 +186,10 @@ def _percentiles(ms: list[float]) -> dict[str, float]:
 def benchmark(
     onnx_path: Path, threads: int = 1, runs: int = 200, warmup: int = 20, size: int = SIZE
 ) -> dict[str, Any]:
-    """ONNX Runtime CPU latency, batch 1; warm-up runs are excluded."""
+    """ONNX Runtime CPU latency, batch 1; warm-up runs are excluded.
+
+    Input is one fixed random tensor: the graph's cost does not depend on pixel values.
+    """
     sess = _session(onnx_path, threads)
     x = np.random.default_rng(0).standard_normal((1, 3, size, size)).astype(np.float32)
     for _ in range(warmup):
@@ -250,7 +259,3 @@ def machine_info() -> dict[str, Any]:
         "torch": torch.__version__,
         "opset": OPSET,
     }
-
-
-def dump(path: Path, doc: dict[str, Any]) -> None:
-    Path(path).write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")

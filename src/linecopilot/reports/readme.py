@@ -705,36 +705,64 @@ def vision_latency_lines(results: Path) -> list[str]:
     path = results / "vision_latency.json"
     if not path.exists():
         return []
+    from evals.vision_latency import summary
+
     doc = _load(path)
+    if "blocks" not in doc:  # written by an older protocol: rerun `make export-vision`
+        return []
     m, prot = doc["machine"], doc["protocol"]
+    _, pooled = summary(doc)
+    subs = doc["subsets"]
+    first = next(iter(subs.values()), None)
     L = [
         "",
         "**ONNX export and CPU latency.** One graph per subset (preprocessing outside it, "
-        "memory bank embedded), run with onnxruntime CPUExecutionProvider at batch 1 on "
-        f"{m['cpu']} ({m['cpu_count']} cores, onnxruntime {m['onnxruntime']}); "
-        f"{prot['warmup']} warm-up runs excluded, {prot['runs']} timed runs, p50 / p95 in ms. "
-        "PyTorch CPU with the same protocol is shown for context. Parity with PyTorch is "
-        "checked on real test images and the export fails above 1e-3 relative score "
-        "difference.",
+        "memory bank embedded), run with onnxruntime CPUExecutionProvider at batch 1. Parity "
+        "with PyTorch is checked on real test images and the export fails above 1e-3 relative "
+        "score difference.",
         "",
-        "| Subset | Model size | ONNX 1 thread | ONNX 4 threads | PyTorch 1 thread "
-        "| PyTorch 4 threads | Max rel. score diff |",
-        "|---|---|---|---|---|---|---|",
     ]
-
-    def pp(d: dict) -> str:
-        return f"{d['p50_ms']:.1f} / {d['p95_ms']:.1f}"
-
-    for s, r in doc["subsets"].items():
-        o = {x["threads"]: x for x in r["onnx"]}
-        t = {x["threads"]: x for x in r["torch"]}
-        L.append(
-            f"| {s} | {r['model_mb']:.1f} MB | {pp(o[1])} | {pp(o[4])} | {pp(t[1])} "
-            f"| {pp(t[4])} | {r['parity']['max_rel_score_diff']:.1e} |"
-        )
+    if pooled:
+        L += [
+            f"Measured on one laptop ({m['cpu']}, {m['cpu_count']} cores, onnxruntime "
+            f"{m['onnxruntime']}) in normal use: {prot['rounds']} interleaved rounds over all "
+            "subsets and settings, run only when the 1-minute load average was below "
+            f"{prot['load_limit']}. The six graphs cost the same, so subset differences are "
+            "noise and the pooled figure below is the one to quote. Median of the per-round "
+            "p50 in ms, range of round medians in brackets:",
+            "",
+            "| Runtime | 1 thread | 4 threads |",
+            "|---|---|---|",
+        ]
+        for kind, name in (("onnx", "ONNX Runtime"), ("torch", "PyTorch")):
+            a, b = (pooled.get(f"{kind}-{t}") for t in (1, 4))
+            cell = lambda x: (  # noqa: E731
+                f"{x['p50_ms']:.1f} ({x['p50_min_ms']:.1f} to {x['p50_max_ms']:.1f})"
+                if x
+                else "n/a"
+            )
+            L.append(f"| {name} | {cell(a)} | {cell(b)} |")
+        o1, t1 = pooled.get("onnx-1"), pooled.get("torch-1")
+        if o1 and t1:
+            verdict = "faster than" if o1["p50_ms"] < t1["p50_ms"] else "not faster than"
+            L += ["", f"ONNX Runtime was {verdict} PyTorch here (1 thread), so the export is for "
+                  "portability, not speed."]  # fmt: skip
+        if doc.get("incomplete"):
+            L += ["", "The run is incomplete (the machine stayed busy); rerun to finish."]
+    if first:
+        L += [
+            "",
+            f"Each model file is {first['model_mb']:.0f} MB: about {first['bank_mb']:.0f} MB is "
+            f"the memory bank (16384 x 1024 float32) and about {first['backbone_mb']:.0f} MB "
+            "the backbone up to layer 3. Preprocessing (decode, resize, normalise) takes "
+            f"about {first['preprocess']['p50_ms']:.0f} ms per image and is not in these "
+            "figures. Suitability for a small plant computer is not demonstrated: only this "
+            "Apple M4 laptop was measured, with no x86 or older CPU, no RAM measurement, and no "
+            "quantisation or smaller bank tried.",
+        ]
     L += [
         "",
-        "Detail, including preprocessing time: "
+        "Detail, per-block load and provenance: "
         "[evals/results/vision_latency.md](evals/results/vision_latency.md); regenerate with "
         "`make export-vision`, then `make report`.",
     ]
