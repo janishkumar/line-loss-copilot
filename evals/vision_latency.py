@@ -175,7 +175,7 @@ def markdown(doc: dict[str, Any]) -> str:
         L += ["**Incomplete: the machine stayed busy and the run stopped; rerun to finish.**", ""]
     L += [
         f"Protocol: {prot['rounds']} rounds; each round runs every subset x {{ONNX 1 thread, "
-        "ONNX 4 threads, PyTorch 1 thread, PyTorch 4 threads}} once in a seeded shuffled order, "
+        "ONNX 4 threads, PyTorch 1 thread, PyTorch 4 threads} once in a seeded shuffled order, "
         f"so load drifts across all of them equally. Each block is {prot['warmup']} warm-up "
         f"runs (excluded) then {prot['runs']} timed runs on one fixed random input (the graph's "
         "cost does not depend on pixel values). Figures are the median of the per-round p50s in "

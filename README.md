@@ -358,18 +358,20 @@ Test cost per 1000 items for each r and p (threshold re-chosen on validation for
 
 Detail: [evals/results/vision.md](evals/results/vision.md); regenerate with `make eval-vision`, then `make report`.
 
-**ONNX export and CPU latency.** One graph per subset (preprocessing outside it, memory bank embedded), run with onnxruntime CPUExecutionProvider at batch 1 on Apple M4 (10 cores, onnxruntime 1.31.1); 20 warm-up runs excluded, 200 timed runs, p50 / p95 in ms. PyTorch CPU with the same protocol is shown for context. Parity with PyTorch is checked on real test images and the export fails above 1e-3 relative score difference.
+**ONNX export and CPU latency.** One graph per subset (preprocessing outside it, memory bank embedded), run with onnxruntime CPUExecutionProvider at batch 1. Parity with PyTorch is checked on real test images and the export fails above 1e-3 relative score difference.
 
-| Subset | Model size | ONNX 1 thread | ONNX 4 threads | PyTorch 1 thread | PyTorch 4 threads | Max rel. score diff |
-|---|---|---|---|---|---|---|
-| cashew | 172.9 MB | 102.6 / 112.6 | 99.4 / 110.3 | 96.7 / 102.6 | 84.2 / 88.1 | 2.9e-06 |
-| chewinggum | 172.9 MB | 109.3 / 164.0 | 99.0 / 127.9 | 93.0 / 107.8 | 82.2 / 91.3 | 1.5e-06 |
-| fryum | 172.9 MB | 99.7 / 107.2 | 97.0 / 106.0 | 92.0 / 96.4 | 82.4 / 87.2 | 2.3e-06 |
-| pipe_fryum | 172.9 MB | 98.7 / 103.1 | 96.2 / 103.2 | 91.9 / 97.6 | 83.0 / 87.9 | 2.2e-06 |
-| macaroni1 | 172.9 MB | 66.6 / 68.1 | 52.1 / 53.2 | 61.7 / 63.0 | 48.0 / 50.2 | 9.5e-07 |
-| macaroni2 | 172.9 MB | 67.3 / 68.4 | 52.5 / 53.4 | 61.7 / 62.9 | 47.6 / 49.1 | 1.8e-06 |
+Measured on one laptop (Apple M4, 10 cores, onnxruntime 1.31.1) in normal use: 5 interleaved rounds over all subsets and settings, run only when the 1-minute load average was below 4.0 (this figure includes the benchmark's own threads, which alone settle near 2.5). The six graphs cost the same, so subset differences are noise and the pooled figure below is the one to quote. Median of the per-round p50 in ms, range of round medians in brackets:
 
-Detail, including preprocessing time: [evals/results/vision_latency.md](evals/results/vision_latency.md); regenerate with `make export-vision`, then `make report`.
+| Runtime | 1 thread | 4 threads |
+|---|---|---|
+| ONNX Runtime | 67.4 (58.4 to 118.1) | 49.6 (48.7 to 87.8) |
+| PyTorch | 58.7 (56.5 to 124.4) | 47.5 (43.5 to 77.1) |
+
+ONNX Runtime was not faster than PyTorch here (1 thread), so the export is for portability, not speed.
+
+Each model file is 173 MB: about 67 MB is the memory bank (16384 x 1024 float32) and about 106 MB the backbone up to layer 3. Preprocessing (decode, resize, normalise) takes about 7 ms per image and is not in these figures. Suitability for a small plant computer is not demonstrated: only this Apple M4 laptop was measured, with no x86 or older CPU, no RAM measurement, and no quantisation or smaller bank tried.
+
+Detail, per-block load and provenance: [evals/results/vision_latency.md](evals/results/vision_latency.md); regenerate with `make export-vision`, then `make report`.
 <!-- vision:end -->
 
 ## Assumptions
