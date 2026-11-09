@@ -1,20 +1,29 @@
 # Vision: ONNX export and CPU latency
 
-Date: 2026-11-09; commit `f1c66d06a8b9`.
+Machine: Apple M4, 10 cores (macOS-26.6.2-arm64-arm-64bit); onnxruntime 1.31.1, torch 2.15.0, opset 17; CPUExecutionProvider, batch 1. This is the only machine measured.
 
-Machine: Apple M4, 10 cores; onnxruntime 1.31.1, torch 2.15.0, opset 17; CPUExecutionProvider, batch 1.
+Provenance: 1 blocks measured on 2026-11-09 at commit(s) b2e30047a135; 1-minute load average before each block 1.98 to 1.98 (median 1.98), limit 2.0. Each block's own date, commit and load are in `vision_latency.json`.
 
-System load average (1 min) at the start of the run: 4.9. Latency was measured on a laptop in normal use, so expect run-to-run noise of tens of percent; more threads did not help much because one image is a small workload.
+Protocol: 5 rounds; each round runs every subset x {ONNX 1 thread, ONNX 4 threads, PyTorch 1 thread, PyTorch 4 threads}} once in a seeded shuffled order, so load drifts across all of them equally. Each block is 20 warm-up runs (excluded) then 40 timed runs on one fixed random input (the graph's cost does not depend on pixel values). Figures are the median of the per-round p50s in ms, with the range of those round medians in brackets. The graph takes the preprocessed 1 x 3 x 224 x 224 tensor and returns (score, map); preprocessing is outside the graph and timed separately. The PyTorch rows run `PatchCore.score`, for context.
 
-Protocol: 20 warm-up runs excluded, 200 timed runs, p50 and p95 in ms. The graph takes the preprocessed 1 x 3 x 224 x 224 tensor and returns (score, map); preprocessing is outside the graph and timed separately. The PyTorch rows run `PatchCore.score` with the same protocol, for context.
+All six graphs have the same shape and cost (same 16384 x 1024 bank, same input), so differences between subsets are noise, not model effects. The pooled row is the one number to quote.
 
-| Subset | Model MB | Max rel. score diff | Max abs map diff | ONNX 1 thread p50 / p95 | ONNX 4 threads p50 / p95 | PyTorch 1 thread p50 / p95 | PyTorch 4 threads p50 / p95 | Preprocess p50 / p95 |
-|---|---|---|---|---|---|---|---|---|
-| cashew | 172.9 | 2.91e-06 | 4.47e-06 | 102.6 / 112.6 | 99.4 / 110.3 | 96.7 / 102.6 | 84.2 / 88.1 | 12.8 / 16.1 |
-| chewinggum | 172.9 | 1.51e-06 | 5.48e-06 | 109.3 / 164.0 | 99.0 / 127.9 | 93.0 / 107.8 | 82.2 / 91.3 | 10.4 / 11.5 |
-| fryum | 172.9 | 2.28e-06 | 6.38e-06 | 99.7 / 107.2 | 97.0 / 106.0 | 92.0 / 96.4 | 82.4 / 87.2 | 10.2 / 10.8 |
-| pipe_fryum | 172.9 | 2.25e-06 | 7.51e-06 | 98.7 / 103.1 | 96.2 / 103.2 | 91.9 / 97.6 | 83.0 / 87.9 | 10.2 / 10.7 |
-| macaroni1 | 172.9 | 9.48e-07 | 5.78e-06 | 66.6 / 68.1 | 52.1 / 53.2 | 61.7 / 63.0 | 48.0 / 50.2 | 5.9 / 6.1 |
-| macaroni2 | 172.9 | 1.77e-06 | 5.48e-06 | 67.3 / 68.4 | 52.5 / 53.4 | 61.7 / 62.9 | 47.6 / 49.1 | 5.8 / 6.0 |
+| Subset | ONNX 1 thread | ONNX 4 threads | PyTorch 1 thread | PyTorch 4 threads |
+|---|---|---|---|---|
+| pipe_fryum | n/a | n/a | 56.2 (56.2 to 56.2) | n/a |
+| **all subsets** | n/a | n/a | 56.2 (56.2 to 56.2) | n/a |
 
-Parity: 10 real test-split images per subset, tolerance 1e-03 relative on the score; the export fails if it is exceeded. The PyTorch scorer uses `torch.cdist`; the graph uses the exact matmul form of the distance and a fixed matrix for the channel reduction, so differences are float rounding only.
+p95 per block, median over rounds and subsets: torch-1 56.8.
+
+| Subset | Model MB | of which memory bank | of which backbone | Max rel. score diff | Max abs map diff | Preprocess p50 / p95 ms | Exported |
+|---|---|---|---|---|---|---|---|
+| cashew | 172.9 | 67.1 | 105.8 | 2.91e-06 | 4.47e-06 | 7.0 / 7.3 | 2026-11-09 `b2e30047a135` load 4.14 |
+| chewinggum | 172.9 | 67.1 | 105.8 | 1.51e-06 | 5.48e-06 | 6.0 / 6.9 | 2026-11-09 `b2e30047a135` load 4.14 |
+| fryum | 172.9 | 67.1 | 105.8 | 2.28e-06 | 6.38e-06 | 5.8 / 6.0 | 2026-11-09 `b2e30047a135` load 4.13 |
+| pipe_fryum | 172.9 | 67.1 | 105.8 | 2.25e-06 | 7.51e-06 | 5.8 / 6.2 | 2026-11-09 `b2e30047a135` load 4.13 |
+| macaroni1 | 172.9 | 67.1 | 105.8 | 9.48e-07 | 5.78e-06 | 5.8 / 6.0 | 2026-11-09 `b2e30047a135` load 4.13 |
+| macaroni2 | 172.9 | 67.1 | 105.8 | 1.77e-06 | 5.48e-06 | 5.6 / 5.8 | 2026-11-09 `b2e30047a135` load 4.04 |
+
+Parity: 10 real test-split images per subset; the export fails if the score differs by more than 1e-03 relative or the map by more than 1e-03 absolute. The PyTorch scorer uses `torch.cdist`; the graph uses the exact matmul form of the distance and a fixed matrix for the channel reduction, so differences are float rounding only.
+
+Not demonstrated: suitability for a small plant computer. Only an Apple M4 laptop was measured. No x86 or older or low-power CPU, no RAM use, no quantisation and no smaller memory bank were tried; each model file is about 173 MB (six subsets, about 1 GB).

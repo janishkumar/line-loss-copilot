@@ -42,7 +42,9 @@ CONFIGS = ("onnx-1", "onnx-4", "torch-1", "torch-4")
 ROUNDS = 5
 RUNS = 40
 WARMUP = 20
-LOAD_LIMIT = 2.0  # 1-minute load average; the machine has 10 cores
+# 1-minute load average on a 10-core machine. It includes the benchmark's own threads (a
+# continuous run settles near 2.5), so 4.0 leaves about 1.5 cores for everything else.
+LOAD_LIMIT = 4.0
 PARITY_PER_LABEL = 5
 SEED = 0
 RETRIES = 40
@@ -164,7 +166,8 @@ def markdown(doc: dict[str, Any]) -> str:
             f"Provenance: {len(every)} blocks measured on {', '.join(dates)} at commit(s) "
             f"{', '.join(commits)}; 1-minute load average before each block "
             f"{min(loads):.2f} to {max(loads):.2f} (median {statistics.median(loads):.2f}), "
-            f"limit {prot['load_limit']}. Each block's own date, commit and load are in "
+            f"limit {prot['load_limit']} (the load average includes the benchmark's own threads, "
+            "which alone settle near 2.5). Each block's own date, commit and load are in "
             "`vision_latency.json`.",
             "",
         ]
