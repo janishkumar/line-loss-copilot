@@ -357,6 +357,19 @@ Test cost per 1000 items for each r and p (threshold re-chosen on validation for
 - ImageNet weights from torchvision are used for a non-commercial portfolio project.
 
 Detail: [evals/results/vision.md](evals/results/vision.md); regenerate with `make eval-vision`, then `make report`.
+
+**ONNX export and CPU latency.** One graph per subset (preprocessing outside it, memory bank embedded), run with onnxruntime CPUExecutionProvider at batch 1 on Apple M4 (10 cores, onnxruntime 1.31.1); 20 warm-up runs excluded, 200 timed runs, p50 / p95 in ms. PyTorch CPU with the same protocol is shown for context. Parity with PyTorch is checked on real test images and the export fails above 1e-3 relative score difference.
+
+| Subset | Model size | ONNX 1 thread | ONNX 4 threads | PyTorch 1 thread | PyTorch 4 threads | Max rel. score diff |
+|---|---|---|---|---|---|---|
+| cashew | 172.9 MB | 102.6 / 112.6 | 99.4 / 110.3 | 96.7 / 102.6 | 84.2 / 88.1 | 2.9e-06 |
+| chewinggum | 172.9 MB | 109.3 / 164.0 | 99.0 / 127.9 | 93.0 / 107.8 | 82.2 / 91.3 | 1.5e-06 |
+| fryum | 172.9 MB | 99.7 / 107.2 | 97.0 / 106.0 | 92.0 / 96.4 | 82.4 / 87.2 | 2.3e-06 |
+| pipe_fryum | 172.9 MB | 98.7 / 103.1 | 96.2 / 103.2 | 91.9 / 97.6 | 83.0 / 87.9 | 2.2e-06 |
+| macaroni1 | 172.9 MB | 66.6 / 68.1 | 52.1 / 53.2 | 61.7 / 63.0 | 48.0 / 50.2 | 9.5e-07 |
+| macaroni2 | 172.9 MB | 67.3 / 68.4 | 52.5 / 53.4 | 61.7 / 62.9 | 47.6 / 49.1 | 1.8e-06 |
+
+Detail, including preprocessing time: [evals/results/vision_latency.md](evals/results/vision_latency.md); regenerate with `make export-vision`, then `make report`.
 <!-- vision:end -->
 
 ## Assumptions
