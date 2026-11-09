@@ -273,7 +273,90 @@ Realised stopped time over time with data (the planning availability's denominat
 ## Stage 5 results (visual inspection on VisA)
 
 <!-- vision:start -->
-Vision results: not run yet (`make data-visa`, `make train-vision`, then `make eval-vision`).
+**PatchCore on six VisA food subsets** (real product images; their link to a line is simulated). Each image is resized whole to 224 x 224 with no crop. Trained on the official one-class train normals only; the official test images are split once, stratified with seed 0, into validation (threshold and review band) and test (every number below). Train and eval images were checked for overlap by path and by content hash before scoring. Run 2026-11-09, commit `08b963ed3365`. Intervals are 95% bootstrap over images (1000 resamples, seed 0). Pixel metrics are computed on the 224 x 224 maps, not at the original resolution.
+
+| Subset | Test images (anomalous) | Image AUROC | Pixel AUROC | Pixel AUPRO (to FPR 0.3) |
+|---|---|---|---|---|
+| cashew | 75 (50) | 0.974 (0.939 to 0.997) | 0.993 (0.980 to 0.995) | 0.927 (0.892 to 0.955) |
+| chewinggum | 75 (50) | 0.997 (0.988 to 1.000) | 0.988 (0.979 to 0.995) | 0.892 (0.836 to 0.938) |
+| fryum | 75 (50) | 0.906 (0.828 to 0.962) | 0.960 (0.940 to 0.979) | 0.781 (0.656 to 0.880) |
+| pipe_fryum | 75 (50) | 0.986 (0.957 to 1.000) | 0.995 (0.992 to 0.997) | 0.902 (0.850 to 0.955) |
+| macaroni1 | 100 (50) | 0.888 (0.820 to 0.942) | 0.970 (0.952 to 0.983) | 0.855 (0.764 to 0.930) |
+| macaroni2 | 100 (50) | 0.654 (0.548 to 0.759) | 0.940 (0.911 to 0.964) | 0.812 (0.719 to 0.893) |
+
+**Threshold and cost (assumptions: r = 20, p = 2%).** A false reject costs 1 and an escaped defect costs r = 20, with defects assumed to be p = 2% of items. VisA's test mix is two thirds anomalous, so the cost is built from per-class rates: cost = (1 - p) x false reject rate + p x r x escape rate, minimised on validation, then reported on test per 1000 items. Both numbers are assumptions, not plant figures, and the relative units are not money. The review band holds 10% of items (weighted by p) just below the threshold and assumes reviewers decide correctly.
+
+| Subset | Cost per 1000 items | False reject rate | Escape rate | Items to review per 1000 | Escape rate with review |
+|---|---|---|---|---|---|
+| cashew | 63.2 | 0.040 | 0.060 | 39 | 0.060 |
+| chewinggum | 47.2 | 0.040 | 0.020 | 0 | 0.020 |
+| fryum | 159.2 | 0.040 | 0.300 | 40 | 0.240 |
+| pipe_fryum | 63.2 | 0.040 | 0.060 | 0 | 0.040 |
+| macaroni1 | 256.4 | 0.180 | 0.200 | 99 | 0.160 |
+| macaroni2 | 407.2 | 0.040 | 0.920 | 60 | 0.840 |
+
+Test cost per 1000 items for each r and p (threshold re-chosen on validation for each pair; false reject and escape rates for every pair are in [evals/results/vision.md](evals/results/vision.md)):
+
+| Subset | p | r = 5 | r = 10 | r = 20 | r = 50 | r = 100 |
+|---|---|---|---|---|---|---|
+| cashew | 0.5% | 41.3 | 42.8 | 45.8 | 54.8 | 69.8 |
+| cashew | 1.0% | 42.6 | 45.6 | 51.6 | 69.6 | 99.6 |
+| cashew | 2.0% | 45.2 | 51.2 | 63.2 | 99.2 | 355.2 |
+| cashew | 5.0% | 53.0 | 68.0 | 98.0 | 378.0 | 404.0 |
+| chewinggum | 0.5% | 40.3 | 40.8 | 41.8 | 44.8 | 49.8 |
+| chewinggum | 1.0% | 40.6 | 41.6 | 43.6 | 49.6 | 59.6 |
+| chewinggum | 2.0% | 41.2 | 43.2 | 47.2 | 59.2 | 79.2 |
+| chewinggum | 5.0% | 43.0 | 48.0 | 58.0 | 88.0 | 138.0 |
+| fryum | 0.5% | 47.3 | 54.8 | 69.8 | 114.8 | 189.8 |
+| fryum | 1.0% | 54.6 | 69.6 | 99.6 | 189.6 | 536.0 |
+| fryum | 2.0% | 69.2 | 99.2 | 159.2 | 532.0 | 551.2 |
+| fryum | 5.0% | 113.0 | 188.0 | 520.0 | 568.0 | 832.0 |
+| pipe_fryum | 0.5% | 41.3 | 42.8 | 45.8 | 54.8 | 69.8 |
+| pipe_fryum | 1.0% | 42.6 | 45.6 | 51.6 | 69.6 | 99.6 |
+| pipe_fryum | 2.0% | 45.2 | 51.2 | 63.2 | 99.2 | 159.2 |
+| pipe_fryum | 5.0% | 53.0 | 68.0 | 98.0 | 188.0 | 338.0 |
+| macaroni1 | 0.5% | 41.4 | 62.9 | 105.9 | 229.1 | 279.1 |
+| macaroni1 | 1.0% | 62.8 | 105.8 | 135.8 | 278.2 | 437.2 |
+| macaroni1 | 2.0% | 105.6 | 135.6 | 256.4 | 434.4 | 552.0 |
+| macaroni1 | 5.0% | 221.0 | 271.0 | 426.0 | 580.0 | 780.0 |
+| macaroni2 | 0.5% | 25.0 | 50.0 | 100.0 | 269.8 | 519.6 |
+| macaroni2 | 1.0% | 50.0 | 100.0 | 223.6 | 519.2 | 793.6 |
+| macaroni2 | 2.0% | 100.0 | 223.2 | 407.2 | 787.2 | 947.2 |
+| macaroni2 | 5.0% | 268.0 | 516.0 | 768.0 | 1008.0 | 1074.0 |
+
+**Published comparison.** Zou et al., SPot-the-Difference self-supervised pre-training for anomaly detection and segmentation (the VisA paper) (https://arxiv.org/html/2207.14315, Table 6, '1-class performance evaluation on VisA and MVTec-AD with PatchCore', backbone Wide ResNet50, row 'Sup. pre-train', VisA columns) reports PatchCore on VisA with a Wide ResNet50, one model per class: average image AUROC 92.4, pixel AUROC 98.4, averaged over its 12 classes. Ours, averaged over the six food subsets on the full official test split: image AUROC 89.8, pixel AUROC 97.4. The two averages cover different sets of classes, and the published table does not state its input resolution or report AUPRO, so this is an indicative comparison, not a like for like. Per-class reference (SoftPatch+ (Fully unsupervised anomaly detection with noisy data), https://arxiv.org/html/2412.20870, Table 3 (image AUROC) and Table 4 (pixel AUROC), 'upperbound' column of the 'No Overlap' setting, which is PatchCore trained on clean normal images, Wide-ResNet50, 10% coreset); The test set is that paper's 8%-noise protocol variant, not necessarily the official 1cls test split, and its VisA input resolution is not stated (it states 256 resize with 224 centre crop for MVTec AD only).
+
+| Subset | Image AUROC (ours, full official test) | Image AUROC (published) | Pixel AUROC (ours) | Pixel AUROC (published) | Pixel AUPRO (ours) |
+|---|---|---|---|---|---|
+| cashew | 0.974 | 0.989 | 0.994 | 0.985 | 0.921 |
+| chewinggum | 0.995 | 0.991 | 0.982 | 0.994 | 0.831 |
+| fryum | 0.924 | 0.954 | 0.964 | 0.925 | 0.793 |
+| pipe_fryum | 0.990 | 0.997 | 0.995 | 0.989 | 0.925 |
+| macaroni1 | 0.885 | 0.975 | 0.971 | 0.999 | 0.844 |
+| macaroni2 | 0.619 | 0.767 | 0.941 | 0.981 | 0.810 |
+
+**What changed after the first run.** First run used a resize to 256 and a centre crop to 224, which cut the defect entirely out of the image for 18 of 100 macaroni2 anomalies (24 had under half inside). The preprocessing now resizes the whole image to 224 x 224 and the models were refitted. Image AUROC did not improve on the macaroni subsets (macaroni1 and macaroni2 are lower); this was not investigated further, and squeezing a wide image into a square, which makes small defects smaller, is one possible factor. Image AUROC / pixel AUROC / pixel AUPRO on the full official test split, before and after:
+
+| Subset | Before (centre crop) | After (whole image) |
+|---|---|---|
+| cashew | 0.981 / 0.991 / 0.917 | 0.974 / 0.994 / 0.921 |
+| chewinggum | 0.991 / 0.983 / 0.826 | 0.995 / 0.982 / 0.831 |
+| fryum | 0.934 / 0.932 / 0.793 | 0.924 / 0.964 / 0.793 |
+| pipe_fryum | 0.993 / 0.992 / 0.924 | 0.990 / 0.995 / 0.925 |
+| macaroni1 | 0.965 / 0.991 / 0.954 | 0.885 / 0.971 / 0.844 |
+| macaroni2 | 0.725 / 0.945 / 0.813 | 0.619 / 0.941 / 0.810 |
+
+**Caveats.**
+
+- Costs are relative. A false reject costs 1 and an escaped defect costs r = 20; defects are assumed to be p = 2% of items. Both are assumptions, not plant figures; the sensitivity grid covers r = 5 to 100 and p = 0.5% to 5%.
+- Rates are per class (share of normals rejected, share of defects passed) and are weighted by p, so the threshold does not depend on VisA's test mix (two thirds anomalous). Cost per 1000 items is the weighted cost times 1000.
+- Validation and test are 50/50 halves of the official test split, so each half holds only 25 to 50 normal and 50 anomalous images: intervals are wide and thresholds are noisy.
+- Images are VisA product photos, not images from the plant; their link to a line is simulated elsewhere in this project and labelled.
+- The review band assumes a reviewer decides every image in it correctly and ignores review effort. Its width is set on validation so that 10% of items, weighted by p, are routed to review.
+- Pixel metrics are computed on the 224 x 224 maps and masks, not at the original resolution.
+- ImageNet weights from torchvision are used for a non-commercial portfolio project.
+
+Detail: [evals/results/vision.md](evals/results/vision.md); regenerate with `make eval-vision`, then `make report`.
 <!-- vision:end -->
 
 ## Assumptions
