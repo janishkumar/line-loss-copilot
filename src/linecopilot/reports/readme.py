@@ -727,8 +727,8 @@ def vision_latency_lines(results: Path) -> list[str]:
             f"Measured on one laptop ({m['cpu']}, {m['cpu_count']} cores, onnxruntime "
             f"{m['onnxruntime']}) in normal use: {prot['rounds']} interleaved rounds over all "
             "subsets and settings, run only when the 1-minute load average was below "
-            f"{prot['load_limit']} (this figure includes the benchmark's own threads, which alone settle "
-            "near 2.5). The six graphs cost the same, so subset differences are "
+            f"{prot['load_limit']} (this figure includes the benchmark's own threads, which "
+            "alone settle near 2.5). The six graphs cost the same, so subset differences are "
             "noise and the pooled figure below is the one to quote. Median of the per-round "
             "p50 in ms, range of round medians in brackets:",
             "",
