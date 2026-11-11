@@ -241,3 +241,10 @@ def test_image_route_serves_only_files_under_the_visa_folder(client, make_inspec
         assert r.status_code == 404 and r.json()["status"] == "insufficient_evidence"
         assert "secret" not in r.text
     assert client.get("/api/inspections/999999999/image").status_code == 404
+
+
+def test_api_json_never_carries_the_class_folder(client, make_inspection):
+    iid = make_inspection(decision="reject", image="cashew/Data/Images/Anomaly/007.JPG")
+    for url in ("/api/inspections", f"/api/inspections/{iid}"):
+        text = client.get(url).text
+        assert "007.JPG" in text and "Anomaly" not in text and "Normal" not in text

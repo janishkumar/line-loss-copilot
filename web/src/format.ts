@@ -19,7 +19,3 @@ export const num = (v: number | null | undefined, digits = 3): string =>
 /** Duration: minutes below one hour, hours from one hour up. */
 export const duration = (s: number | null | undefined): string =>
   s === null || s === undefined ? "n/a" : s < 3600 ? minutes(s) : hours(s);
-
-/** The bare file name of a VisA image id. The folder holds the class (Anomaly or Normal), so it is
- * never shown: a reviewer must not see the answer before judging. */
-export const imageName = (id: string) => id.split("/").pop() ?? id;

@@ -293,10 +293,10 @@ Metrics, the cost sensitivity table and CPU latency are in "Stage 5 results" bel
 
 Total 500 inspections and 237 quality events (one per rejected image).
 
-**Try it:** `make demo-stage5` (stage 4, then `make data-visa`, `make train-vision`, `make export-vision`, `make inspect`; the first run downloads a 1.9 GB archive), then open http://localhost:8080 and the Inspection page. Pick a quality lead, shift supervisor or plant manager, open a queued image, look at it with and without the heatmap and accept or reject it. For a shift supervisor or quality lead (the roles that may propose a quality hold), a rejected image links to "Draft quality hold", which opens the usual action form with the simulated station and the quality event filled in; a plant manager can review but not propose a hold, so the link is hidden for that role. Operators and planners can read the queue but their review buttons are hidden, and the server refuses them if they try.
+**Try it:** `make demo-stage5` (stage 4, then `make data-visa`, `make train-vision`, `make eval-vision` (writes the thresholds), `make export-vision`, `make inspect`; the first run downloads a 1.9 GB archive), then open http://localhost:8080 and the Inspection page. Pick a quality lead, shift supervisor or plant manager, open a queued image, look at it with and without the heatmap and accept or reject it. For a shift supervisor or quality lead (the roles that may propose a quality hold), a rejected image links to "Draft quality hold", which opens the usual action form with the simulated station and the quality event filled in; a plant manager can review but not propose a hold, so the link is hidden for that role. Operators and planners can read the queue but their review buttons are hidden, and the server refuses them if they try.
 
 **Where the guarantees stop.**
-- The API returns each image's full id, which includes VisA's class folder (Anomaly or Normal). That is a demo limitation. The web app shows only the inspection number and the bare file name and serves the original image through its own route, so a reviewer does not see the answer before judging and the review labels are not contaminated by it. Anyone reading the API directly can see it.
+- VisA's image ids contain the class folder (Anomaly or Normal). The full id stays in the database only (it is how the server finds the file). The API, the copilot's tools, the quality-event text and the approvals inbox show only the bare file name, the stream is in a seeded shuffled order rather than sorted by class, and the original image is served through the API's own route, so a reviewer does not see the answer before judging and the review labels are not contaminated by it. Anyone with database access can still see it.
 - The images are real VisA photographs. VisA is not from the PIADE or brick lines, so the inspection stations (`SIM-VIS-<subset>`), the stream and the quality events are synthetic and badged "Simulated / synthetic" in the app. `mart.*` never reads them.
 - A reviewer's accept or reject is stored as a label, with the model's score beside it. It creates evidence, not an action. The person who rejects an image may also be the person who approves the quality hold drafted from it: stage 3's separation of duties is between proposer and approver only, and a hold drafted from the image is proposed by whoever drafts it. Only quality lead, shift supervisor and plant manager can review, from `config/policy.toml`.
 - Pixel metrics are on 224 x 224 maps, and thresholds come from 25 to 50 validation normals per subset, so they are noisy. The figures are for these six subsets only.
@@ -304,7 +304,7 @@ Total 500 inspections and 237 quality events (one per rejected image).
 ## Stage 5 results (visual inspection on VisA)
 
 <!-- vision:start -->
-**PatchCore on six VisA food subsets** (real product images; their link to a line is simulated). Each image is resized whole to 224 x 224 with no crop. Trained on the official one-class train normals only; the official test images are split once, stratified with seed 0, into validation (threshold and review band) and test (every number below). Train and eval images were checked for overlap by path and by content hash before scoring. Run 2026-11-09, commit `08b963ed3365`. Intervals are 95% bootstrap over images (1000 resamples, seed 0). Pixel metrics are computed on the 224 x 224 maps, not at the original resolution.
+**PatchCore on six VisA food subsets** (real product images; their link to a line is simulated). Each image is resized whole to 224 x 224 with no crop. Trained on the official one-class train normals only; the official test images are split once, stratified with seed 0, into validation (threshold and review band) and test (every number below). Train and eval images were checked for overlap by path and by content hash before scoring. Run 2026-11-09, commit `08b963ed3365` (models and metrics unchanged since that commit). Intervals are 95% bootstrap over images (1000 resamples, seed 0). Pixel metrics are computed on the 224 x 224 maps, not at the original resolution.
 
 | Subset | Test images (anomalous) | Image AUROC | Pixel AUROC | Pixel AUPRO (to FPR 0.3) |
 |---|---|---|---|---|
@@ -368,7 +368,7 @@ Test cost per 1000 items for each r and p (threshold re-chosen on validation for
 
 **What changed after the first run.** First run used a resize to 256 and a centre crop to 224, which cut the defect entirely out of the image for 18 of 100 macaroni2 anomalies (24 had under half inside). The preprocessing now resizes the whole image to 224 x 224 and the models were refitted. Image AUROC did not improve on the macaroni subsets (macaroni1 and macaroni2 are lower); this was not investigated further, and squeezing a wide image into a square, which makes small defects smaller, is one possible factor. Image AUROC / pixel AUROC / pixel AUPRO on the full official test split, before and after:
 
-| Subset | Before (centre crop) | After (whole image) |
+| Subset | Before (centre crop; recorded from the first run, not reproducible from this commit) | After (whole image) |
 |---|---|---|
 | cashew | 0.981 / 0.991 / 0.917 | 0.974 / 0.994 / 0.921 |
 | chewinggum | 0.991 / 0.983 / 0.826 | 0.995 / 0.982 / 0.831 |
@@ -391,7 +391,7 @@ Detail: [evals/results/vision.md](evals/results/vision.md); regenerate with `mak
 
 **ONNX export and CPU latency.** One graph per subset (preprocessing outside it, memory bank embedded), run with onnxruntime CPUExecutionProvider at batch 1. Parity with PyTorch is checked on real test images and the export fails above 1e-3 relative score difference.
 
-Measured on one laptop (Apple M4, 10 cores, onnxruntime 1.31.1) in normal use: 5 interleaved rounds, each block 20 warm-up runs (excluded) then 40 timed runs (the original plan said 200 timed runs; the interleaved protocol replaced it, and the 5 rounds give 200 timed runs per setting across rounds) over all subsets and settings, run only when the 1-minute load average was below 4.0 (this figure includes the benchmark's own threads, which alone settle near 2.5). The six graphs cost the same, so subset differences are noise and the pooled figure below is the one to quote. Median of the per-round p50 in ms, range of round medians in brackets:
+Measured on one laptop (Apple M4, 10 cores, onnxruntime 1.31.1) in normal use: 5 interleaved rounds, each block 20 warm-up runs (excluded) then 40 timed runs (the original plan said 200 timed runs; the interleaved protocol replaced it, and 5 rounds give 200 timed runs per setting across rounds) over all subsets and settings, run only when the 1-minute load average was below 4.0 (this figure includes the benchmark's own threads, which alone settle near 2.5). The six graphs cost the same, so subset differences are noise and the pooled figure below is the one to quote. Median of the per-round p50 in ms, range of round medians in brackets:
 
 | Runtime | 1 thread | 4 threads |
 |---|---|---|
@@ -517,7 +517,7 @@ make demo-stage1   # db, api and web up; download data; load; dbt build; validat
 make demo-stage2   # demo-stage1, then the stop-risk models, so every page has data
 make demo-stage3   # demo-stage2, then one labelled synthetic injected note; prints the Claude setup
 make demo-stage4   # demo-stage3, then synthetic orders (make synth) and the stored plan (make plan)
-make demo-stage5   # demo-stage4, then VisA download, PatchCore training, ONNX export and the inspection stream (heavy)
+make demo-stage5   # demo-stage4, then VisA download, PatchCore training, evaluation and thresholds, ONNX export and the inspection stream (heavy)
 make demo-note-remove  # delete the demo injected note
 make report        # rewrite the results sections above from evals/results/
 make train-risk    # next-hour stop-risk models on PIADE (about 20 s)

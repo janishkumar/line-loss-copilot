@@ -7,7 +7,7 @@ import { env, mockApi } from "./testkit";
 afterEach(() => vi.unstubAllGlobals());
 
 const row = (inspection_id: number, over: Record<string, unknown> = {}) => ({
-  inspection_id, subset: "cashew", image_id: `${inspection_id}`, split: "test", score: 0.87, decision: "review",
+  inspection_id, subset: "cashew", image_name: `${inspection_id}`, split: "test", score: 0.87, decision: "review",
   threshold: 0.881, review_lower: 0.85, created_at: "2026-11-09T10:00:00Z", source: "synthetic",
   asset_id: "SIM-VIS-cashew", heatmap_url: null, image_url: null, review: null, quality_event_id: null, is_synthetic: true, ...over,
 });
@@ -40,7 +40,7 @@ describe("Inspection queue", () => {
   });
 
   it("does not render the class folder of a real-shaped id", async () => {
-    mockApi({ "GET /api/inspections": [200, body([row(3, { image_id: "cashew/Data/Images/Anomaly/000.JPG" })])] });
+    mockApi({ "GET /api/inspections": [200, body([row(3, { image_name: "000.JPG" })])] });
     const { container } = render(<MemoryRouter><Inspection /></MemoryRouter>);
     await screen.findByText("#3 cashew 000.JPG");
     expect(container.textContent).not.toMatch(/Anomaly|Normal/);

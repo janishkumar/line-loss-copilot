@@ -65,6 +65,12 @@ def insert_inspection(
     return row[0] if row else None
 
 
+def bare_name(image_id: str) -> str:
+    """The file name of a VisA image id. The folders hold the class (Anomaly or Normal), so
+    nothing a reviewer can see carries more than this."""
+    return image_id.rsplit("/", 1)[-1]
+
+
 def create_quality_event(
     conn: psycopg.Connection,
     inspection_id: int,
@@ -78,7 +84,7 @@ def create_quality_event(
     ).fetchone()
     asset = ensure_sim_asset(conn, sub)
     detail = (
-        f"VisA {sub} image {image} rejected ({how}); anomaly score {score:.4f} against "
+        f"VisA {sub} image {bare_name(image)} rejected ({how}); anomaly score {score:.4f} against "
         f"threshold {thr:.4f}. {SYNTHETIC_NOTE}"
     )
     row = conn.execute(

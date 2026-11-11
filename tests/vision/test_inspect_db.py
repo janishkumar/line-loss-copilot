@@ -68,7 +68,8 @@ def test_run_scores_decides_writes_heatmaps_and_is_idempotent(
         "SELECT image_id, score, decision, threshold, review_lower, heatmap_path, source, split "
         "FROM vision.inspection ORDER BY inspection_id"
     ).fetchall()
-    assert [r[0] for r in rows] == sorted(r[0] for r in rows)  # fixed order
+    first_ids = [s.image_id for s in vi.stream_samples(tree, "cashew")]
+    assert [r[0] for r in rows] == first_ids  # the seeded stream order, not class-sorted
     for _image_id, score, decision, t, lo, path, source, split in rows:
         assert decision == vi.decide(score, t, lo) and (t, lo) == (thr, lower)
         assert source == "simulated_stream" and split == "test"
@@ -81,6 +82,7 @@ def test_run_scores_decides_writes_heatmaps_and_is_idempotent(
     assert len(ev) == 1
     assert ev[0][:3] == ("SIM-VIS-cashew", "synthetic", "VISUAL_REJECT")
     assert "SIMULATED" in ev[0][3] and "automatic" in ev[0][3] and ev[0][4] == "synthetic"
+    assert "Anomaly" not in ev[0][3] and "Normal" not in ev[0][3] and "Images/" not in ev[0][3]
     assert ev[0][5] >= 9_000_000_000
     # second run: nothing new, no second event
     again = vi.run(vision_clean, tree, tiny_models, heat, subsets=("cashew",), log=lambda m: None)
@@ -242,3 +244,35 @@ def test_core_event_has_no_synthetic_rows(vision_clean):
     assert vision_clean.execute(
         "SELECT count(*) FROM core.event WHERE is_synthetic IS NOT FALSE"
     ).fetchone() == (0,)
+
+
+def test_rerun_warns_when_stored_thresholds_differ(vision_clean, tiny_models, tree, tmp_path):
+    scores = sorted(_scores(tiny_models, tree))
+    thr = (scores[2] + scores[3]) / 2
+    _thresholds(tiny_models, thr, (scores[0] + scores[1]) / 2)
+    heat = tmp_path / "heat"
+    msgs: list[str] = []
+    vi.run(vision_clean, tree, tiny_models, heat, subsets=("cashew",), log=msgs.append)
+    assert not any("warning" in m for m in msgs)
+    _thresholds(tiny_models, thr + 0.5, None)
+    msgs.clear()
+    vi.run(vision_clean, tree, tiny_models, heat, subsets=("cashew",), log=msgs.append)
+    warn = [m for m in msgs if m.startswith("warning")]
+    assert len(warn) == 1 and "4 stored inspection(s)" in warn[0]
+    # rows keep what they were decided with
+    assert (
+        vision_clean.execute(
+            "SELECT count(*) FROM vision.inspection WHERE threshold = %s", (thr,)
+        ).fetchone()[0]
+        == 4
+    )
+
+
+def test_quality_event_detail_has_only_the_bare_file_name(make_inspection, vision_clean):
+    iid = make_inspection(
+        decision="reject", reject_event=False, image="cashew/Data/Images/Normal/123.JPG"
+    )
+    store.create_quality_event(vision_clean, iid, "automatic")
+    detail = vision_clean.execute("SELECT detail FROM synthetic.quality_event").fetchone()[0]
+    assert "123.JPG" in detail and "Normal" not in detail and "Anomaly" not in detail
+    assert "Images/" not in detail

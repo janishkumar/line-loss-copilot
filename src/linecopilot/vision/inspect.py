@@ -2,7 +2,8 @@
 
 For each subset, in the fixed order of `SUBSETS`, the official test images that fall in the
 test half of the stratified validation/test split (seed 0, the split the threshold was kept
-away from) are scored in image_id order with that subset's ONNX graph:
+away from) are scored in a seeded shuffled order (reproducible, not class-sorted) with that
+subset's ONNX graph:
 
     score >= threshold                      -> reject  (a simulated quality event is created)
     review_lower <= score < threshold       -> review  (waits in the review queue)
@@ -19,6 +20,7 @@ onnxruntime and PIL but not PyTorch, and nothing the API imports depends on it.
 from __future__ import annotations
 
 import json
+import random
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -69,11 +71,14 @@ def _session(path: Path):
 
 
 def stream_samples(root: Path, subset: str) -> list[Sample]:
-    """The subset's test-half images, in a fixed (image_id) order."""
+    """The subset's test-half images in a fixed, seeded shuffled order. Sorting by image_id
+    would put every Anomaly image before every Normal one and the queue would reveal the class."""
     if not (Path(root) / "1cls.csv").exists():
         raise InspectError(f"{root}/1cls.csv is missing: run `make data-visa` first")
     _, test = val_test_split(load_split(root, subset, "test"), SPLIT_SEED)
-    return sorted(test, key=lambda s: s.image_id)
+    ordered = sorted(test, key=lambda s: s.image_id)
+    random.Random(SPLIT_SEED).shuffle(ordered)
+    return ordered
 
 
 def run(
@@ -108,6 +113,17 @@ def run(
                 "SELECT image_id FROM vision.inspection WHERE subset = %s", (subset,)
             )
         }
+        stale = conn.execute(
+            "SELECT count(*) FROM vision.inspection WHERE subset = %s "
+            "AND (threshold IS DISTINCT FROM %s OR review_lower IS DISTINCT FROM %s)",
+            (subset, thr, lower),
+        ).fetchone()[0]
+        if stale:
+            log(
+                f"warning: {subset}: {stale} stored inspection(s) were decided with a different "
+                "threshold or review band than thresholds.json now holds; they are kept as "
+                "stored (clear vision.inspection to rescore)"
+            )
         todo = [s for s in samples if s.image_id not in have]
         sess = make_session(onnx) if todo else None
         new = 0

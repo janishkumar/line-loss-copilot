@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getInspection, HOLD_ROLES, REVIEW_ROLES, reviewInspection, type Inspection } from "../api";
 import { Assumptions, Loading, Notice, SimulatedBadge } from "../components/Common";
-import { imageName } from "../format";
 import { useResult } from "../hooks";
 import { useSession } from "../UserSwitcher";
 
@@ -43,15 +42,15 @@ export default function InspectionDetail() {
       {i && (
         <>
           <p className="muted">
-            VisA {i.subset} image {imageName(i.image_id)} at simulated station {i.asset_id}. The image is real; the station
+            VisA {i.subset} image {i.image_name} at simulated station {i.asset_id}. The image is real; the station
             and any quality event are synthetic.
           </p>
           {i.image_url || i.heatmap_url ? (
             <figure>
               {i.heatmap_url && (overlay || !i.image_url) ? (
-                <img src={i.heatmap_url} alt={`Defect heatmap for ${i.subset} ${imageName(i.image_id)}`} style={{ maxWidth: "100%", width: 448 }} />
+                <img src={i.heatmap_url} alt={`Defect heatmap for ${i.subset} ${i.image_name}`} style={{ maxWidth: "100%", width: 448 }} />
               ) : i.image_url ? (
-                <img src={i.image_url} alt={`Product image ${i.subset} ${imageName(i.image_id)}`} style={{ maxWidth: "100%", width: 448 }} />
+                <img src={i.image_url} alt={`Product image ${i.subset} ${i.image_name}`} style={{ maxWidth: "100%", width: 448 }} />
               ) : null}
               {i.heatmap_url && i.image_url && (
                 <label>

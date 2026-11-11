@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from linecopilot.config import get_settings
 from linecopilot.tools.common import f, rows
 from linecopilot.tools.envelope import Result
-from linecopilot.vision.store import SYNTHETIC_NOTE
+from linecopilot.vision.store import SYNTHETIC_NOTE, bare_name
 
 Decision = Literal["pass", "review", "reject"]
 MAX_ROWS = 200
@@ -87,7 +87,9 @@ class ReviewOut(BaseModel):
 class InspectionOut(BaseModel):
     inspection_id: int
     subset: str
-    image_id: str
+    image_name: str = Field(
+        description="bare file name; the class folder of the stored id is never returned"
+    )
     split: str
     score: float
     decision: Decision
@@ -148,7 +150,7 @@ def _row_out(rec: dict[str, Any]) -> InspectionOut:
     return InspectionOut(
         inspection_id=rec["inspection_id"],
         subset=rec["subset"],
-        image_id=rec["image_id"],
+        image_name=bare_name(rec["image_id"]),
         split=rec["split"],
         score=float(rec["score"]),
         decision=rec["decision"],
@@ -270,7 +272,7 @@ class QualityEventOut(BaseModel):
     threshold: float | None
     path: str = Field(description="automatic reject, or rejected by a named reviewer")
     reviewer: str | None
-    image_id: str | None
+    image_name: str | None
     heatmap_url: str | None
     is_synthetic: bool = True
 
@@ -334,7 +336,7 @@ def quality_events(conn: psycopg.Connection, args: QualityEventsArgs) -> Result[
             threshold=f(r["threshold"]),
             path=f"rejected by reviewer {r['reviewer']}" if r["reviewer"] else "automatic reject",
             reviewer=r["reviewer"],
-            image_id=r["image_id"],
+            image_name=bare_name(r["image_id"]) if r["image_id"] else None,
             heatmap_url=(
                 f"/api/inspections/{r['inspection_id']}/heatmap"
                 if heatmap_file(r["heatmap_path"])

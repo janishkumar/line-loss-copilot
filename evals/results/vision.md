@@ -222,7 +222,7 @@ Per-class reference: SoftPatch+ (Fully unsupervised anomaly detection with noisy
 
 First run used a resize to 256 and a centre crop to 224, which cut the defect entirely out of the image for 18 of 100 macaroni2 anomalies (24 had under half inside). The preprocessing now resizes the whole image to 224 x 224 and the models were refitted. Image AUROC did not improve on the macaroni subsets (macaroni1 and macaroni2 are lower); this was not investigated further, and squeezing a wide image into a square, which makes small defects smaller, is one possible factor.
 
-Before (centre crop) and after (whole image resized), image AUROC, pixel AUROC, pixel AUPRO, full official test split:
+Before (centre crop; recorded from the first run, not reproducible from this commit) and after (whole image resized), image AUROC, pixel AUROC, pixel AUPRO, full official test split:
 
 | Subset | Before | After |
 |---|---|---|

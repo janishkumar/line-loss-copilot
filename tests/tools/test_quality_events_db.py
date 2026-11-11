@@ -81,3 +81,14 @@ def test_missing_sim_asset_table_is_insufficient_evidence(built):
         finally:
             conn.execute("ROLLBACK")
     assert r.status == "insufficient_evidence"
+
+
+def test_tool_output_hides_the_class_folder(make_inspection, vision_clean):
+    make_inspection(decision="reject", image="cashew/Data/Images/Normal/321.JPG")
+    r = call_tool(vision_clean, "quality_events", {})
+    text = r.model_dump_json()
+    assert "321.JPG" in text and "Normal" not in text and "Anomaly" not in text
+    from linecopilot.tools.inspection import ListInspectionsArgs, list_inspections
+
+    lst = list_inspections(vision_clean, ListInspectionsArgs()).model_dump_json()
+    assert "321.JPG" in lst and "Normal" not in lst and "Anomaly" not in lst

@@ -8,7 +8,7 @@ import { demoUsers, env, mockApi } from "./testkit";
 afterEach(() => vi.unstubAllGlobals());
 
 const insp = (over: Record<string, unknown> = {}) => ({
-  inspection_id: 5, subset: "fryum", image_id: "17", split: "test", score: 0.9, decision: "review",
+  inspection_id: 5, subset: "fryum", image_name: "17", split: "test", score: 0.9, decision: "review",
   threshold: 0.915, review_lower: 0.88, created_at: "2026-11-09T10:00:00Z", source: "synthetic",
   asset_id: "SIM-VIS-fryum", heatmap_url: "/api/inspections/5/heatmap", image_url: "/api/inspections/5/image", review: null, quality_event_id: null,
   is_synthetic: true, ...over,
@@ -82,7 +82,7 @@ describe("InspectionDetail", () => {
 
 describe("class label", () => {
   it("never renders the class folder or the full id", async () => {
-    mockApi({ "GET /api/inspections/5": [200, envelope(insp({ image_id: "cashew/Data/Images/Anomaly/000.JPG", subset: "cashew" }))] });
+    mockApi({ "GET /api/inspections/5": [200, envelope(insp({ image_name: "000.JPG", subset: "cashew" }))] });
     const { container } = wrap(demoUsers[0]);
     await screen.findByAltText(/Defect heatmap for cashew 000.JPG/);
     expect(container.textContent).not.toMatch(/Anomaly|Normal|Data\/Images/);

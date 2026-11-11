@@ -596,7 +596,7 @@ export interface InspectionReview {
 export interface Inspection {
   inspection_id: number;
   subset: string;
-  image_id: string;
+  image_name: string;
   split: string;
   score: number;
   decision: InspectionDecision;

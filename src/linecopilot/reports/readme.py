@@ -725,8 +725,12 @@ def vision_latency_lines(results: Path) -> list[str]:
     if pooled:
         L += [
             f"Measured on one laptop ({m['cpu']}, {m['cpu_count']} cores, onnxruntime "
-            f"{m['onnxruntime']}) in normal use: {prot['rounds']} interleaved rounds over all "
-            "subsets and settings, run only when the 1-minute load average was below "
+            f"{m['onnxruntime']}) in normal use: {prot['rounds']} interleaved rounds, "
+            "each block 20 warm-up runs (excluded) then 40 timed runs (the original plan said 200 "
+            "timed runs; "
+            "the interleaved protocol replaced it, and 5 rounds give 200 timed runs per setting "
+            "across rounds) over all subsets and settings, run only when the 1-minute load average "
+            "was below "
             f"{prot['load_limit']} (this figure includes the benchmark's own threads, which "
             "alone settle near 2.5). The six graphs cost the same, so subset differences are "
             "noise and the pooled figure below is the one to quote. Median of the per-round "
@@ -788,7 +792,8 @@ def vision_section(results: Path) -> str:
         "official one-class train normals only; the official test images are split once, "
         "stratified with seed 0, into validation (threshold and review band) and test (every "
         "number below). Train and eval images were checked for overlap by path and by content "
-        f"hash before scoring. Run {doc['date']}, commit `{doc['commit']}`. Intervals are 95% "
+        f"hash before scoring. Run {doc['date']}, commit `{doc['commit']}` (models and metrics "
+        "unchanged since that commit). Intervals are 95% "
         "bootstrap over images (1000 resamples, seed 0). Pixel metrics are computed on the "
         "224 x 224 maps, not at the original resolution.",
         "",
@@ -872,7 +877,8 @@ def vision_section(results: Path) -> str:
         "**What changed after the first run.** " + first["note"] + " Image AUROC / pixel AUROC "
         "/ pixel AUPRO on the full official test split, before and after:",
         "",
-        "| Subset | Before (centre crop) | After (whole image) |",
+        "| Subset | Before (centre crop; recorded from the first run, not reproducible from this "
+        "commit) | After (whole image) |",
         "|---|---|---|",
     ]
     for s, v in first["per_subset"].items():

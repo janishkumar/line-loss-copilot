@@ -294,7 +294,8 @@ def first_run_lines(doc: dict[str, Any]) -> list[str]:
     L = [
         f["note"],
         "",
-        f"Before (centre crop) and after (whole image resized), {f['columns']}, "
+        f"Before (centre crop; recorded from the first run, not reproducible from this commit) "
+        f"and after (whole image resized), {f['columns']}, "
         "full official test split:",
         "",
         "| Subset | Before | After |",

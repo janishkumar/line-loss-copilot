@@ -25,11 +25,14 @@ def test_heatmap_names_are_flat_unique_and_safe():
     assert "/" not in evil and ".." not in evil
 
 
-def test_stream_is_the_test_half_in_a_fixed_order(tmp_path):
+def test_stream_is_the_test_half_in_a_seeded_shuffled_order(tmp_path):
     _build_tree(tmp_path, dup=False)
     first = [s.image_id for s in vi.stream_samples(tmp_path, "cashew")]
     again = [s.image_id for s in vi.stream_samples(tmp_path, "cashew")]
-    assert first == again == sorted(first)
+    assert first == again  # reproducible
+    assert first != sorted(first)  # not sorted by id, which would sort by class
+    classes = ["Anomaly" in i for i in first]
+    assert classes != sorted(classes, reverse=True)  # anomalous images are not all first
     assert len(first) == 4  # 8 official test images, half of each class
     assert all("Images/" in i for i in first)
 

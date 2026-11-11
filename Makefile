@@ -118,9 +118,9 @@ demo-stage4: demo-stage3 synth plan
 	@echo "Open http://localhost:8080 : Plan, Shortages, then an order from either page."
 	@echo "Ask Claude: Which orders will the board shortage hit?"
 
-# Stage 4, then the VisA data (about 2 GB the first time), the PatchCore models, the ONNX export
-# and the simulated inspection stream.
-demo-stage5: demo-stage4 data-visa train-vision export-vision inspect
+# Stage 4, then the VisA data (about 2 GB the first time), the PatchCore models, the evaluation
+# that writes the thresholds, the ONNX export and the simulated inspection stream.
+demo-stage5: demo-stage4 data-visa train-vision eval-vision export-vision inspect
 	@echo "Open http://localhost:8080 : Inspection. Pick a quality lead, supervisor or plant manager to review."
 
 demo-note-remove:
