@@ -10,7 +10,9 @@ Stage 3 adds approved actions: the copilot can draft a work order, a quality hol
 
 Stage 4 adds scheduling and shortages: which synthetic customer order runs on which real packaging machine and when, which orders a material shortfall will hit, and how the plan holds up when real stops are replayed against it. Orders are synthetic; machine capacity and disruption are real.
 
-Status: stages 1 to 4 of 5 (data layer and true OEE; copilot; approved actions; scheduling and shortages). Visual inspection is not built yet.
+Stage 5 adds visual inspection: an anomaly model that passes, rejects or sends product images to a person, with a reject threshold set by what a false reject and an escaped defect each cost. The images are real; their link to a production line is simulated and labelled.
+
+Status: all 5 stages (data layer and true OEE; copilot; approved actions; scheduling and shortages; visual inspection).
 
 ## Stage 1 results
 <!-- oee:start -->
@@ -270,6 +272,34 @@ CP-SAT outcome over 5 instances: feasible 5; stopped by deterministic_time 5. Pa
 Realised stopped time over time with data (the planning availability's denominator), median over windows, against the planning stopped share: s_1 10.5% against 10.0%; s_2 11.1% against 9.6%; s_3 4.7% against 6.2%; s_4 4.5% against 4.7%; s_5 3.5% against 3.2%. Realised is higher than planning on 3 of 5 machines. Data gaps matter. Share of a window with no PIADE data: s_1: no data at all in 0 of 8 windows, median no-data share 10%; s_2: no data at all in 0 of 8 windows, median no-data share 50%; s_3: no data at all in 0 of 8 windows, median no-data share 10%; s_4: no data at all in 0 of 8 windows, median no-data share 20%; s_5: no data at all in 3 of 8 windows, median no-data share 76%. A gap is replayed as no stops, so a machine with gaps is stopped less over the whole window than its share of covered time suggests. Both figures, per window and machine, are in [evals/results/plan.md](evals/results/plan.md). Regenerate with `make eval-plan`, then `make report`; `make plan` stores the live generation's plans and replays in `plan.*`.
 <!-- plan:end -->
 
+## Stage 5: visual inspection
+
+**Decision it supports:** where to set the reject threshold on a camera station. Inspectors miss defects, and every good item rejected is wasted product. Set the threshold too low and good product is thrown away; too high and defects escape. This stage scores product images with an anomaly model, picks the threshold from the cost of each mistake under a stated defect rate, and puts uncertain images in front of a person.
+
+Metrics, the cost sensitivity table and CPU latency are in "Stage 5 results" below (generated from `evals/results/`). Short version of how it works:
+
+- **Model.** PatchCore on six VisA food subsets (cashew, chewing gum, fryum, pipe fryum, macaroni 1 and 2), trained on normal images only. The backbone is torchvision's `wide_resnet50_2` with its ImageNet weights, downloaded at training time and not stored in this repository. The code in torchvision is open source; the weights come from ImageNet training, and their terms are set out in torchvision's model documentation (see the `wide_resnet50_2` page), so check those before any use beyond a portfolio demonstration.
+- **Threshold.** The cost-based threshold (false reject cost 1, escaped defect cost r = 20, defects assumed to be p = 2% of items) is chosen on validation images only, and an image just below it goes to review instead of being decided automatically. The sensitivity table shows how the cost moves with r and p; none of these are plant figures.
+- **Stream.** `make inspect` scores the held-out test half of each subset with the ONNX models, writes a heatmap per image and creates one simulated quality event per rejected image. The stream holds about two thirds anomalous images (the test half of the official split), so its reject rates are far above a real plant's. The counts below describe the demo stream, not a defect rate.
+
+| Subset | Images | Pass | Review | Reject |
+|---|---|---|---|---|
+| cashew | 75 | 26 | 1 | 48 |
+| chewinggum | 75 | 25 | 0 | 50 |
+| fryum | 75 | 35 | 4 | 36 |
+| pipe_fryum | 75 | 26 | 1 | 48 |
+| macaroni1 | 100 | 44 | 7 | 49 |
+| macaroni2 | 100 | 87 | 7 | 6 |
+
+Total 500 inspections and 237 quality events (one per rejected image).
+
+**Try it:** `make demo-stage5` (stage 4, then `make data-visa`, `make train-vision`, `make export-vision`, `make inspect`; the first run downloads a 1.9 GB archive), then open http://localhost:8080 and the Inspection page. Pick a quality lead, shift supervisor or plant manager, open a queued image, look at the heatmap and accept or reject it. A rejected image links to "Draft quality hold", which opens the usual action form with the simulated station and the quality event filled in. Operators and planners can read the queue but their review buttons are hidden, and the server refuses them if they try.
+
+**Where the guarantees stop.**
+- The images are real VisA photographs. VisA is not from the PIADE or brick lines, so the inspection stations (`SIM-VIS-<subset>`), the stream and the quality events are synthetic and badged "Simulated / synthetic" in the app. `mart.*` never reads them.
+- A reviewer's accept or reject is stored as a label, with the model's score beside it. It creates evidence, not an action. The person who rejects an image may also be the person who approves the quality hold drafted from it: stage 3's separation of duties is between proposer and approver only, and a hold drafted from the image is proposed by whoever drafts it. Only quality lead, shift supervisor and plant manager can review, from `config/policy.toml`.
+- Pixel metrics are on 224 x 224 maps, and thresholds come from 25 to 50 validation normals per subset, so they are noisy. The figures are for these six subsets only.
+
 ## Stage 5 results (visual inspection on VisA)
 
 <!-- vision:start -->
@@ -410,9 +440,13 @@ All three datasets are licensed CC BY 4.0. Raw files are not in this repository;
 | Machine rates and planning availability used by the planner | Real (derived from PIADE rows before 2021-07-01), stored in `synthetic.machine_rate` beside the synthetic data | 4 |
 | Changeover times | Synthetic table, anchored to real brick-line changeover quantiles (a different process and period than PIADE) | 4 |
 | Planted shortages and decoys | Synthetic, `synthetic.planted_shortage`; the agent's database role cannot read it | 4 |
+| VisA images used by the inspection stream | Real photographs (CC BY 4.0), but not from either production line | 5 |
+| Inspection stations (`synthetic.sim_asset`, `SIM-VIS-<subset>`) | Synthetic, `source` column, badged "Simulated / synthetic" | 5 |
+| Quality events created by rejected images (`synthetic.quality_event`, read through `core.event_all`) | Synthetic, `source = 'synthetic'`; `mart.*` and `core.event` never contain them | 5 |
+| Reviewer accept/reject labels (`vision.review`) | Made by demo users on real VisA images with a simulated stream: labels on simulated inspections, not plant quality records | 5 |
 | Plan outputs (sequences, KPIs, replays) in `plan.*` | Synthetic orders on real capacity; replayed stops are real PIADE stops; rows carry `is_synthetic`, never blended into a real-data figure | 4 |
 
-Stages 1 and 2 contain no synthetic data. Stage 3 adds only the demo users and the demo note, and stage 4 the synthetic orders and plans. `mart.*` never reads `demo.*`, `synthetic.*` or `plan.*`, so no OEE, loss or risk figure includes synthetic rows.
+Stages 1 and 2 contain no synthetic data. Stage 3 adds only the demo users and the demo note, stage 4 the synthetic orders and plans, and stage 5 the simulated stations and quality events. `mart.*` never reads `demo.*`, `synthetic.*` or `plan.*`, so no OEE, loss or risk figure includes synthetic rows.
 
 ## What didn't work (and what replaced it)
 
@@ -439,6 +473,11 @@ Stages 1 and 2 contain no synthetic data. Stage 3 adds only the demo users and t
 - **A weak baseline that made CP-SAT look good.** FIFO and plain EDD ignore changeovers when ordering jobs, so beating them says little. `edd_batch` was added: EDD with the same earliest-finish machine rule and a changeover-aware job order. It cuts changeover minutes against plain EDD (356 against 444, median) with a mixed tardiness result (13,933 min against 11,867 replayed, median, with fewer late orders at 9 against 10). CP-SAT is lower than plain EDD in 39 of 40 seed by window cases and lower than `edd_batch` in 40 of 40. An early version of `edd_batch` also chose the first-free machine instead of the earliest-finish one, which made it look weak for the wrong reason; that is fixed. A stronger tuned rule could narrow the gap; the result is about this generator.
 - **A solver limit that was not reproducible.** A 20 s wall-clock limit gives different answers on different machines. CP-SAT now stops on a deterministic time of 60 with a 120 s wall cap as a safety net, and the stop reason is recorded; every run so far stopped on the deterministic limit with a feasible, not proven optimal, solution.
 - **A 7B model dropping the order ids.** In the LLM safety subset `qwen2.5:7b-instruct` proposed a follow-up but left out the `order_ids` the user named, so the order note never reached the preview. A judge that only checked the action type counted that as a pass; it now requires the requested fields, and the model proposed what was asked in 3 of 6 prompts.
+- **Centre-cropping VisA images.** The first scorer resized to 256 and cropped the centre 224, which cut the defect out of 18 of 100 macaroni2 images, so no model could find them. Images are now resized whole to 224 x 224 (the aspect ratio changes, nothing is cut off).
+- **A threshold from raw counts.** Choosing the threshold on validation counts, with VisA's test mix two thirds anomalous, pushed it far down and gave false reject rates of 24 to 86% at r = 20, and the sensitivity table barely changed across r. It was replaced by a threshold chosen on per-class rates weighted by a stated defect prevalence (p = 2%, r = 20), with a sensitivity table over r and p. The result is still a cost under assumptions: macaroni2 lets 92% of defects through at this threshold (image AUROC 0.654).
+- **Noisy latency on a busy laptop.** Single runs swung from about 58 ms to over 120 ms with whatever else was running. The benchmark now interleaves subsets and settings over 5 rounds, runs only when the 1-minute load average is below 4.0, and records the load and provenance per block; the figures quote the median of round medians with the range.
+- **A forward-hook leak in the feature extractor.** The first extractor used forward hooks on the shared backbone, so each model built on it left hooks behind and several models on one backbone interfered. It now calls the backbone's layers in order with no hooks; the features are identical (maximum absolute difference 0.0 on a real image) and no retraining was needed.
+- **A safety scenario that looked like a guard failure.** In a Docker run the "stale hold released" scenario scored as an unsafe write. The cause was the eval stamping a record with the database clock while the service used the host clock, and the Docker VM's clock had drifted about 54 seconds. The scenario setup now uses the service clock, and the safety result is unchanged (0 of 30 unsafe writes with guardrails, 26 of 30 without).
 
 ## Use it from Claude
 
@@ -477,6 +516,7 @@ make demo-stage1   # db, api and web up; download data; load; dbt build; validat
 make demo-stage2   # demo-stage1, then the stop-risk models, so every page has data
 make demo-stage3   # demo-stage2, then one labelled synthetic injected note; prints the Claude setup
 make demo-stage4   # demo-stage3, then synthetic orders (make synth) and the stored plan (make plan)
+make demo-stage5   # demo-stage4, then VisA download, PatchCore training, ONNX export and the inspection stream (heavy)
 make demo-note-remove  # delete the demo injected note
 make report        # rewrite the results sections above from evals/results/
 make train-risk    # next-hour stop-risk models on PIADE (about 20 s)
@@ -489,7 +529,7 @@ make down
 
 Raw tables are created with `CREATE TABLE IF NOT EXISTS`, so after a schema change recreate the database volume (`docker compose down -v`) and reload.
 
-Then open http://localhost:8080 (overview, validation, evidence, losses, reliability, notes, stop risk, chat, plan, shortages, orders, approvals, actions, audit). The API is on http://localhost:8000. Both ports are bound to 127.0.0.1 only. The chat needs Ollama on the host (`LINECOPILOT_CHAT_MODEL`, default `qwen2.5:7b-instruct`, chosen over `llama3.1:8b-instruct` by a tool-calling smoke test: 22 of 24 against 19 of 24, and faster; see `evals/results/chat_model_smoke.json`). If port 8000 is taken, set `LINECOPILOT_API_PORT`.
+Then open http://localhost:8080 (overview, validation, evidence, losses, reliability, notes, stop risk, chat, plan, shortages, orders, inspection, approvals, actions, audit). The API is on http://localhost:8000. Both ports are bound to 127.0.0.1 only. The chat needs Ollama on the host (`LINECOPILOT_CHAT_MODEL`, default `qwen2.5:7b-instruct`, chosen over `llama3.1:8b-instruct` by a tool-calling smoke test: 22 of 24 against 19 of 24, and faster; see `evals/results/chat_model_smoke.json`). If port 8000 is taken, set `LINECOPILOT_API_PORT`.
 
 More: [docs/data-notes.md](docs/data-notes.md) (data findings and how each number is reproduced), [docs/design.md](docs/design.md) (design for all stages).
 
