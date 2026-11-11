@@ -148,6 +148,7 @@ def _stream_missing(conn: psycopg.Connection) -> bool:
         _exists(conn, "vision.inspection")
         and _exists(conn, "vision.review")
         and _exists(conn, "synthetic.quality_event")
+        and _exists(conn, "synthetic.sim_asset")
     )
 
 
@@ -263,6 +264,7 @@ def quality_events(conn: psycopg.Connection, args: QualityEventsArgs) -> Result[
     if not (
         _exists(conn, "core.event_all")
         and _exists(conn, "synthetic.quality_event")
+        and _exists(conn, "synthetic.sim_asset")
         and _exists(conn, "vision.inspection")
     ):
         return Result(status="insufficient_evidence", assumptions=ASSUMPTIONS, missing=NO_STREAM)

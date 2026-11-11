@@ -131,7 +131,7 @@ def create_app(
     agent_url = agent_db_url or settings.agent_database_url
     action_service = ActionService(load_policy(settings.policy_path))
     app.include_router(make_router(url, agent_url, action_service, origins))
-    app.include_router(make_vision_router(url, origins))
+    app.include_router(make_vision_router(url, origins, action_service.policy))
     chat_slots = threading.BoundedSemaphore(CHAT_MAX_CONCURRENT)
 
     @app.exception_handler(RequestValidationError)

@@ -74,3 +74,23 @@ def test_policy_rejects_non_integer_priority(tmp_path):
     text = REPO_POLICY.read_text().replace("min_stop_s = 1800", "min_stop_s = 1800.5")
     with pytest.raises(ValueError, match="integers"):
         load_policy(_write(tmp_path, text))
+
+
+def test_review_section_defaults_and_validates(tmp_path):
+    from pathlib import Path
+
+    from linecopilot.actions.policy import load_policy
+
+    root = Path(__file__).resolve().parents[2] / "config" / "policy.toml"
+    pol = load_policy(root)
+    assert pol.review_vision == ("quality_lead", "shift_supervisor", "plant_manager")
+    assert pol.may_review_image("quality_lead") and not pol.may_review_image("operator")
+    assert not pol.may_review_image("planner")
+    text = root.read_text()
+    no_review = tmp_path / "p.toml"
+    no_review.write_text(text.split("[review]")[0] + "[priority]" + text.split("[priority]")[1])
+    assert load_policy(no_review).review_vision == pol.review_vision
+    bad = tmp_path / "b.toml"
+    bad.write_text(text.replace('vision = ["quality_lead"', 'vision = ["boss", "quality_lead"'))
+    with pytest.raises(ValueError, match="review.vision"):
+        load_policy(bad)

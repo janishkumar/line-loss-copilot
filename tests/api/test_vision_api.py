@@ -185,3 +185,32 @@ def test_review_without_a_stream_is_an_envelope(client, vision_clean):
     login(client, "ql.a")
     r = client.post("/api/inspections/1/review", json={"decision": "accept"})
     assert r.status_code == 404 and r.json()["status"] == "out_of_scope"
+
+
+@pytest.mark.parametrize("user", ["op.a", "plan.a"])
+def test_roles_without_quality_authority_cannot_review(client, make_inspection, vision_clean, user):
+    q = make_inspection(decision="review")
+    login(client, user)
+    r = client.post(f"/api/inspections/{q}/review", json={"decision": "reject"})
+    assert r.status_code == 403 and r.json()["status"] == "out_of_scope"
+    assert "may not review" in r.json()["missing"]
+    assert vision_clean.execute("SELECT count(*) FROM vision.review").fetchone()[0] == 0
+    assert vision_clean.execute("SELECT count(*) FROM synthetic.quality_event").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("user", ["ql.a", "sup.a", "sup.b", "pm.a"])
+def test_allowed_roles_can_review(client, make_inspection, vision_clean, user):
+    q = make_inspection(decision="review")
+    login(client, user)
+    r = client.post(f"/api/inspections/{q}/review", json={"decision": "reject"})
+    assert r.status_code == 200, r.text
+    assert vision_clean.execute("SELECT reviewer FROM vision.review").fetchone() == (user,)
+
+
+def test_agent_cannot_hold_a_session_to_review(client, make_inspection):
+    q = make_inspection(decision="review")
+    client.cookies.clear()
+    assert client.post("/api/session", json={"user_id": "copilot-agent"}).status_code == 400
+    assert (
+        client.post(f"/api/inspections/{q}/review", json={"decision": "accept"}).status_code == 401
+    )

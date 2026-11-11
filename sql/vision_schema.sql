@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS synthetic.quality_event (
 
 -- core.event plus the simulated quality events, in core.event's columns. Real rows keep
 -- is_synthetic = false; quality events are event_type 'quality' with is_synthetic = true.
+-- NOTE: the first branch keeps only NOT is_synthetic rows of core.event, so a synthetic row that
+-- ever lands in core.event would be hidden from evidence checks; a test pins core.event to 0
+-- synthetic rows. Quality events are the only synthetic rows in this view.
 -- Created only once core.event exists (before the first dbt build there is nothing to union).
 DO $$
 BEGIN

@@ -10,7 +10,9 @@ ACTIONS = ("work_order", "quality_hold", "follow_up")
 ROLES = ("operator", "shift_supervisor", "planner", "quality_lead", "plant_manager")
 PRIORITIES = ("low", "medium", "high", "critical")
 
-_SECTIONS = {"confirmation", "propose", "approve", "priority", "evidence"}
+_SECTIONS = {"confirmation", "propose", "approve", "priority", "evidence", "review"}
+_REQUIRED = _SECTIONS - {"review"}
+REVIEW_DEFAULT = ("quality_lead", "shift_supervisor", "plant_manager")
 
 
 @dataclass(frozen=True)
@@ -20,6 +22,10 @@ class Policy:
     approve: dict[str, tuple[str, ...]]
     priority: dict[str, tuple[int, int]]
     max_events: int
+    review_vision: tuple[str, ...] = REVIEW_DEFAULT
+
+    def may_review_image(self, role: str) -> bool:
+        return role in self.review_vision
 
     def may_propose(self, role: str, action: str) -> bool:
         return action in self.propose.get(role, ())
@@ -50,7 +56,7 @@ def _names(values, allowed, where: str) -> tuple[str, ...]:
 def load_policy(path: str | Path) -> Policy:
     data = tomllib.loads(Path(path).read_text())
     _only(data, _SECTIONS, "policy")
-    missing = _SECTIONS - set(data)
+    missing = _REQUIRED - set(data)
     if missing:
         raise ValueError(f"missing section(s): {sorted(missing)}")
 
@@ -82,4 +88,10 @@ def load_policy(path: str | Path) -> Policy:
     if not isinstance(ev["max_events"], int) or ev["max_events"] <= 0:
         raise ValueError("evidence.max_events must be a positive integer")
 
-    return Policy(ttl, propose, approve, priority, ev["max_events"])
+    review = data.get("review", {})
+    _only(review, {"vision"}, "[review]")
+    review_vision = (
+        _names(review["vision"], ROLES, "review.vision") if "vision" in review else REVIEW_DEFAULT
+    )
+
+    return Policy(ttl, propose, approve, priority, ev["max_events"], review_vision)

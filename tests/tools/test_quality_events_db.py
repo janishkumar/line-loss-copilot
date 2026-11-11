@@ -62,3 +62,22 @@ def test_missing_view_is_insufficient_evidence_not_an_error(built):
         finally:
             conn.execute("ROLLBACK")
     assert r.status == "insufficient_evidence" and "make inspect" in r.missing
+
+
+def test_missing_sim_asset_table_is_insufficient_evidence(built):
+    import os
+
+    import psycopg
+
+    with psycopg.connect(os.environ["LINECOPILOT_TEST_DB_URL"], autocommit=True) as conn:
+        conn.execute("BEGIN")
+        try:
+            conn.execute("DROP VIEW core.event_all")
+            conn.execute(
+                "ALTER TABLE synthetic.quality_event DROP CONSTRAINT quality_event_asset_id_fkey"
+            )
+            conn.execute("DROP TABLE synthetic.sim_asset")
+            r = call_tool(conn, "quality_events", {})
+        finally:
+            conn.execute("ROLLBACK")
+    assert r.status == "insufficient_evidence"

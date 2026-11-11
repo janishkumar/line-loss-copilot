@@ -14,6 +14,9 @@ work_order = ["shift_supervisor", "plant_manager"]
 quality_hold = ["quality_lead", "plant_manager"]
 follow_up = ["shift_supervisor"]
 
+[review]    # roles that may accept or reject a queued inspection image
+vision = ["quality_lead", "shift_supervisor", "plant_manager"]
+
 [priority]  # minimum evidence for a priority before a warning
 high = { min_stop_s = 1800, min_events = 2 }
 critical = { min_stop_s = 7200, min_events = 3 }

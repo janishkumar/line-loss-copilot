@@ -17,6 +17,8 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict
 
+from linecopilot.actions.identity import get_user
+from linecopilot.actions.policy import Policy
 from linecopilot.api.actions_routes import session_user_id
 from linecopilot.db import connect_read_only
 from linecopilot.tools.envelope import Result
@@ -48,7 +50,7 @@ def _envelope(res: Result, status: int) -> JSONResponse:
     return JSONResponse(res.model_dump(mode="json"), status_code=status)
 
 
-def make_router(db_url: str, allowed_origins: set[str]) -> APIRouter:
+def make_router(db_url: str, allowed_origins: set[str], policy: Policy) -> APIRouter:
     router = APIRouter()
 
     def reader() -> Iterator[psycopg.Connection]:
@@ -113,6 +115,17 @@ def make_router(db_url: str, allowed_origins: set[str]) -> APIRouter:
         reviewer = session_user_id(conn, lc_session)
         if reviewer is None:
             raise HTTPException(401, "sign in first (no valid session)")
+        user = get_user(conn, reviewer)
+        if user is None or not policy.may_review_image(user.role):
+            role = user.role if user else "unknown"
+            return _envelope(
+                Result(
+                    status="out_of_scope",
+                    missing=f"role {role} may not review inspection images "
+                    f"(allowed: {', '.join(policy.review_vision)})",
+                ),
+                403,
+            )
         if not _has_table(conn):
             return _envelope(
                 Result(
@@ -143,6 +156,7 @@ def _has_table(conn: psycopg.Connection) -> bool:
         conn.execute(
             "SELECT to_regclass('vision.inspection') IS NOT NULL "
             "AND to_regclass('vision.review') IS NOT NULL "
-            "AND to_regclass('synthetic.quality_event') IS NOT NULL"
+            "AND to_regclass('synthetic.quality_event') IS NOT NULL "
+            "AND to_regclass('synthetic.sim_asset') IS NOT NULL"
         ).fetchone()[0]
     )

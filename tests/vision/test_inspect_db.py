@@ -235,3 +235,10 @@ def test_ids_start_in_their_own_range(make_inspection, vision_clean):
     (top,) = vision_clean.execute("SELECT max(event_id) FROM core.event").fetchone()
     assert eid >= 9_000_000_000 > top
     assert np.isfinite(eid)
+
+
+def test_core_event_has_no_synthetic_rows(vision_clean):
+    """core.event_all keeps only NOT is_synthetic rows of core.event; pin that nothing is hidden."""
+    assert vision_clean.execute(
+        "SELECT count(*) FROM core.event WHERE is_synthetic IS NOT FALSE"
+    ).fetchone() == (0,)
