@@ -25,6 +25,10 @@ services:
       LINECOPILOT_OLLAMA_URL: http://host.docker.internal:11434
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      # stage 5: inspection heatmaps and the original VisA images, served read-only by id
+      - ./data/vision:/app/data/vision:ro
+      - ./data/visa:/app/data/visa:ro
     ports:
       - "127.0.0.1:${LINECOPILOT_API_PORT:-8000}:8000"
     depends_on:
