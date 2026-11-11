@@ -100,3 +100,12 @@ describe("NewAction follow-up with orders", () => {
     });
   });
 });
+
+describe("NewAction quality hold from an inspection", () => {
+  it("prefills the type, simulated asset and event", () => {
+    wrap("/actions/new?action=quality_hold&asset=SIM-VIS-fryum&events=9000000001", demoUsers[2]);
+    expect(screen.getByLabelText("Action type")).toHaveValue("quality_hold");
+    expect(screen.getByLabelText("Asset")).toHaveValue("SIM-VIS-fryum");
+    expect(screen.getByLabelText("Evidence event ids")).toHaveValue("9000000001");
+  });
+});

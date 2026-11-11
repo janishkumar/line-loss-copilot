@@ -42,3 +42,9 @@ export const SyntheticBadge = () => (
     Synthetic orders on real capacity
   </span>
 );
+
+export const SimulatedBadge = () => (
+  <span className="badge synthetic" title="VisA images are not from the PIADE or brick lines: the stations, the stream and the quality events are simulated">
+    Simulated / synthetic
+  </span>
+);

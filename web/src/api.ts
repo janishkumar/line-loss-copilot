@@ -583,3 +583,64 @@ export interface OrderDetail {
 export const getPlan = () => get<PlanData>("/plan");
 export const getShortages = () => get<ShortagesData>("/shortages");
 export const getOrder = (id: string) => get<OrderDetail>(`/orders/${encodeURIComponent(id)}`);
+
+// ---- Stage 5: visual inspection (real VisA images, simulated stream) ----
+
+export type InspectionDecision = "pass" | "review" | "reject";
+export interface InspectionReview {
+  decision: string;
+  reviewer: string;
+  score_at_review: number;
+  created_at: string;
+}
+export interface Inspection {
+  inspection_id: number;
+  subset: string;
+  image_id: string;
+  split: string;
+  score: number;
+  decision: InspectionDecision;
+  threshold: number;
+  review_lower: number | null;
+  created_at: string;
+  source: string;
+  asset_id: string;
+  heatmap_url: string | null;
+  review: InspectionReview | null;
+  quality_event_id: number | null;
+  is_synthetic: boolean;
+}
+export interface InspectionsData {
+  label: string;
+  is_synthetic: boolean;
+  counts: Record<string, number>;
+  total: number;
+  pending_review: number;
+  rows: Inspection[];
+  limit: number;
+  offset: number;
+}
+
+export const getInspections = (p: { decision?: InspectionDecision; unreviewed?: boolean; limit?: number }) =>
+  get<InspectionsData>("/inspections", { decision: p.decision, unreviewed: p.unreviewed ? "true" : undefined, limit: p.limit });
+export const getInspection = (id: number | string) => get<Inspection>(`/inspections/${id}`);
+
+/** Roles that may accept or reject a queued image (config/policy.toml [review] vision). */
+export const REVIEW_ROLES = ["quality_lead", "shift_supervisor", "plant_manager"];
+
+export interface ReviewReply {
+  ok: boolean;
+  message: string | null;
+  inspection: Inspection | null;
+  quality_event_id: number | null;
+}
+/** Records the reviewer decision. A refusal (403 role, 409 already reviewed) returns its message. */
+export async function reviewInspection(id: number, decision: "accept" | "reject"): Promise<ReviewReply> {
+  const r = await call<{ status?: string; missing?: string | null; detail?: unknown; data?: { inspection: Inspection; quality_event_id: number | null } }>(
+    "POST", `/inspections/${id}/review`, { decision },
+  );
+  if (r.ok && r.data?.data)
+    return { ok: true, message: null, inspection: r.data.data.inspection, quality_event_id: r.data.data.quality_event_id };
+  const detail = typeof r.data?.detail === "string" ? r.data.detail : null;
+  return { ok: false, message: r.data?.missing ?? detail ?? `HTTP ${r.status}`, inspection: null, quality_event_id: null };
+}

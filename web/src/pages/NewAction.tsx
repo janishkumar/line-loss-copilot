@@ -32,7 +32,7 @@ function buildArgs(action: ActionName, f: Form): Record<string, unknown> {
 export default function NewAction() {
   const { user } = useSession();
   const [params] = useSearchParams();
-  const [action, setAction] = useState<ActionName>(params.get("action") === "follow_up" ? "follow_up" : "work_order");
+  const [action, setAction] = useState<ActionName>(initialAction(params.get("action")));
   const [form, setForm] = useState<Form>({
     asset: params.get("asset") ?? "",
     events: parseSafe(params.get("events") ?? ""),
@@ -144,6 +144,10 @@ export default function NewAction() {
       )}
     </>
   );
+}
+
+function initialAction(raw: string | null): ActionName {
+  return raw === "follow_up" || raw === "quality_hold" ? raw : "work_order";
 }
 
 function parseSafe(raw: string): string {

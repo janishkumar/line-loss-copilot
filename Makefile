@@ -3,7 +3,7 @@ export PYTHONPATH := src
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
 
-.PHONY: inspect data-visa train-vision eval-vision export-vision plan eval-plan eval-shortages synth demo-stage3 demo-stage4 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: demo-stage5 inspect data-visa train-vision eval-vision export-vision plan eval-plan eval-shortages synth demo-stage3 demo-stage4 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -117,6 +117,11 @@ demo-stage3: demo-stage2
 demo-stage4: demo-stage3 synth plan
 	@echo "Open http://localhost:8080 : Plan, Shortages, then an order from either page."
 	@echo "Ask Claude: Which orders will the board shortage hit?"
+
+# Stage 4, then the VisA data (about 2 GB the first time), the PatchCore models, the ONNX export
+# and the simulated inspection stream.
+demo-stage5: demo-stage4 data-visa train-vision export-vision inspect
+	@echo "Open http://localhost:8080 : Inspection. Pick a quality lead, supervisor or plant manager to review."
 
 demo-note-remove:
 	uv run python scripts/demo_injected_note.py --remove
