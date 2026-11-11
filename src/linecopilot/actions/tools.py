@@ -185,6 +185,7 @@ def call_action_tool(
                     checks=_checks(pv.checks),
                     notes=pv.notes,
                     notes_notice=NOTES_NOTICE if pv.notes else "",
+                    **({"labels": pv.labels} if pv.labels else {}),
                 )
             return _result(
                 "ok",
@@ -195,6 +196,7 @@ def call_action_tool(
                 code=pv.code,
                 notes=pv.notes,
                 notes_notice=NOTES_NOTICE if pv.notes else "",
+                **({"labels": pv.labels} if pv.labels else {}),
             )
         # a blank, missing or non-string code goes on as None so the service refuses and audits it
         code = args.get("code")

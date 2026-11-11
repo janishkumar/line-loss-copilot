@@ -253,5 +253,7 @@ def test_ollama_retries_once_on_timeout():
 def test_stage2_tool_list_is_the_original_twelve_and_still_in_the_registry():
     assert len(STAGE2_TOOLS) == 12 and len(set(STAGE2_TOOLS)) == 12
     assert set(STAGE2_TOOLS) < set(TOOLS)
-    assert {"get_plan", "shortages", "get_order"} == set(TOOLS) - set(STAGE2_TOOLS)
+    assert {"get_plan", "shortages", "get_order", "quality_events"} == (
+        set(TOOLS) - set(STAGE2_TOOLS)
+    )
     assert cr.allowed_tools() == [f"mcp__linecopilot__{n}" for n in STAGE2_TOOLS]

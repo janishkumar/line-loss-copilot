@@ -254,7 +254,7 @@ def test_mcp_action_tools_with_user(agent_url, built):
     server = build_server(url, agent_db_url=agent_url, mcp_user="sup.a")
     tools, pv, out = run_server(server, go)
     try:
-        assert len(tools) == 22 and {t.name for t in tools} == set(TOOLS) | set(ACTION_TOOLS)
+        assert len(tools) == 23 and {t.name for t in tools} == set(TOOLS) | set(ACTION_TOOLS)
         by = {t.name: t.annotations for t in tools}
         assert by["list_my_proposals"].read_only_hint is True
         for name in ACTION_TOOLS:
@@ -289,4 +289,5 @@ def test_only_tools_registers_just_the_pinned_set():
 
     server = build_server(UNREACHABLE, only_tools=STAGE2_TOOLS)
     names = {t.name for t in run_server(server, lambda c: c.list_tools()).tools}
-    assert names == set(STAGE2_TOOLS) and not names & {"get_plan", "shortages", "get_order"}
+    later = {"get_plan", "shortages", "get_order", "quality_events"}
+    assert names == set(STAGE2_TOOLS) and not names & later

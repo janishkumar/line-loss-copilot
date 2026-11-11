@@ -27,8 +27,10 @@ from linecopilot.actions import audit, codes
 from linecopilot.actions.checks import (
     CheckResult,
     Snapshot,
+    asset_labels,
     blocked,
     check_instruction_like_text,
+    event_relation,
     load_snapshot,
     run_checks,
     still_relevant,
@@ -64,6 +66,7 @@ class Preview:
     evidence: list[dict]
     blocked: bool
     notes: list[dict] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)  # ["synthetic", ...] for a simulated asset
 
 
 @dataclass
@@ -121,7 +124,8 @@ def _summary(conn: psycopg.Connection, ctx: ActionContext, canon: dict, snap: Sn
             f"{n} linked event{'' if n == 1 else 's'}"
             + (f", {len(canon['order_ids'])} linked order(s)" if canon.get("order_ids") else "")
         )
-    return f"{head}. Proposed by {ctx.principal} for {who} via {ctx.channel}."
+    tag = " [SYNTHETIC: simulated inspection station]" if snap.asset_simulated else ""
+    return f"{head}{tag}. Proposed by {ctx.principal} for {who} via {ctx.channel}."
 
 
 NOTE_CAP = 600
@@ -286,6 +290,7 @@ class ActionService:
             _evidence_dicts(snap),
             is_blocked,
             _note_dicts(snap),
+            asset_labels(snap.asset_simulated),
         )
 
     def propose(
@@ -701,8 +706,8 @@ class ActionService:
             "SELECT pe.event_key, pe.event_id_at_link, e.event_id AS current_event_id, "
             "(e.event_id IS NOT NULL) AS present, e.line_id, e.machine_id, e.start_ts, "
             "e.duration_s, e.event_type, e.reason_code, e.alarm_code "
-            "FROM actions.proposal_evidence pe LEFT JOIN core.event e USING (event_key) "
-            "WHERE pe.proposal_id = %s ORDER BY pe.event_key",
+            f"FROM actions.proposal_evidence pe LEFT JOIN {event_relation(conn)} e "
+            "USING (event_key) WHERE pe.proposal_id = %s ORDER BY pe.event_key",
             (proposal_id,),
         ).fetchall()
         keys = [e["event_key"] for e in evidence]
@@ -734,6 +739,7 @@ class ActionService:
             "notes": notes,
             "order_notes": order_notes,
             "warnings": warnings,
+            "labels": asset_labels(snap.asset_simulated),
         }
 
     def list_actions(self, conn: psycopg.Connection, kind: str) -> list[dict]:

@@ -107,3 +107,55 @@ def built(make_data_dir):
     # Autocommit so one failing query cannot abort the shared session for later tests.
     with psycopg.connect(url, autocommit=True) as conn:
         yield conn
+
+
+def _wipe_vision(conn) -> None:
+    """Remove everything the inspection tests create (children first)."""
+    for table in (
+        "actions.quality_hold",
+        "actions.proposal_evidence",
+    ):
+        conn.execute(
+            f"DELETE FROM {table} WHERE proposal_id IN "
+            "(SELECT proposal_id FROM actions.proposal WHERE args->>'asset_id' LIKE 'SIM-VIS-%')"
+        )
+    conn.execute("DELETE FROM actions.proposal WHERE args->>'asset_id' LIKE 'SIM-VIS-%'")
+    conn.execute("DELETE FROM synthetic.quality_event")
+    conn.execute("DELETE FROM vision.review")
+    conn.execute("DELETE FROM vision.inspection")
+    conn.execute("DELETE FROM synthetic.sim_asset")
+
+
+@pytest.fixture
+def vision_clean(built):
+    """The test connection with empty vision.* and synthetic quality tables, before and after."""
+    _wipe_vision(built)
+    yield built
+    _wipe_vision(built)
+
+
+@pytest.fixture
+def make_inspection(vision_clean):
+    """Insert one stored inspection through the real store functions (no model needed)."""
+    import uuid
+
+    from linecopilot.vision import store
+
+    def make(subset="cashew", decision="review", score=0.9, reject_event=True, heatmap=None):
+        image = f"{subset}/Data/Images/Anomaly/{uuid.uuid4().hex[:8]}.JPG"
+        iid = store.insert_inspection(
+            vision_clean,
+            subset=subset,
+            image_id=image,
+            score=score,
+            decision=decision,
+            threshold=0.88,
+            review_lower=0.87,
+            heatmap_path=heatmap,
+        )
+        assert iid is not None
+        if decision == "reject" and reject_event:
+            store.create_quality_event(vision_clean, iid, "automatic")
+        return iid
+
+    return make

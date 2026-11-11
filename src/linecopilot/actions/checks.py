@@ -92,6 +92,7 @@ class Snapshot:
     proposer_role: str | None
     released_holds: tuple[Duplicate, ...] = ()
     orders: tuple[OrderText, ...] = ()  # the linked orders that exist
+    asset_simulated: bool = False  # the asset is a simulated inspection station (synthetic)
 
     @property
     def asset_id(self) -> str | None:
@@ -108,12 +109,35 @@ FREE_TEXT_FIELDS = {
 # --- individual checks -------------------------------------------------------------------------
 
 
+SIMULATED_LABELS = ["synthetic", "simulated_asset"]
+
+
 def check_asset_exists(s: Snapshot) -> CheckResult:
     if s.asset_id is None:
         return CheckResult("asset_exists", "pass", "no asset named")
     if s.asset_exists:
-        return CheckResult("asset_exists", "pass", f"{s.asset_id} is a known line or machine")
-    return CheckResult("asset_exists", "block", f"{s.asset_id} is not a known line or machine id")
+        what = "a simulated inspection station" if s.asset_simulated else "a known line or machine"
+        return CheckResult("asset_exists", "pass", f"{s.asset_id} is {what}")
+    return CheckResult(
+        "asset_exists",
+        "block",
+        f"{s.asset_id} is not a known line, machine or simulated inspection station id",
+    )
+
+
+def check_simulated_asset(s: Snapshot) -> CheckResult | None:
+    """A warning (never a block) on any action naming a simulated station, so the label is in
+    the preview, the stored proposal's checks and the inbox. None for a real asset."""
+    if not (s.asset_simulated and s.asset_id):
+        return None
+    return CheckResult(
+        "simulated_asset",
+        "warn",
+        f"SYNTHETIC: {s.asset_id} is a simulated inspection station fed by VisA images, not a "
+        "PIADE or brick-line asset; its quality events are simulated and no real product is "
+        "held by approving this",
+        {"labels": SIMULATED_LABELS, "asset_id": s.asset_id},
+    )
 
 
 def _belongs(row: EvidenceRow, asset: str | None) -> bool:
@@ -270,7 +294,7 @@ def check_instruction_like_text(s: Snapshot) -> CheckResult:
 
 def run_checks(s: Snapshot, policy: Policy) -> list[CheckResult]:
     """The propose-time checks, in a fixed order."""
-    return [
+    results = [
         check_asset_exists(s),
         check_evidence_exists(s),
         check_orders_exist(s),
@@ -279,6 +303,10 @@ def run_checks(s: Snapshot, policy: Policy) -> list[CheckResult]:
         check_priority_sanity(s, policy),
         check_instruction_like_text(s),
     ]
+    simulated = check_simulated_asset(s)
+    if simulated is not None:  # only ever added for a simulated asset; real flows are unchanged
+        results.append(simulated)
+    return results
 
 
 def still_relevant(s: Snapshot, linked_keys: Sequence[str]) -> CheckResult:
@@ -310,6 +338,17 @@ _EVENT_COLS = (
     "event_key, event_id, line_id, machine_id, start_ts, duration_s, event_type, "
     "reason_code, alarm_code"
 )
+
+
+def event_relation(conn: psycopg.Connection) -> str:
+    """The relation evidence is read from: core.event_all (real events plus the simulated quality
+    events) once the vision schema has created it, else core.event. Fixed names, never input."""
+    (has,) = conn.execute("SELECT to_regclass('core.event_all') IS NOT NULL").fetchone()
+    return "core.event_all" if has else "core.event"
+
+
+def asset_labels(simulated: bool) -> list[str]:
+    return list(SIMULATED_LABELS) if simulated else []
 
 
 def _overlaps(a_start: datetime, a_end: datetime, b_start: datetime, b_end: datetime) -> bool:
@@ -441,20 +480,22 @@ def load_snapshot(
     with `evidence_keys` (approve-time re-check) it is resolved by event key instead.
     `exclude_proposal_id` leaves the proposal being re-checked out of the duplicates and `since`
     (the proposal's creation time) turns on the released-hold look."""
+    relation = event_relation(conn)
     if evidence_keys is not None:
         rows = conn.execute(
-            f"SELECT {_EVENT_COLS} FROM core.event WHERE event_key = ANY(%s) ORDER BY event_id",
+            f"SELECT {_EVENT_COLS} FROM {relation} WHERE event_key = ANY(%s) ORDER BY event_id",
             (list(evidence_keys),),
         ).fetchall()
     else:
         rows = conn.execute(
-            f"SELECT {_EVENT_COLS} FROM core.event WHERE event_id = ANY(%s) ORDER BY event_id",
+            f"SELECT {_EVENT_COLS} FROM {relation} WHERE event_id = ANY(%s) ORDER BY event_id",
             (list(canon.get("evidence_event_ids", [])),),
         ).fetchall()
     evidence = tuple(EvidenceRow(*r) for r in rows)
 
     asset = canon.get("asset_id")
     asset_exists = True
+    asset_simulated = False
     if asset is not None:
         asset_exists = (
             conn.execute(
@@ -464,6 +505,17 @@ def load_snapshot(
             ).fetchone()
             is not None
         )
+        if (
+            not asset_exists
+            and conn.execute("SELECT to_regclass('synthetic.sim_asset') IS NOT NULL").fetchone()[0]
+        ):
+            asset_simulated = (
+                conn.execute(
+                    "SELECT 1 FROM synthetic.sim_asset WHERE asset_id = %s", (asset,)
+                ).fetchone()
+                is not None
+            )
+            asset_exists = asset_simulated
 
     notes: list[NoteText] = []
     if evidence:
@@ -496,4 +548,5 @@ def load_snapshot(
         proposer_role=user.role if user else None,
         released_holds=tuple(_released_holds(conn, canon, since)),
         orders=orders,
+        asset_simulated=asset_simulated,
     )

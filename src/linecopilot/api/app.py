@@ -20,6 +20,7 @@ from linecopilot.actions.identity import AGENT, ActionContext
 from linecopilot.actions.policy import load_policy
 from linecopilot.actions.service import ActionService
 from linecopilot.api.actions_routes import make_router, session_user_id
+from linecopilot.api.vision_routes import make_router as make_vision_router
 from linecopilot.chat.loop import ChatResult, run_chat
 from linecopilot.chat.ollama import OllamaClient, OllamaError, OllamaUnreachable
 from linecopilot.config import get_settings
@@ -108,6 +109,8 @@ class ChatRequest(BaseModel):
 # Action routes keep FastAPI's normal 422 for malformed bodies; every other /api route answers
 # invalid arguments with the out_of_scope envelope.
 NORMAL_422_PREFIXES = ("/api/chat", "/api/session", "/api/actions", "/api/proposals", "/api/audit")
+# /api/inspections answers invalid query arguments with the envelope; its POST (the review) keeps
+# FastAPI's normal 422 for a malformed body, like the action routes.
 
 
 def create_app(
@@ -128,12 +131,17 @@ def create_app(
     agent_url = agent_db_url or settings.agent_database_url
     action_service = ActionService(load_policy(settings.policy_path))
     app.include_router(make_router(url, agent_url, action_service, origins))
+    app.include_router(make_vision_router(url, origins))
     chat_slots = threading.BoundedSemaphore(CHAT_MAX_CONCURRENT)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_args(request: Request, exc: RequestValidationError) -> JSONResponse:
         path = request.url.path
-        if not path.startswith("/api/") or path.startswith(NORMAL_422_PREFIXES):
+        if (
+            not path.startswith("/api/")
+            or path.startswith(NORMAL_422_PREFIXES)
+            or (request.method != "GET" and path.startswith("/api/inspections"))
+        ):
             return await request_validation_exception_handler(request, exc)
         res = Result(
             status="out_of_scope",

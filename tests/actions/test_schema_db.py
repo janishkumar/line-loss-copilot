@@ -11,7 +11,13 @@ from linecopilot.actions.identity import AGENT, get_user
 
 pytestmark = pytest.mark.db
 
-NAMES = ["demo_schema.sql", "actions_schema.sql", "synthetic_schema.sql", "plan_schema.sql"]
+NAMES = [
+    "demo_schema.sql",
+    "actions_schema.sql",
+    "synthetic_schema.sql",
+    "plan_schema.sql",
+    "vision_schema.sql",
+]
 
 
 def test_schemas_idempotent(built):
