@@ -10,7 +10,7 @@ afterEach(() => vi.unstubAllGlobals());
 const insp = (over: Record<string, unknown> = {}) => ({
   inspection_id: 5, subset: "fryum", image_id: "17", split: "test", score: 0.9, decision: "review",
   threshold: 0.915, review_lower: 0.88, created_at: "2026-11-09T10:00:00Z", source: "synthetic",
-  asset_id: "SIM-VIS-fryum", heatmap_url: "/api/inspections/5/heatmap", review: null, quality_event_id: null,
+  asset_id: "SIM-VIS-fryum", heatmap_url: "/api/inspections/5/heatmap", image_url: "/api/inspections/5/image", review: null, quality_event_id: null,
   is_synthetic: true, ...over,
 });
 const envelope = (data: unknown) => ({ ...env, status: "ok", data, assumptions: ["SIMULATED stream."] });
@@ -36,6 +36,7 @@ describe("InspectionDetail", () => {
     expect(screen.getByText(/0.900 against reject threshold 0.915/)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText(/Show heatmap overlay/));
     expect(screen.queryByAltText(/Defect heatmap/)).toBeNull();
+    expect(screen.getByAltText(/Product image fryum 17/)).toHaveAttribute("src", "/api/inspections/5/image");
   });
 
   it("lets a supervisor reject and shows the quality event, then reloads", async () => {
@@ -71,11 +72,47 @@ describe("InspectionDetail", () => {
   });
 
   it("shows no review controls once reviewed, and a missing heatmap note", async () => {
-    mockApi({ "GET /api/inspections/5": [200, envelope(insp({ heatmap_url: null, review: { decision: "accept", reviewer: "sup.b", score_at_review: 0.9, created_at: "x" } }))] });
+    mockApi({ "GET /api/inspections/5": [200, envelope(insp({ heatmap_url: null, image_url: null, review: { decision: "accept", reviewer: "sup.b", score_at_review: 0.9, created_at: "x" } }))] });
     wrap(demoUsers[0]);
     expect(await screen.findByText("accept by sup.b")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Reject/ })).toBeNull();
-    expect(screen.getByText(/No heatmap file/)).toBeInTheDocument();
+    expect(screen.getByText(/No image or heatmap file/)).toBeInTheDocument();
+  });
+});
+
+describe("class label", () => {
+  it("never renders the class folder or the full id", async () => {
+    mockApi({ "GET /api/inspections/5": [200, envelope(insp({ image_id: "cashew/Data/Images/Anomaly/000.JPG", subset: "cashew" }))] });
+    const { container } = wrap(demoUsers[0]);
+    await screen.findByAltText(/Defect heatmap for cashew 000.JPG/);
+    expect(container.textContent).not.toMatch(/Anomaly|Normal|Data\/Images/);
+    expect(container.innerHTML).not.toMatch(/Anomaly|Normal/);
+    expect(container.textContent).toContain("000.JPG");
+  });
+});
+
+describe("hold link by role", () => {
+  const withEvent = insp({ decision: "reject", quality_event_id: 9000000001 });
+  it("shows for a supervisor and not for a plant manager", async () => {
+    mockApi({ "GET /api/inspections/5": [200, envelope(withEvent)] });
+    const a = wrap(demoUsers[0]);
+    expect(await screen.findByRole("link", { name: "Draft quality hold" })).toBeInTheDocument();
+    a.unmount();
+    wrap(demoUsers[2]);
+    await screen.findByText(/9000000001 \(simulated\)/);
+    expect(screen.queryByRole("link", { name: "Draft quality hold" })).toBeNull();
+  });
+});
+
+describe("review errors", () => {
+  it("joins an array detail", async () => {
+    mockApi({
+      "GET /api/inspections/5": [200, envelope(insp())],
+      "POST /api/inspections/5/review": [422, { detail: [{ msg: "bad id" }, { msg: "worse" }] }],
+    });
+    wrap(demoUsers[0]);
+    fireEvent.click(await screen.findByRole("button", { name: /Accept/ }));
+    expect(await screen.findByText("bad id; worse")).toBeInTheDocument();
   });
 });
 

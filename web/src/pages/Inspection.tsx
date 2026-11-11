@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getInspections, type InspectionDecision } from "../api";
 import { Assumptions, Loading, Notice, SimulatedBadge } from "../components/Common";
-import { shortImage } from "../format";
+import { imageName } from "../format";
 import { useResult } from "../hooks";
 
 const FILTERS: { label: string; value: InspectionDecision | "all" | "unreviewed" }[] = [
@@ -32,7 +32,7 @@ export default function Inspection() {
       </p>
       <div role="group" aria-label="Filter by decision">
         {FILTERS.map((f) => (
-          <button key={f.value} type="button" aria-pressed={filter === f.value} disabled={filter === f.value}
+          <button key={f.value} type="button" aria-pressed={filter === f.value}
             onClick={() => setFilter(f.value)}>{f.label}</button>
         ))}
       </div>
@@ -55,7 +55,7 @@ export default function Inspection() {
                 <tbody>
                   {data.rows.map((r) => (
                     <tr key={r.inspection_id}>
-                      <td><Link to={`/inspection/${r.inspection_id}`}>{r.subset} {shortImage(r.image_id)}</Link></td>
+                      <td><Link to={`/inspection/${r.inspection_id}`}>#{r.inspection_id} {r.subset} {imageName(r.image_id)}</Link></td>
                       <td>{r.asset_id}</td>
                       <td>{r.score.toFixed(3)}</td>
                       <td>{r.threshold.toFixed(3)}</td>

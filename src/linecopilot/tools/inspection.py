@@ -54,6 +54,25 @@ def heatmap_file(path: str | None) -> Path | None:
     return target
 
 
+IMAGE_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+
+
+def visa_dir() -> Path:
+    return (get_settings().data_dir / "visa").resolve()
+
+
+def image_file(image_id: str | None) -> Path | None:
+    """The original VisA image as a file under data/visa/ with an image suffix, or None. The id
+    comes from the database row, never a client; anything outside the folder is refused."""
+    if not image_id:
+        return None
+    root = visa_dir()
+    target = (root / image_id).resolve()
+    if not target.is_relative_to(root) or target.suffix.lower() not in IMAGE_TYPES:
+        return None
+    return target if target.is_file() else None
+
+
 def _exists(conn: psycopg.Connection, name: str) -> bool:
     return bool(conn.execute("SELECT to_regclass(%s) IS NOT NULL", (name,)).fetchone()[0])
 
@@ -78,6 +97,7 @@ class InspectionOut(BaseModel):
     source: str
     asset_id: str
     heatmap_url: str | None = Field(description="null when no heatmap file is available")
+    image_url: str | None = Field(description="null when the original image file is missing")
     review: ReviewOut | None
     quality_event_id: int | None
     is_synthetic: bool = True
@@ -138,6 +158,11 @@ def _row_out(rec: dict[str, Any]) -> InspectionOut:
         source=rec["source"],
         asset_id=f"SIM-VIS-{rec['subset']}",
         heatmap_url=f"/api/inspections/{rec['inspection_id']}/heatmap" if has_map else None,
+        image_url=(
+            f"/api/inspections/{rec['inspection_id']}/image"
+            if image_file(rec["image_id"]) is not None
+            else None
+        ),
         review=review,
         quality_event_id=rec["quality_event_id"],
     )

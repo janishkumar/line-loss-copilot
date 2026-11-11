@@ -24,11 +24,13 @@ from linecopilot.db import connect_read_only
 from linecopilot.tools.envelope import Result
 from linecopilot.tools.inspection import (
     ASSUMPTIONS,
+    IMAGE_TYPES,
     InspectionOut,
     InspectionsData,
     ListInspectionsArgs,
     get_inspection,
     heatmap_file,
+    image_file,
     list_inspections,
 )
 from linecopilot.vision import store
@@ -100,6 +102,27 @@ def make_router(db_url: str, allowed_origins: set[str], policy: Policy) -> APIRo
             )
             return _envelope(res, 404)
         return FileResponse(path, media_type="image/png")
+
+    @router.get("/api/inspections/{inspection_id}/image", response_model=None)
+    def image(inspection_id: int, conn: Read) -> FileResponse | JSONResponse:
+        row = (
+            conn.execute(
+                "SELECT image_id FROM vision.inspection WHERE inspection_id = %s",
+                (inspection_id,),
+            ).fetchone()
+            if _has_table(conn)
+            else None
+        )
+        path = image_file(row[0]) if row else None
+        if path is None:
+            res = Result(
+                status="insufficient_evidence",
+                assumptions=ASSUMPTIONS,
+                missing=f"no image file for inspection {inspection_id}"
+                + ("" if row else " (no such inspection)"),
+            )
+            return _envelope(res, 404)
+        return FileResponse(path, media_type=IMAGE_TYPES[path.suffix.lower()])
 
     @router.post(
         "/api/inspections/{inspection_id}/review",

@@ -214,3 +214,30 @@ def test_agent_cannot_hold_a_session_to_review(client, make_inspection):
     assert (
         client.post(f"/api/inspections/{q}/review", json={"decision": "accept"}).status_code == 401
     )
+
+
+def test_image_route_serves_only_files_under_the_visa_folder(client, make_inspection, heat):
+    visa = heat.parent.parent / "visa"
+    (visa / "cashew" / "Data" / "Images" / "Normal").mkdir(parents=True)
+    (visa / "cashew" / "Data" / "Images" / "Normal" / "001.JPG").write_bytes(b"\xff\xd8\xffjpeg")
+    ok = make_inspection(image="cashew/Data/Images/Normal/001.JPG")
+    r = client.get(f"/api/inspections/{ok}/image")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
+    assert r.content.startswith(b"\xff\xd8")
+    assert (
+        client.get(f"/api/inspections/{ok}").json()["data"]["image_url"]
+        == f"/api/inspections/{ok}/image"
+    )
+    # missing file: envelope, no image_url advertised
+    gone = make_inspection(image="cashew/Data/Images/Normal/nope.JPG")
+    r = client.get(f"/api/inspections/{gone}/image")
+    assert r.status_code == 404 and r.json()["status"] == "insufficient_evidence"
+    assert client.get(f"/api/inspections/{gone}").json()["data"]["image_url"] is None
+    # a traversal-shaped stored id, and a file with a non-image suffix, are never served
+    (heat.parent.parent / "secret.jpg").write_bytes(b"secret")
+    (visa / "notes.txt").write_text("secret")
+    for bad in ("../secret.jpg", "cashew/../../secret.jpg", "notes.txt", str(visa / "notes.txt")):
+        r = client.get(f"/api/inspections/{make_inspection(image=bad)}/image")
+        assert r.status_code == 404 and r.json()["status"] == "insufficient_evidence"
+        assert "secret" not in r.text
+    assert client.get("/api/inspections/999999999/image").status_code == 404

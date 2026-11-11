@@ -141,8 +141,10 @@ def make_inspection(vision_clean):
 
     from linecopilot.vision import store
 
-    def make(subset="cashew", decision="review", score=0.9, reject_event=True, heatmap=None):
-        image = f"{subset}/Data/Images/Anomaly/{uuid.uuid4().hex[:8]}.JPG"
+    def make(
+        subset="cashew", decision="review", score=0.9, reject_event=True, heatmap=None, image=None
+    ):
+        image = image or f"{subset}/Data/Images/Anomaly/{uuid.uuid4().hex[:8]}.JPG"
         iid = store.insert_inspection(
             vision_clean,
             subset=subset,

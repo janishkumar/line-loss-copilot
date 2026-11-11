@@ -606,6 +606,7 @@ export interface Inspection {
   source: string;
   asset_id: string;
   heatmap_url: string | null;
+  image_url: string | null;
   review: InspectionReview | null;
   quality_event_id: number | null;
   is_synthetic: boolean;
@@ -627,6 +628,8 @@ export const getInspection = (id: number | string) => get<Inspection>(`/inspecti
 
 /** Roles that may accept or reject a queued image (config/policy.toml [review] vision). */
 export const REVIEW_ROLES = ["quality_lead", "shift_supervisor", "plant_manager"];
+/** Roles that may propose a quality hold (config/policy.toml [propose]). */
+export const HOLD_ROLES = ["shift_supervisor", "quality_lead"];
 
 export interface ReviewReply {
   ok: boolean;
@@ -641,6 +644,11 @@ export async function reviewInspection(id: number, decision: "accept" | "reject"
   );
   if (r.ok && r.data?.data)
     return { ok: true, message: null, inspection: r.data.data.inspection, quality_event_id: r.data.data.quality_event_id };
-  const detail = typeof r.data?.detail === "string" ? r.data.detail : null;
+  const d = r.data?.detail;
+  const detail = Array.isArray(d)
+    ? d.map((x: { msg?: string }) => x.msg).join("; ")
+    : typeof d === "string"
+      ? d
+      : null;
   return { ok: false, message: r.data?.missing ?? detail ?? `HTTP ${r.status}`, inspection: null, quality_event_id: null };
 }

@@ -20,5 +20,6 @@ export const num = (v: number | null | undefined, digits = 3): string =>
 export const duration = (s: number | null | undefined): string =>
   s === null || s === undefined ? "n/a" : s < 3600 ? minutes(s) : hours(s);
 
-/** VisA image ids are long paths; show the last two parts (for example Normal/244.JPG). */
-export const shortImage = (id: string) => id.split("/").slice(-2).join("/");
+/** The bare file name of a VisA image id. The folder holds the class (Anomaly or Normal), so it is
+ * never shown: a reviewer must not see the answer before judging. */
+export const imageName = (id: string) => id.split("/").pop() ?? id;
