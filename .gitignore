@@ -12,3 +12,31 @@ dbt/.user.yml
 web/dist/
 requirements-audit.txt
 evals/results/partial/
+
+# secrets and local config (keep .env.example)
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# model artifacts, datasets and archives (live under data/, never in git)
+*.onnx
+*.pt
+*.pth
+*.tar
+*.tar.gz
+*.zip
+*.parquet
+
+# test and build output
+coverage/
+web/coverage/
+htmlcov/
+*.log
+
+# editor and OS files
+.DS_Store
+.idea/
+.vscode/
