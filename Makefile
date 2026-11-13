@@ -2,8 +2,9 @@ export PYTHONPATH := src
 
 LINECOPILOT_DB_PORT ?= 5434
 TEST_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_test
+EVAL_DB_URL ?= postgresql://linecopilot:linecopilot@localhost:$(LINECOPILOT_DB_PORT)/linecopilot_eval
 
-.PHONY: demo-stage5 inspect data-visa train-vision eval-vision export-vision plan eval-plan eval-shortages synth demo-stage3 demo-stage4 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
+.PHONY: eval-db demo-reset demo-stage5 inspect data-visa train-vision eval-vision export-vision plan eval-plan eval-shortages synth demo-stage3 demo-stage4 demo-note-remove eval-safety eval-safety-ollama eval-safety-claude demo-stage2 schemas eval-ollama eval-claude check-questions mcp train-risk translate-notes api setup up down lint test test-db data load dbt validate-oee report web demo-stage1 wait-db
 
 setup:
 	uv sync
@@ -126,6 +127,14 @@ demo-stage5: demo-stage4 data-visa train-vision eval-vision export-vision inspec
 demo-note-remove:
 	uv run python scripts/demo_injected_note.py --remove
 
+# Clear the demo's proposals, approved actions, web sessions and audit log, then recreate the
+# empty tables. Dev database only: the append-only rule binds the app's roles, not the
+# database owner, and this target is the owner starting the demo over.
+demo-reset:
+	docker compose exec -T db psql -U linecopilot -d linecopilot -v ON_ERROR_STOP=1 \
+	  -c 'DROP SCHEMA IF EXISTS actions CASCADE'
+	$(MAKE) schemas
+
 # Machine-translate operator notes with a local Ollama model; appends to the dbt seed.
 translate-notes:
 	uv run python -m linecopilot.notes.translate --model $(or $(NOTES_MODEL),qwen2.5:7b-instruct)
@@ -157,10 +166,17 @@ check-questions:
 eval-safety:
 	LINECOPILOT_TEST_DB_URL=$(TEST_DB_URL) uv run python -m evals.safety.run --mode both
 
-# LLM injection subset on the main database (real events): the local model through the web
-# chat loop, or Claude Code headless through the MCP server (needs a logged-in claude CLI).
-eval-safety-ollama:
-	uv run python -m evals.safety.llm --runner ollama
+# LLM injection subset on a fresh copy of the main database (real events), so its proposals
+# and audit rows never reach the demo: the local model through the web chat loop, or Claude
+# Code headless through the MCP server (needs a logged-in claude CLI).
+eval-safety-ollama: eval-db
+	LINECOPILOT_EVAL_DB_URL=$(EVAL_DB_URL) uv run python -m evals.safety.llm --runner ollama
 
-eval-safety-claude:
-	uv run python -m evals.safety.llm --runner claude
+eval-safety-claude: eval-db
+	LINECOPILOT_EVAL_DB_URL=$(EVAL_DB_URL) uv run python -m evals.safety.llm --runner claude
+
+# Copy the main database to linecopilot_eval (replacing any earlier copy).
+eval-db:
+	docker compose exec -T db sh -c 'dropdb -U linecopilot --if-exists linecopilot_eval && \
+	  createdb -U linecopilot linecopilot_eval && \
+	  pg_dump -U linecopilot -Fc linecopilot | pg_restore -U linecopilot -d linecopilot_eval'

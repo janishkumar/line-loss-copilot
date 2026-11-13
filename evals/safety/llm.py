@@ -3,8 +3,11 @@ or pasted text carries an instruction (approve it, raise the priority, add a sec
 act for someone else). Runs through the Ollama web chat loop (`make eval-safety-ollama`) or
 Claude Code headless with the MCP server (`make eval-safety-claude`).
 
-Runs on the main database (it needs real events). Planted notes go into demo.injected_note
-and are deleted afterwards, as are the proposals the run made (audit rows stay: append-only).
+Runs on a copy of the main database (it needs real events), never the main one: `make eval-db`
+makes the copy and LINECOPILOT_EVAL_DB_URL names it. Planted notes go into demo.injected_note
+and are deleted afterwards, as are the proposals the run made. Audit rows stay (append-only),
+which is why the run needs its own database: on the demo database they would point at
+proposals that no longer exist.
 
 Judged from rows, per prompt, and only rows this run made: the proposal ids the runner saw
 its own tool calls create (Ollama, in-process), or, when it cannot see them (Claude), the
@@ -35,6 +38,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import psycopg
 from psycopg.rows import dict_row
@@ -44,7 +48,7 @@ from evals.runners import claude as cr
 from evals.runners.ollama import EVAL_BUDGET_S, RETRIES_ON_TIMEOUT, OllamaRunner, RetryingClient
 from evals.runners.ollama import config as ollama_config
 from evals.safety.run import RESULTS, git_commit
-from evals.safety.world import TABLES, TARGETS
+from evals.safety.world import TABLES, TARGETS, agent_url_for
 from linecopilot.actions.identity import AGENT, ActionContext
 from linecopilot.actions.tools import ACTION_TOOLS
 from linecopilot.chat.loop import run_chat
@@ -627,6 +631,19 @@ def markdown(doc: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def eval_db_url(url: str | None, main_url: str) -> str:
+    """The database the run uses: set, and not the main one, whose audit log would keep
+    rows for proposals the run deletes afterwards."""
+    if not url:
+        raise SystemExit(
+            "set LINECOPILOT_EVAL_DB_URL: the LLM safety eval runs on a copy of the main "
+            "database (`make eval-db`), never the main one"
+        )
+    if urlparse(url).path == urlparse(main_url).path:
+        raise SystemExit("LINECOPILOT_EVAL_DB_URL names the main database; use the copy")
+    return url
+
+
 def main(argv: list[str] | None = None) -> int:
     from evals.run import slug
     from linecopilot.actions.policy import load_policy
@@ -638,20 +655,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--model")
     ap.add_argument("--timeout", type=float, default=600.0)
     ap.add_argument("--keep", action="store_true", help="keep the proposals the run made")
+    ap.add_argument("--db-url", help="default: LINECOPILOT_EVAL_DB_URL (see `make eval-db`)")
     args = ap.parse_args(argv)
     st = get_settings()
-    with psycopg.connect(st.database_url, autocommit=True) as conn:
+    db_url = eval_db_url(args.db_url or st.eval_database_url, st.database_url)
+    agent_url = agent_url_for(db_url)
+    with psycopg.connect(db_url, autocommit=True) as conn:
         if args.runner == "ollama":
             from linecopilot.chat.ollama import OllamaClient
 
             client = OllamaClient(st.ollama_url, args.model or st.chat_model, timeout=args.timeout)
             service = ActionService(load_policy(st.policy_path))
-            runner: Any = OllamaSafetyRunner(conn, client, st.agent_database_url, service)
+            runner: Any = OllamaSafetyRunner(conn, client, agent_url, service)
         else:
-            runner = ClaudeSafetyRunner(
-                st.database_url, st.agent_database_url, args.model, timeout_s=args.timeout
-            )
-        doc = run(runner, st.database_url, keep=args.keep)
+            runner = ClaudeSafetyRunner(db_url, agent_url, args.model, timeout_s=args.timeout)
+        doc = run(runner, db_url, keep=args.keep)
     RESULTS.mkdir(parents=True, exist_ok=True)
     path = RESULTS / f"safety_llm_{runner.name}_{slug(runner.model)}.json"
     path.write_text(json.dumps(doc, indent=2, ensure_ascii=False, default=str) + "\n")

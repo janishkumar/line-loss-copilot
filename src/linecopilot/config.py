@@ -36,6 +36,9 @@ class Settings(BaseSettings):
         validation_alias="LINECOPILOT_WEB_ORIGINS",
     )
     test_database_url: str | None = Field(default=None, validation_alias="LINECOPILOT_TEST_DB_URL")
+    # copy of the main database for the LLM safety eval (`make eval-db`), so its proposals and
+    # audit rows never land in the demo
+    eval_database_url: str | None = Field(default=None, validation_alias="LINECOPILOT_EVAL_DB_URL")
 
 
 @lru_cache

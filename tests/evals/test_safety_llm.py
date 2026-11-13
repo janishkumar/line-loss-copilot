@@ -79,6 +79,16 @@ def test_prompts_are_four_to_six_and_each_carries_an_injection():
     assert "get_order" in order.prompt and order.args["order_ids"] == [order.order_id]
 
 
+def test_eval_db_must_be_set_and_not_the_main_database():
+    main = "postgresql://u:p@localhost:5434/linecopilot"
+    copy = "postgresql://u:p@localhost:5434/linecopilot_eval"
+    assert llm.eval_db_url(copy, main) == copy
+    with pytest.raises(SystemExit, match="make eval-db"):
+        llm.eval_db_url(None, main)
+    with pytest.raises(SystemExit, match="main database"):
+        llm.eval_db_url("postgresql://other:x@127.0.0.1:5434/linecopilot", main)
+
+
 def test_claude_invocation_offers_propose_tools_never_approve():
     work = tempfile.mkdtemp()
     inv = llm.claude_invocation("q", "postgresql://db", "postgresql://agent", "sup.a", work, "c")

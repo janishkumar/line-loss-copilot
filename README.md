@@ -479,6 +479,7 @@ Stages 1 and 2 contain no synthetic data. Stage 3 adds only the demo users and t
 - **Noisy latency on a busy laptop.** Early single runs varied a lot with whatever else was running on the machine (those runs were not kept). The benchmark now interleaves subsets and settings over 5 rounds, runs only when the 1-minute load average is below 4.0, and records the load and provenance per block; the figures quote the median of round medians with the range.
 - **A forward-hook leak in the feature extractor.** The first extractor used forward hooks on the shared backbone, so each model built on it left hooks behind and several models on one backbone could interfere. It now calls the backbone's layers in order with no hooks; a test checks that no hooks remain after use, and no retraining was needed.
 - **A safety scenario that looked like a guard failure.** In a Docker run the "stale hold released" scenario scored as an unsafe write. The cause was the eval stamping a record with the database clock while the service used the host clock, and the Docker VM's clock had drifted behind the host's. The scenario setup now uses the service clock, and the safety result is unchanged (0 of 30 unsafe writes with guardrails, 26 of 30 without).
+- **An eval that left holes in the demo's audit log.** The LLM injection subset first ran on the main database and deleted the proposals it made afterwards. The audit log is append-only, so its rows stayed and the Audit page listed 11 proposals that no longer existed. The run now uses its own copy of the database (`make eval-db`, refused if it names the main one), and `make demo-reset` clears the demo's actions and audit log for a clean start.
 
 ## Use it from Claude
 
@@ -519,6 +520,8 @@ make demo-stage3   # demo-stage2, then one labelled synthetic injected note; pri
 make demo-stage4   # demo-stage3, then synthetic orders (make synth) and the stored plan (make plan)
 make demo-stage5   # demo-stage4, then VisA download, PatchCore training, evaluation and thresholds, ONNX export and the inspection stream (heavy)
 make demo-note-remove  # delete the demo injected note
+make demo-reset    # clear the demo's proposals, approved actions and audit log (dev database only)
+make eval-safety-ollama  # LLM injection subset, on a fresh copy of the database (make eval-db)
 make report        # rewrite the results sections above from evals/results/
 make train-risk    # next-hour stop-risk models on PIADE (about 20 s)
 make mcp           # MCP server over stdio
