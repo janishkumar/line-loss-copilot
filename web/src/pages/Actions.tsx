@@ -6,7 +6,13 @@ import { Loading } from "../components/Common";
 import { useResultPlain } from "../hooks";
 
 type Row = Record<string, unknown>;
-const text = (v: unknown) => (v === null || v === undefined ? "" : String(v).replace("T", " ").slice(0, 16));
+// Timestamps (ISO strings) are shown to the minute; every other value in full.
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+const text = (v: unknown) => {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  return ISO.test(s) ? s.replace("T", " ").slice(0, 16) : s;
+};
 
 const KINDS: { kind: ActionKind; title: string; idKey: string; verb: "close" | "release" | "complete";
   label: string; openStatus: string; cols: [string, string][] }[] = [
